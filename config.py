@@ -11,15 +11,27 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
+INSTANCE_DIR = BASE_DIR / "instance"
+INSTANCE_DIR.mkdir(exist_ok=True)
+
 DEFAULT_DEV_SECRET = "dev-secret-key-change-in-production-12345"
+
+# Resolve database URI to absolute path on Windows if default relative path is specified
+_raw_db_url = os.getenv("DATABASE_URL", "sqlite:///instance/apaar_nexus.db")
+if _raw_db_url in ("sqlite:///instance/apaar_nexus.db", "sqlite:///./instance/apaar_nexus.db"):
+    _default_db_file = (INSTANCE_DIR / "apaar_nexus.db").as_posix()
+    RESOLVED_DATABASE_URI = f"sqlite:///{_default_db_file}"
+else:
+    RESOLVED_DATABASE_URI = _raw_db_url
 
 
 class Config:
     """Base configuration shared across environments."""
 
     SECRET_KEY = os.getenv("SECRET_KEY", DEFAULT_DEV_SECRET)
-    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite:///instance/apaar_nexus.db")
+    SQLALCHEMY_DATABASE_URI = RESOLVED_DATABASE_URI
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
 
     # Demo accounts and auth
     DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "Demo@12345")
