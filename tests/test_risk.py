@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 from flask_login import login_user
+from flask import g
 import pytest
 
 from extensions import db
@@ -241,3 +242,258 @@ def test_five_synthetic_engine_cases_cover_all_bands(data):
     risk.record_excess_intake_event(admission(data))  # MEDIUM: 30
     assert RiskCase.query.count() == 5
     assert {case.severity for case in RiskCase.query.all()} == {"LOW", "MEDIUM", "HIGH", "CRITICAL"}
+
+
+def api_login(client, user):
+    """Use the existing four fixtures; changing a test role creates no demo account."""
+    from flask_login.utils import _create_identifier
+    environment = client.get("/api/health").request.environ
+    with client.application.request_context(environment):
+        identifier = _create_identifier()
+    with client.session_transaction() as session:
+        session["_user_id"] = user.id
+        session["_fresh"] = True
+        session["_id"] = identifier
+    g.pop("_login_user", None)
+
+
+def local_case(data):
+    """Create one institution-local case with a student/credential to protect."""
+    row = data[2](apaar="bad")
+    db.session.flush()
+    db.session.add(Credential(reference="CRED-API001", student_id=row.id, institution_id=row.institution_id,
+        programme_name="Synthetic", award_year="2026", payload_json="{}", signature="test-only", key_id="synthetic"))
+    db.session.commit()
+    return row, risk.evaluate_all(identity_resolution.scan(institution_id=row.institution_id))[0]
+
+
+def test_api_full_workflow_assignment_history_and_no_student_side_effects(client, data, accounts):
+    student, case = local_case(data)
+    before = (student.to_dict(), Credential.query.one().to_dict())
+    api_login(client, accounts[0])
+    base = f"/api/risk/cases/{case.id}"
+    assigned = client.patch(base, json={"assigned_to": "AICTE_Admin"})
+    assert assigned.status_code == 200 and assigned.json["data"]["assigned_to"] == "AICTE_Admin"
+    actions = [("UNDER_REVIEW", "UNDER_REVIEW"), ("REQUEST_CLARIFICATION", "CLARIFICATION_REQUESTED"),
+        ("CONFIRM_DATA_ERROR", "DATA_ERROR_CONFIRMED"), ("RESOLVE", "RESOLVED"),
+        ("UNDER_REVIEW", "UNDER_REVIEW"), ("DISMISS_FALSE_POSITIVE", "FALSE_POSITIVE"), ("RESOLVE", "RESOLVED")]
+    initial_actions = case.actions.count()
+    initial_audits = AuditLog.query.filter_by(action="RISK_CASE_ACTION").count()
+    for action, target in actions:
+        response = client.post(base + "/actions", json={"action": action, "note": "Synthetic review note"})
+        assert response.status_code == 200, response.json
+        assert response.json["data"]["status"] == target
+    assert case.actions.count() == initial_actions + len(actions)
+    assert AuditLog.query.filter_by(action="RISK_CASE_ACTION").count() == initial_audits + len(actions)
+    assert AuditLog.query.filter_by(action="RISK_CASE_ASSIGNED").count() == 1
+    assert before == (student.to_dict(), Credential.query.one().to_dict())
+    detail = client.get(base).json["data"]
+    assert detail["affected_records"][0]["apaar_masked"] == "XXXXXXXX"
+    assert detail["affected_institutions"][0]["id"] == student.institution_id
+    assert len(detail["history"]) == 8 and detail["breakdown"][0]["points"] == 20
+
+
+def test_api_transition_conflict_notes_and_invalid_reviewer(client, data, accounts):
+    _, case = local_case(data)
+    api_login(client, accounts[0])
+    base = f"/api/risk/cases/{case.id}"
+    invalid = client.post(base + "/actions", json={"action": "RESOLVE", "note": "Reason"})
+    assert invalid.status_code == 409 and invalid.json["error"]["code"] == "CONFLICT"
+    assert invalid.json["error"]["details"]["allowed_next_actions"] == ["DISMISS_FALSE_POSITIVE", "REQUEST_CLARIFICATION", "UNDER_REVIEW"]
+    assert client.post(base + "/actions", json={"action": "DISMISS_FALSE_POSITIVE", "note": " "}).status_code == 422
+    assert client.post(base + "/actions", json={"action": "UNDER_REVIEW"}).status_code == 200
+    for action in ("CONFIRM_DATA_ERROR", "RESOLVE", "DISMISS_FALSE_POSITIVE"):
+        assert client.post(base + "/actions", json={"action": action}).status_code == 422
+    for reviewer in ("VESIT", "unknown", 123):
+        assert client.patch(base, json={"assigned_to": reviewer}).status_code == 422
+    assert client.patch(base, json={"assigned_to": None}).status_code == 200
+    assert client.patch(base, json={}).status_code == 422
+    assert client.post(base + "/actions", json={"action": "INVALID"}).status_code == 422
+    assert case.actions.count() == 2
+
+
+def test_api_institution_response_is_note_only_and_isolated(client, data, accounts):
+    _, case = local_case(data)
+    api_login(client, accounts[0])
+    base = f"/api/risk/cases/{case.id}"
+    assert client.post(base + "/actions", json={"action": "REQUEST_CLARIFICATION"}).status_code == 200
+    api_login(client, accounts[1])
+    assert client.get(base).status_code == 200
+    assert client.post(base + "/actions", json={"action": "REQUEST_CLARIFICATION"}).status_code == 422
+    response = client.post(base + "/actions", json={"action": "REQUEST_CLARIFICATION", "note": "Institution response: corrected data supplied"})
+    assert response.status_code == 200 and response.json["data"]["status"] == "CLARIFICATION_REQUESTED"
+    assert response.json["data"]["history"][0]["from_status"] == "CLARIFICATION_REQUESTED"
+    assert response.json["data"]["history"][0]["to_status"] == "CLARIFICATION_REQUESTED"
+    assert AuditLog.query.filter_by(action="RISK_CASE_RESPONSE").count() == 1
+    for action in ("UNDER_REVIEW", "RESOLVE"):
+        assert client.post(base + "/actions", json={"action": action, "note": "response"}).status_code == 403
+    assert client.patch(base, json={"assigned_to": "AICTE_Admin"}).status_code == 403
+    assert client.post(base + "/actions", json={"action": "REQUEST_CLARIFICATION", "note": "response", "assigned_to": None}).status_code == 403
+    api_login(client, accounts[2])
+    assert client.get(base).status_code == 404
+    assert client.post(base + "/actions", json={"action": "REQUEST_CLARIFICATION", "note": "response"}).status_code == 404
+    assert client.get("/api/risk/cases").json["data"] == []
+
+
+def test_api_auditor_is_read_only_and_anonymous_denied(client, data, accounts):
+    _, case = local_case(data)
+    assert client.get("/api/risk/cases").status_code == 401
+    assert client.post("/api/identity/scan", json={}).status_code == 401
+    accounts[0].role = "AUDITOR"
+    db.session.commit()
+    api_login(client, accounts[0])
+    base = f"/api/risk/cases/{case.id}"
+    assert client.get(base).status_code == client.get("/api/risk/cases").status_code == 200
+    assert client.get("/api/identity/graph").status_code == 200
+    assert client.post(base + "/actions", json={"action": "UNDER_REVIEW"}).status_code == 403
+    assert client.patch(base, json={"assigned_to": None}).status_code == 403
+    assert client.post("/api/identity/scan", json={}).status_code == 403
+
+
+def test_api_scan_idempotent_scoping_and_graph_privacy(client, data, accounts):
+    own = data[2]()
+    foreign = data[2]("Tanvi Patil", institution=1)
+    db.session.commit()
+    api_login(client, accounts[0])
+    first = client.post("/api/identity/scan", json={"academic_year": "2026-27"})
+    assert first.status_code == 200 and first.json["data"]["cases_created"] == 1
+    again = client.post("/api/identity/scan", json={})
+    assert again.status_code == 200 and again.json["data"]["cases_updated"] == 1
+    assert again.json["data"]["cases_created"] == 0 and RiskCase.query.count() == 1
+    graph = client.get("/api/identity/graph").json["data"]
+    assert {node["type"] for node in graph["nodes"]} == {"STUDENT", "APAAR", "INSTITUTION"}
+    assert own.apaar_ref not in str(graph)
+    assert next(node for node in graph["nodes"] if node["type"] == "APAAR")["label"] == "XXXXXXXX0001"
+    assert all(edge["explanation"] for edge in graph["edges"])
+    assert len({edge["id"] for edge in graph["edges"]}) == len(graph["edges"])
+    for node in graph["nodes"]:
+        panel = client.get("/api/identity/node/" + node["id"])
+        assert panel.status_code == 200, panel.json
+        assert own.apaar_ref not in str(panel.json)
+    limited = client.get("/api/identity/graph?limit=2").json["data"]
+    assert len(limited["nodes"]) == 2 and limited["truncated"]
+    api_login(client, accounts[1])
+    local = client.get("/api/identity/graph").json["data"]
+    assert foreign.id not in str(local)
+    assert [node["id"] for node in local["nodes"] if node["type"] == "STUDENT"] == ["student:" + own.id]
+    assert client.get("/api/identity/node/student:" + foreign.id).status_code == 404
+    assert client.get("/api/risk/cases").json["data"] == []  # National conflict stays national.
+    assert client.post("/api/identity/scan", json={"institution_id": foreign.institution_id}).status_code == 403
+    assert client.get("/api/identity/graph?institution_id=" + foreign.institution_id).status_code == 403
+    assert client.post("/api/identity/scan", json={}).json["data"]["stats"]["records_read"] == 1
+
+
+def test_api_graph_filters_and_signals(client, data, accounts):
+    a = data[2]("Anika Rao", contact_ref="synthetic-contact", fee_payer_ref="synthetic-payer")
+    b = data[2]("Zubin Singh", "100000000002", contact_ref="synthetic-contact", fee_payer_ref="synthetic-payer", admission_date=date(2026, 7, 1))
+    db.session.commit()
+    api_login(client, accounts[0])
+    assert client.post("/api/identity/scan", json={}).status_code == 200
+    view = client.get("/api/identity/graph").json["data"]
+    assert {node["type"] for node in view["nodes"]} >= {"CONTACT", "FEE_PAYER"}
+    assert "synthetic-contact" not in str(view) and "synthetic-payer" not in str(view)
+    hidden = client.get("/api/identity/graph?include_signals=false").json["data"]
+    assert not {node["type"] for node in hidden["nodes"]}.intersection({"CONTACT", "FEE_PAYER"})
+    assert client.get("/api/identity/graph?min_severity=HIGH").json["data"]["nodes"] == []
+    assert client.get("/api/identity/graph?academic_year=2025-26").json["data"]["nodes"] == []
+    masked = client.get("/api/identity/graph?apaar_masked=XXXXXXXX0002").json["data"]
+    assert [node["id"] for node in masked["nodes"] if node["type"] == "STUDENT"] == ["student:" + b.id]
+    case = RiskCase.query.one()
+    assert len(client.get("/api/identity/graph?case_id=" + case.id).json["data"]["nodes"]) == len(view["nodes"])
+
+
+def test_api_case_list_filters_pagination_and_validation(client, data, accounts):
+    a, case = local_case(data)
+    api_login(client, accounts[0])
+    url = "/api/risk/cases"
+    response = client.get(url + "?severity=LOW&status=OPEN&per_page=1&institution_id=" + a.institution_id)
+    assert response.status_code == 200 and response.json["meta"] == {"page": 1, "per_page": 1, "total": 1, "pages": 1}
+    assert client.get(url + "?q=" + case.reference).json["data"][0]["id"] == case.id
+    assert client.get(url + "?q=%25").json["data"] == []
+    assert client.get(url + "?assigned_to=AICTE_Admin").json["data"] == []
+    assert len(client.get(url + "?assigned_to=").json["data"]) == 1
+    for query in ("page=0", "per_page=101", "status=BAD", "severity=BAD", "page=x"):
+        assert client.get(url + "?" + query).status_code == 422
+    for query in ("include_signals=maybe", "limit=0", "limit=1001", "min_severity=BAD", "apaar_masked=123456789012"):
+        assert client.get("/api/identity/graph?" + query).status_code == 422
+    for body in ([], {"unknown": 1}, {"academic_year": ""}, {"institution_id": []}):
+        assert client.post("/api/identity/scan", json=body).status_code == 422
+
+
+def test_api_workflow_audit_failure_rolls_back_everything(client, data, accounts, monkeypatch):
+    _, case = local_case(data)
+    api_login(client, accounts[0])
+    count = case.actions.count()
+    monkeypatch.setattr(risk.audit_service, "log", lambda *args, **kwargs: {"id": None})
+    response = client.post(f"/api/risk/cases/{case.id}/actions", json={"action": "UNDER_REVIEW"})
+    assert response.status_code == 500 and response.json["error"]["code"] == "SERVER_ERROR"
+    assert db.session.get(RiskCase, case.id).status == "OPEN" and case.actions.count() == count
+
+
+def test_api_mutations_enforce_csrf(app, client, data, accounts):
+    _, case = local_case(data)
+    api_login(client, accounts[0])
+    app.config["WTF_CSRF_ENABLED"] = True
+    for method, path, body in [("post", "/api/identity/scan", {}),
+        ("post", f"/api/risk/cases/{case.id}/actions", {"action": "UNDER_REVIEW"}),
+        ("patch", f"/api/risk/cases/{case.id}", {"assigned_to": None})]:
+        response = getattr(client, method)(path, json=body)
+        assert response.status_code == 400 and response.json["error"]["code"] == "CSRF_ERROR"
+
+
+@pytest.mark.parametrize("state,action,target", [
+    ("OPEN", "UNDER_REVIEW", "UNDER_REVIEW"), ("OPEN", "REQUEST_CLARIFICATION", "CLARIFICATION_REQUESTED"),
+    ("OPEN", "DISMISS_FALSE_POSITIVE", "FALSE_POSITIVE"),
+    ("UNDER_REVIEW", "REQUEST_CLARIFICATION", "CLARIFICATION_REQUESTED"),
+    ("UNDER_REVIEW", "CONFIRM_DATA_ERROR", "DATA_ERROR_CONFIRMED"),
+    ("UNDER_REVIEW", "DISMISS_FALSE_POSITIVE", "FALSE_POSITIVE"), ("UNDER_REVIEW", "RESOLVE", "RESOLVED"),
+    ("CLARIFICATION_REQUESTED", "UNDER_REVIEW", "UNDER_REVIEW"),
+    ("CLARIFICATION_REQUESTED", "CONFIRM_DATA_ERROR", "DATA_ERROR_CONFIRMED"),
+    ("CLARIFICATION_REQUESTED", "DISMISS_FALSE_POSITIVE", "FALSE_POSITIVE"),
+    ("CLARIFICATION_REQUESTED", "RESOLVE", "RESOLVED"),
+    ("DATA_ERROR_CONFIRMED", "RESOLVE", "RESOLVED"), ("FALSE_POSITIVE", "UNDER_REVIEW", "UNDER_REVIEW"),
+    ("FALSE_POSITIVE", "RESOLVE", "RESOLVED"), ("RESOLVED", "UNDER_REVIEW", "UNDER_REVIEW"),
+    ("OPEN", "CONFIRM_DATA_ERROR", None), ("UNDER_REVIEW", "UNDER_REVIEW", None),
+    ("DATA_ERROR_CONFIRMED", "UNDER_REVIEW", None), ("RESOLVED", "RESOLVE", None),
+])
+def test_api_transition_matrix(client, data, accounts, state, action, target):
+    _, case = local_case(data)
+    case.status = state
+    db.session.commit()
+    api_login(client, accounts[0])
+    before = case.actions.count()
+    response = client.post(f"/api/risk/cases/{case.id}/actions", json={"action": action, "note": "Human decision"})
+    assert response.status_code == (200 if target else 409)
+    assert db.session.get(RiskCase, case.id).status == (target or state)
+    assert case.actions.count() == before + bool(target)
+
+
+def test_api_action_assignment_is_validated_atomically(client, data, accounts):
+    _, case = local_case(data)
+    api_login(client, accounts[0])
+    url = f"/api/risk/cases/{case.id}/actions"
+    rejected = client.post(url, json={"action": "UNDER_REVIEW", "assigned_to": "VESIT"})
+    assert rejected.status_code == 422 and case.status == "OPEN" and case.actions.count() == 1
+    accepted = client.post(url, json={"action": "UNDER_REVIEW", "assigned_to": "AICTE_Admin"})
+    assert accepted.status_code == 200 and accepted.json["data"]["assigned_to"] == "AICTE_Admin"
+
+
+def test_api_case_membership_filter_includes_national_case_for_aicte(client, data, accounts):
+    own = data[2]()
+    data[2]("Tanvi Patil", institution=1)
+    db.session.commit()
+    api_login(client, accounts[0])
+    client.post("/api/identity/scan", json={})
+    response = client.get("/api/risk/cases?institution_id=" + own.institution_id)
+    assert response.status_code == 200 and response.json["meta"]["total"] == 1
+
+
+def test_graph_get_does_not_mutate_and_focus_survives_small_limit(client, data, accounts):
+    a, case = local_case(data)
+    api_login(client, accounts[0])
+    before = AuditLog.query.count()
+    response = client.get("/api/identity/node/student:" + a.id + "?limit=1")
+    assert response.status_code == 200 and response.json["data"]["truncated"]
+    assert AuditLog.query.count() == before
+    assert client.get("/api/identity/node/not-a-node").status_code == 422
+    assert client.get("/api/identity/graph?case_id=" + str(uuid4())).status_code == 404

@@ -29,7 +29,7 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 from flask import current_app, has_request_context
 from flask_login import current_user
 from rapidfuzz import fuzz
-from sqlalchemy import or_, select
+from sqlalchemy import case as sql_case, or_, select
 
 from extensions import db
 from models import AuditLog, DataSubmission, IdentityGraphEdge, IdentityMatch
@@ -400,8 +400,7 @@ def _graph(rows: list[StudentSnapshot], events: list[DetectedEvent], records: di
 
     def opaque(kind: str, value: str) -> str:
         """Use a keyed opaque node ID rather than a recoverable contact/APAAR value."""
-        digest = hmac.new(str(current_app.config["SECRET_KEY"]).encode(), f"{kind}:{value}".encode(), "sha256").hexdigest()
-        return str(uuid5(NAMESPACE_URL, digest))
+        return _reference_node_id(kind, value)
 
     def node(kind: str, id_: str, label: str) -> None:
         """Insert a typed node without storing raw reference values."""
@@ -533,3 +532,123 @@ def scan(institution_id: str | None = None, submission_id: str | None = None,
     except Exception:
         db.session.rollback()
         raise
+
+
+def _reference_node_id(kind: str, value: str) -> str:
+    """Derive the same keyed opaque reference ID for scans and read-only graph views."""
+    digest = hmac.new(str(current_app.config["SECRET_KEY"]).encode(), f"{kind}:{value}".encode(), "sha256").hexdigest()
+    return str(uuid5(NAMESPACE_URL, digest))
+
+
+def read_graph(institution_id: str | None = None, academic_year: str | None = None,
+               case_id: str | None = None, apaar_masked: str | None = None,
+               min_severity: str | None = None, include_signals: bool = True,
+               limit: int = 300, focus: str | None = None) -> dict:
+    """Read a bounded, scoped graph without scanning, scoring or changing any record.
+
+    Only stored scan edges are shown; overlapping scan projections are deduped.
+    Node labels come from authorized records. Edges with foreign student endpoints
+    are removed; sharing counts are recomputed within the visible institution scope.
+    """
+    from models import RiskCase, RiskEvidence
+    from services.authz import scope_query
+    from services import risk_engine
+
+    query = scope_query(select(StudentRecord), StudentRecord)
+    if institution_id:
+        query = query.where(StudentRecord.institution_id == institution_id)
+    if academic_year:
+        query = query.where(StudentRecord.academic_year == academic_year)
+    case = risk_engine.get_case(case_id) if case_id else None
+    cases = {row.id: row for row in db.session.execute(risk_engine.visible_cases()).scalars()}
+    evidence = db.session.execute(select(RiskEvidence).where(RiskEvidence.case_id.in_(cases))).scalars().all()
+    selected_ids = {id_ for item in evidence if not case_id or item.case_id == case_id for id_ in (item.related_student_ids or [])}
+    if case_id:
+        query = query.where(StudentRecord.id.in_(selected_ids))
+    ranks = {name: index for index, name in enumerate(risk_engine.DEFAULT_BANDS)}
+    severities, linked = {}, defaultdict(set)
+    for item in evidence:
+        severity = cases[item.case_id].severity
+        for id_ in item.related_student_ids or []:
+            if ranks.get(severity, 0) >= ranks.get(severities.get(id_), -1):
+                severities[id_] = severity
+            linked[id_].add(item.case_id)
+    if min_severity:
+        query = query.where(StudentRecord.id.in_([id_ for id_, severity in severities.items() if ranks[severity] >= ranks[min_severity]]))
+    if apaar_masked:
+        query = query.where(StudentRecord.apaar_ref.endswith(apaar_masked[-4:]))
+    if focus:
+        kind, entity_id = focus.split(":", 1)
+        adjacent = select(IdentityGraphEdge.source_id).where(
+            IdentityGraphEdge.source_type == "STUDENT", IdentityGraphEdge.target_type == kind.upper(),
+            IdentityGraphEdge.target_id == entity_id)
+        if kind == "student":
+            outgoing = select(IdentityGraphEdge.target_id).where(IdentityGraphEdge.source_type == "STUDENT",
+                IdentityGraphEdge.source_id == entity_id, IdentityGraphEdge.target_type == "STUDENT")
+            query = query.where(or_(StudentRecord.id == entity_id, StudentRecord.id.in_(adjacent), StudentRecord.id.in_(outgoing)))
+        else:
+            query = query.where(StudentRecord.id.in_(adjacent))
+    # No node response may exceed limit; at most limit+1 student rows are loaded.
+    ordering = [StudentRecord.id]
+    if focus and focus.startswith("student:"):
+        ordering.insert(0, sql_case((StudentRecord.id == focus.split(":", 1)[1], 0), else_=1))
+    rows = list(db.session.execute(query.order_by(*ordering).limit(limit + 1)).scalars())
+    truncated = len(rows) > limit
+    records = {row.id: row for row in rows[:limit]}
+    institutions = {row.id: row for row in db.session.execute(scope_query(select(Institution), Institution).where(
+        Institution.id.in_({row.institution_id for row in records.values()} | ({case.institution_id} if case and case.institution_id else set())))).scalars()}
+    edges = db.session.execute(select(IdentityGraphEdge).where(IdentityGraphEdge.source_type == "STUDENT",
+        IdentityGraphEdge.source_id.in_(records)).order_by(IdentityGraphEdge.updated_at.desc(), IdentityGraphEdge.id)).scalars()
+    nodes, facts = {}, {}
+
+    def node(kind: str, id_: str, label: str, inst: str | None, meta: dict, severity: str | None = None) -> str:
+        """Add a typed node with authorized metadata only."""
+        key = f"{kind.lower()}:{id_}"
+        nodes.setdefault(key, {"id": key, "type": kind, "label": risk_engine._clean(label),
+            "institution": inst, "severity": severity, "meta": meta})
+        return key
+
+    for row in records.values():
+        node("STUDENT", row.id, row.full_name, row.institution_id,
+            {"academic_year": row.academic_year, "apaar_masked": _mask(row.apaar_ref),
+             "institution_student_id": row.institution_student_id, "case_ids": sorted(linked[row.id])}, severities.get(row.id))
+    for row in institutions.values():
+        node("INSTITUTION", row.id, row.code, row.id, {"name": row.name})
+    for edge in edges:
+        row = records[edge.source_id]
+        signal = (edge.evidence or {}).get("is_signal") or edge.target_type in {"CONTACT", "FEE_PAYER"}
+        if signal and not include_signals:
+            continue
+        target_kind = edge.target_type
+        source = f"student:{row.id}"
+        if target_kind == "STUDENT":
+            if edge.target_id not in records:
+                continue
+            target = f"student:{edge.target_id}"
+        elif target_kind == "INSTITUTION":
+            if edge.target_id != row.institution_id or edge.target_id not in institutions:
+                continue
+            target = f"institution:{edge.target_id}"
+        elif target_kind in {"APAAR", "CONTACT", "FEE_PAYER"}:
+            value = ((row.apaar_ref or "").strip() if target_kind == "APAAR" else normalize_contact(
+                row.contact_ref if target_kind == "CONTACT" else row.fee_payer_ref))
+            if not value or _reference_node_id(target_kind, value) != edge.target_id:
+                continue  # Source was corrected since the stored projection.
+            label = _mask(value) if target_kind == "APAAR" else target_kind.replace("_", " ").title() + " reference (signal)"
+            target = node(target_kind, edge.target_id, label, None, {"is_signal": bool(signal)})
+        else:
+            continue
+        key = _key(source, target, edge.edge_type, (edge.evidence or {}).get("event_key"))
+        facts.setdefault(key, {"id": key, "source": source, "target": target,
+            "type": edge.edge_type, "explanation": risk_engine._clean(edge.explanation)})
+    counts = Counter(edge["target"] for edge in facts.values() if nodes[edge["target"]]["type"] in {"CONTACT", "FEE_PAYER"})
+    for edge in facts.values():
+        if edge["target"] in counts:
+            edge["explanation"] = f"Same normalized reference (shared by {counts[edge['target']]} visible records — investigation signal, not proof)."
+    ordered = sorted(nodes.values(), key=lambda item: (item["id"] != focus if focus else False,
+        item["type"] != "STUDENT", item["id"]))
+    truncated = truncated or len(ordered) > limit
+    kept = ordered[:limit]
+    keys = {item["id"] for item in kept}
+    return {"nodes": kept, "edges": sorted((edge for edge in facts.values() if edge["source"] in keys and edge["target"] in keys), key=lambda item: item["id"]),
+            "truncated": truncated}
