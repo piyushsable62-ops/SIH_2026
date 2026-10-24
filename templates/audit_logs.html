@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Logs — {{ app_name }}{% endblock %}
+{% block page_title %}Immutable System Audit Logs{% endblock %}
+
+{% block content %}
+<div class="stack" id="audit-logs-container">
+  <div class="page-heading">
+    <h1>System Audit Logs</h1>
+    <p class="helper">
+      Immutable, append-only operational audit trail. Logs authentication, student onboarding,
+      seat capacity adjustments, policy modifications, and export operations.
+      Sensitive credentials and APAAR identifiers are scrubbed and masked.
+    </p>
+  </div>
+
+  <!-- Filter Card -->
+  <div class="card" style="padding: 16px;">
+    <form id="audit-filter-form" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+      <div class="form-row" style="flex: 1; min-width: 140px;">
+        <label for="filter-actor">Actor (Username)</label>
+        <input type="text" id="filter-actor" name="actor" class="input" placeholder="e.g. AICTE_Admin">
+      </div>
+
+      <div class="form-row" style="flex: 1; min-width: 140px;">
+        <label for="filter-action">Action</label>
+        <select id="filter-action" name="action" class="input">
+          <option value="">All Actions</option>
+          <option value="AUTH_LOGIN_SUCCESS">AUTH_LOGIN_SUCCESS</option>
+          <option value="AUTH_LOGIN_FAILURE">AUTH_LOGIN_FAILURE</option>
+          <option value="AUTH_LOGOUT">AUTH_LOGOUT</option>
+          <option value="CREATE_STUDENT">CREATE_STUDENT</option>
+          <option value="UPDATE_STUDENT">UPDATE_STUDENT</option>
+          <option value="REVEAL_APAAR_RECORD">REVEAL_APAAR_RECORD</option>
+          <option value="IMPORT_STUDENTS_COMMIT">IMPORT_STUDENTS_COMMIT</option>
+          <option value="ADMISSION_ACCEPTED">ADMISSION_ACCEPTED</option>
+          <option value="ADMISSION_REJECTED">ADMISSION_REJECTED</option>
+          <option value="POLICY_UPDATE">POLICY_UPDATE</option>
+          <option value="INSTITUTION_CREATE">INSTITUTION_CREATE</option>
+          <option value="PROGRAMME_CREATE">PROGRAMME_CREATE</option>
+          <option value="CAPACITY_CREATE">CAPACITY_CREATE</option>
+          <option value="CAPACITY_UPDATE">CAPACITY_UPDATE</option>
+          <option value="DEMO_RESET">DEMO_RESET</option>
+          <option value="EXPORT_ENROLMENT_REPORT_CSV">EXPORT_ENROLMENT_REPORT_CSV</option>
+          <option value="EXPORT_SUBMISSION_ERRORS_CSV">EXPORT_SUBMISSION_ERRORS_CSV</option>
+        </select>
+      </div>
+
+      <div class="form-row" style="flex: 1; min-width: 120px;">
+        <label for="filter-entity-type">Entity Type</label>
+        <select id="filter-entity-type" name="entity_type" class="input">
+          <option value="">All Entities</option>
+          <option value="STUDENT">STUDENT</option>
+          <option value="ADMISSION">ADMISSION</option>
+          <option value="SYSTEM_POLICY">SYSTEM_POLICY</option>
+          <option value="INSTITUTION">INSTITUTION</option>
+          <option value="PROGRAMME">PROGRAMME</option>
+          <option value="INTAKE_CAPACITY">INTAKE_CAPACITY</option>
+          <option value="DATA_SUBMISSION">DATA_SUBMISSION</option>
+          <option value="REPORT">REPORT</option>
+          <option value="USER">USER</option>
+          <option value="SYSTEM">SYSTEM</option>
+        </select>
+      </div>
+
+      {% if is_global %}
+      <div class="form-row" style="flex: 1.5; min-width: 180px;">
+        <label for="filter-institution">Institution</label>
+        <select id="filter-institution" name="institution_id" class="input">
+          <option value="">All Institutions</option>
+          {% for inst in institutions %}
+          <option value="{{ inst.id }}">{{ inst.code }} — {{ inst.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% else %}
+      <input type="hidden" id="filter-institution" name="institution_id" value="{{ user_institution_id }}">
+      {% endif %}
+
+      <div class="form-row" style="flex: 1; min-width: 130px;">
+        <label for="filter-date-from">Date From</label>
+        <input type="date" id="filter-date-from" name="date_from" class="input">
+      </div>
+
+      <div class="form-row" style="flex: 1; min-width: 130px;">
+        <label for="filter-date-to">Date To</label>
+        <input type="date" id="filter-date-to" name="date_to" class="input">
+      </div>
+
+      <div class="actions" style="margin-bottom: 2px;">
+        <button type="submit" class="btn">Apply Filters</button>
+        <button type="reset" id="btn-reset-filters" class="btn btn-secondary">Clear</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Audit Table Card -->
+  <div class="card" style="padding: 0;">
+    <div class="table-wrapper" style="overflow-x: auto;">
+      <table class="table" style="width: 100%; border-collapse: collapse; margin: 0;">
+        <thead>
+          <tr style="border-bottom: 1px solid var(--border); background: var(--bg);">
+            <th style="padding: 10px 14px; text-align: left; font-size: 0.85rem;">Timestamp</th>
+            <th style="padding: 10px 14px; text-align: left; font-size: 0.85rem;">Actor</th>
+            <th style="padding: 10px 14px; text-align: left; font-size: 0.85rem;">Action</th>
+            <th style="padding: 10px 14px; text-align: left; font-size: 0.85rem;">Entity</th>
+            <th style="padding: 10px 14px; text-align: left; font-size: 0.85rem;">Entity ID</th>
+            <th style="padding: 10px 14px; text-align: left; font-size: 0.85rem;">Institution</th>
+            <th style="padding: 10px 14px; text-align: right; font-size: 0.85rem;">Details</th>
+          </tr>
+        </thead>
+        <tbody id="audit-table-body">
+          <tr>
+            <td colspan="7" class="empty-state" style="padding: 24px; text-align: center;">Loading audit logs...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="audit-pagination" style="padding: 12px 16px; border-top: 1px solid var(--border);"></div>
+  </div>
+</div>
+
+<!-- Expandable Detail Native Dialog -->
+<dialog id="audit-detail-dialog" style="max-width: 650px; width: 90%; border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; background: var(--surface);">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+    <div>
+      <h2 style="margin: 0 0 4px 0; font-size: 1.2rem;">Audit Event Payload</h2>
+      <div id="dialog-meta" class="muted" style="font-size: 0.85rem;"></div>
+    </div>
+    <button type="button" class="btn btn-secondary" id="btn-close-dialog" style="padding: 4px 10px;">Close</button>
+  </div>
+
+  <div style="margin-bottom: 16px;">
+    <p class="helper" style="margin-bottom: 8px;">
+      Sanitized event details. Sensitive tokens, passwords, and 12-digit APAAR numbers are scrubbed or masked.
+    </p>
+    <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; max-height: 350px; overflow-y: auto;">
+      <pre id="audit-detail-pre" style="font-family: monospace; font-size: 0.85rem; margin: 0; white-space: pre-wrap; word-break: break-all;"></pre>
+    </div>
+  </div>
+
+  <div style="display: flex; justify-content: flex-end;">
+    <button type="button" class="btn" id="btn-dialog-ok">Done</button>
+  </div>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const tableBody = document.getElementById("audit-table-body");
+  const paginationContainer = document.getElementById("audit-pagination");
+  const filterForm = document.getElementById("audit-filter-form");
+  const resetBtn = document.getElementById("btn-reset-filters");
+
+  const dialog = document.getElementById("audit-detail-dialog");
+  const dialogPre = document.getElementById("audit-detail-pre");
+  const dialogMeta = document.getElementById("dialog-meta");
+  const dialogClose = document.getElementById("btn-close-dialog");
+  const dialogOk = document.getElementById("btn-dialog-ok");
+
+  let currentPage = 1;
+  const perPage = 25;
+  let cachedLogs = [];
+
+  function maskApaarInText(text) {
+    if (!text) return "";
+    // Mask 12 digit numbers
+    return text.replace(/\b(\d{8})(\d{4})\b/g, "XXXXXXXX$2");
+  }
+
+  function getActionBadgeKind(action) {
+    if (!action) return "muted";
+    const act = action.toUpperCase();
+    if (act.includes("SUCCESS") || act.includes("ACCEPTED") || act.includes("CREATE")) return "ok";
+    if (act.includes("REJECTED") || act.includes("FAILURE") || act.includes("RESET")) return "danger";
+    if (act.includes("UPDATE") || act.includes("REVEAL")) return "warn";
+    if (act.includes("EXPORT") || act.includes("IMPORT")) return "info";
+    return "muted";
+  }
+
+  function renderTable(logs) {
+    if (!logs || logs.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="empty-state" style="padding: 24px; text-align: center;">
+            No audit log records match the applied criteria.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tableBody.innerHTML = logs.map((log, index) => {
+      const formattedDate = window.Nexus.fmtDateTime(log.created_at);
+      const actionKind = getActionBadgeKind(log.action);
+      const actorRole = log.actor_role ? ` <span class="muted" style="font-size: 0.75rem;">(${log.actor_role})</span>` : "";
+      const instDisplay = log.institution_code || (log.institution_id ? log.institution_id.slice(0, 8) + "..." : "System-wide");
+      const entityIdDisplay = log.entity_id ? (log.entity_id.length > 18 ? log.entity_id.slice(0, 16) + "..." : log.entity_id) : "—";
+
+      return `
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 10px 14px; font-size: 0.85rem; white-space: nowrap;">${formattedDate}</td>
+          <td style="padding: 10px 14px; font-size: 0.85rem;"><strong>${window.Nexus.escapeHTML(log.actor_id || log.actor)}</strong>${actorRole}</td>
+          <td style="padding: 10px 14px; font-size: 0.85rem;">
+            <span class="badge badge-${actionKind}">${window.Nexus.escapeHTML(log.action)}</span>
+          </td>
+          <td style="padding: 10px 14px; font-size: 0.85rem;"><code>${window.Nexus.escapeHTML(log.entity_type)}</code></td>
+          <td style="padding: 10px 14px; font-size: 0.85rem; font-family: monospace;">${window.Nexus.escapeHTML(entityIdDisplay)}</td>
+          <td style="padding: 10px 14px; font-size: 0.85rem;">${window.Nexus.escapeHTML(instDisplay)}</td>
+          <td style="padding: 10px 14px; font-size: 0.85rem; text-align: right;">
+            <button type="button" class="btn btn-secondary btn-view-detail" data-index="${index}" style="padding: 4px 10px; font-size: 0.8rem;">
+              View Details
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    // Attach click listeners to view detail buttons
+    document.querySelectorAll(".btn-view-detail").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.dataset.index, 10);
+        showDetailModal(cachedLogs[idx]);
+      });
+    });
+  }
+
+  function showDetailModal(log) {
+    if (!log) return;
+    const action = log.action;
+    const actor = log.actor_id || log.actor;
+    const timestamp = window.Nexus.fmtDateTime(log.created_at);
+    dialogMeta.textContent = `${action} by ${actor} on ${timestamp} (${log.entity_type}: ${log.entity_id || 'N/A'})`;
+
+    let detailsJson = JSON.stringify(log.details || {}, null, 2);
+    detailsJson = maskApaarInText(detailsJson);
+    dialogPre.textContent = detailsJson;
+
+    if (dialog && typeof dialog.showModal === "function") {
+      dialog.showModal();
+    }
+  }
+
+  if (dialogClose) {
+    dialogClose.addEventListener("click", () => dialog.close());
+  }
+  if (dialogOk) {
+    dialogOk.addEventListener("click", () => dialog.close());
+  }
+
+  async function loadLogs(page = 1) {
+    currentPage = page;
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="empty-state" style="padding: 24px; text-align: center;">Loading audit logs...</td>
+      </tr>
+    `;
+
+    const formData = new FormData(filterForm);
+    const params = {
+      page: currentPage,
+      per_page: perPage
+    };
+
+    for (const [key, val] of formData.entries()) {
+      if (val && String(val).trim()) {
+        params[key] = String(val).trim();
+      }
+    }
+
+    try {
+      const res = await window.Nexus.api("/api/audit-logs", { params });
+      cachedLogs = res.data || [];
+      renderTable(cachedLogs);
+
+      if (res.meta) {
+        window.Nexus.paginate(paginationContainer, res.meta, (targetPage) => {
+          loadLogs(targetPage);
+        });
+      }
+    } catch (err) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="empty-state" style="padding: 24px; text-align: center; color: var(--danger);">
+            Failed to load audit logs: ${window.Nexus.escapeHTML(err.message)}
+          </td>
+        </tr>
+      `;
+      window.Nexus.toast(err.message || "Failed to load audit logs.", "danger");
+    }
+  }
+
+  filterForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    loadLogs(1);
+  });
+
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      setTimeout(() => loadLogs(1), 50);
+    });
+  }
+
+  // Initial load
+  loadLogs(1);
+});
+</script>
+{% endblock %}
