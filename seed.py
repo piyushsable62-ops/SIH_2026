@@ -146,49 +146,19 @@ def seed_reference_data(rng: random.Random) -> Dict[str, int]:
     # Default category rules: regular seats for domestic categories; supernumerary for NRI/OCI/FN
     category_rules = {
         "REGULAR": ["OPEN", "OBC", "SC", "ST", "EWS"],
-        "SUPERNUMERARY": ["NRI", "OCI", "FN"],
+        "SUPERNUMERARY": ["SUPERNUMERARY", "NRI", "OCI", "FN"],
     }
 
     academic_years = ["2024-25", "2025-26", "2026-27"]
     capacity_count = 0
 
     for (inst_code, prog_code), prog in programmes.items():
-
         for year in academic_years:
             cap_id = stable_uuid("capacity", f"{inst_code}:{prog_code}:{year}")
 
-            # Planned utilisation and scenario capacities per Task A3/A4
-            if year == "2026-27":
-                if inst_code == "VESIT" and prog_code == "BTECH-IT":
-                    reg_intake = 120
-                    sup_intake = 10
-                elif inst_code == "VESIT" and prog_code == "BTECH-CE":
-                    reg_intake = 60
-                    sup_intake = 6
-                elif inst_code == "COEP" and prog_code == "BTECH-CE":
-                    reg_intake = 60
-                    sup_intake = 6
-                elif inst_code == "COEP" and prog_code == "DIP-MECH":
-                    reg_intake = 30
-                    sup_intake = 3
-                elif inst_code == "VJTI" and prog_code == "BTECH-IT":
-                    reg_intake = 60
-                    sup_intake = 6
-                elif inst_code == "VJTI" and prog_code == "BTECH-EXTC":
-                    reg_intake = 60
-                    sup_intake = 6
-                else:
-                    reg_intake = 60
-                    sup_intake = 6
-            elif prog.level == "DIPLOMA":
-                reg_intake = 30
-                sup_intake = 3
-            elif inst_code == "VESIT" and prog_code == "BTECH-IT":
-                reg_intake = 120
-                sup_intake = 10
-            else:
-                reg_intake = 60
-                sup_intake = 6
+            # Capacity: 60 Regular + 5 Supernumerary = 65 Total Intake Capacity
+            reg_intake = 60
+            sup_intake = 5
 
             cap = IntakeCapacity(
                 id=cap_id,
@@ -460,13 +430,14 @@ def seed_students(database, rng: random.Random) -> int:
         return student
 
     # ==========================================================================
-    # 1. SCENARIO 1: VESIT / B.Tech IT / 2026-27 (116 Regular + 4 Supernumerary)
-    # Approved Regular: 120, Remaining: 4
-    # Approved Supernumerary: 10, Remaining: 6
+    # 1. SCENARIO 1: VESIT / B.Tech IT / 2026-27 (30 Regular + 2 Supernumerary)
+    # Approved Regular: 60, Admitted: 30 (50% Half-Filled)
+    # Approved Supernumerary: 5, Admitted: 2 (40%)
+    # Total Capacity: 65, Total Admitted: 32 (49.2%)
     # ==========================================================================
-    for roll in range(1, 117):
-        # Scenario 7: Credential demo student (Roll 1)
+    for roll in range(1, 31):
         if roll == 1:
+            # Scenario 7: Credential demo student (Roll 1)
             create_student(
                 inst_code="VESIT",
                 prog_code="BTECH-IT",
@@ -480,8 +451,8 @@ def seed_students(database, rng: random.Random) -> int:
                 contact_ref="SYN-C-0001",
                 fee_payer_ref="SYN-F-0001",
             )
-        # Scenario 4(a): Cross-institution simultaneous enrolment (Roll 10)
         elif roll == 10:
+            # Scenario 4(a): Cross-institution simultaneous enrolment (Roll 10)
             create_student(
                 inst_code="VESIT",
                 prog_code="BTECH-IT",
@@ -495,38 +466,38 @@ def seed_students(database, rng: random.Random) -> int:
                 contact_ref="SYN-C-0010",
                 fee_payer_ref="SYN-F-0010",
             )
-        # Scenario 4(c): Corroborated fuzzy name variation (Rolls 31 & 32)
-        elif roll == 31:
+        elif roll == 15:
+            # Scenario 4(c): Corroborated fuzzy name variation (Rolls 15 & 16)
             create_student(
                 inst_code="VESIT",
                 prog_code="BTECH-IT",
                 academic_year="2026-27",
-                roll_no=31,
+                roll_no=15,
                 full_name="Rahul Sharma",
                 apaar_ref="900000000031",
-                admission_category=AdmissionCategory.OBC.value,
+                admission_category=AdmissionCategory.OPEN.value,
                 classification=Classification.REGULAR.value,
                 admission_date=date(2026, 7, 15),
             )
-        elif roll == 32:
+        elif roll == 16:
             create_student(
                 inst_code="VESIT",
                 prog_code="BTECH-IT",
                 academic_year="2026-27",
-                roll_no=32,
+                roll_no=16,
                 full_name="Rahul Sarma",
                 apaar_ref="900000000032",
-                admission_category=AdmissionCategory.OBC.value,
+                admission_category=AdmissionCategory.OPEN.value,
                 classification=Classification.REGULAR.value,
                 admission_date=date(2026, 7, 15),
             )
-        # Scenario 5: Legitimate shared contact - Sibling 1 (Roll 41)
-        elif roll == 41:
+        elif roll == 21:
+            # Scenario 5: Legitimate shared contact - Sibling 1 (Roll 21)
             create_student(
                 inst_code="VESIT",
                 prog_code="BTECH-IT",
                 academic_year="2026-27",
-                roll_no=41,
+                roll_no=21,
                 full_name="Aarav Patil",
                 apaar_ref="900000000041",
                 admission_category=AdmissionCategory.OPEN.value,
@@ -536,7 +507,6 @@ def seed_students(database, rng: random.Random) -> int:
             )
         else:
             name, _ = next_name()
-            cat = REGULAR_CATEGORIES[(roll - 1) % len(REGULAR_CATEGORIES)]
             day = 1 + ((roll * 3) % 25)
             apaar = f"9{apaar_counter:011d}"
             apaar_counter += 1
@@ -547,19 +517,17 @@ def seed_students(database, rng: random.Random) -> int:
                 roll_no=roll,
                 full_name=name,
                 apaar_ref=apaar,
-                admission_category=cat,
+                admission_category=AdmissionCategory.OPEN.value,
                 classification=Classification.REGULAR.value,
                 admission_date=date(2026, 7, day),
             )
 
-    # 4 Supernumerary Admissions for VESIT B.Tech IT (2 NRI, 1 OCI, 1 FN)
-    supernumerary_specs = [
-        (117, "Rohan Mehta", "NRI", True, False, False, "900000000091"),
-        (118, "Zoya Agarwal", "NRI", True, False, False, "900000000092"),
-        (119, "Arjun Trivedi", "OCI", False, True, False, "900000000093"),
-        (120, "Maya Hansen", "FN", False, False, True, "900000000094"),
+    # 2 Supernumerary Admissions for VESIT B.Tech IT
+    supernumerary_vesit_it = [
+        (31, "Rohan Mehta", "900000000091", True, False, False),
+        (32, "Zoya Agarwal", "900000000092", True, False, False),
     ]
-    for roll, name, cat, is_nri, is_oci, is_fn, apaar in supernumerary_specs:
+    for roll, name, apaar, is_nri, is_oci, is_fn in supernumerary_vesit_it:
         create_student(
             inst_code="VESIT",
             prog_code="BTECH-IT",
@@ -567,7 +535,7 @@ def seed_students(database, rng: random.Random) -> int:
             roll_no=roll,
             full_name=name,
             apaar_ref=apaar,
-            admission_category=cat,
+            admission_category=AdmissionCategory.SUPERNUMERARY.value,
             classification=Classification.SUPERNUMERARY.value,
             admission_date=date(2026, 7, 20),
             is_nri=is_nri,
@@ -576,17 +544,16 @@ def seed_students(database, rng: random.Random) -> int:
         )
 
     # ==========================================================================
-    # 2. SCENARIO 3(b): VESIT / B.Tech CE / 2026-27 (59 Regular Admissions)
-    # Approved Regular: 60, Admitted: 59, Remaining: 1 (Concurrency Race Test)
+    # 2. VESIT / B.Tech CE / 2026-27 (30 Regular + 2 Supernumerary = 32 Half-Filled)
     # ==========================================================================
-    for roll in range(1, 60):
-        # Scenario 5: Sibling 2 sharing contact SYN-C-0050 (Roll 42)
-        if roll == 42:
+    for roll in range(1, 31):
+        if roll == 21:
+            # Scenario 5: Sibling 2 sharing contact SYN-C-0050 (Roll 21)
             create_student(
                 inst_code="VESIT",
                 prog_code="BTECH-CE",
                 academic_year="2026-27",
-                roll_no=42,
+                roll_no=21,
                 full_name="Ananya Patil",
                 apaar_ref="900000000042",
                 admission_category=AdmissionCategory.OPEN.value,
@@ -596,7 +563,6 @@ def seed_students(database, rng: random.Random) -> int:
             )
         else:
             name, _ = next_name()
-            cat = REGULAR_CATEGORIES[(roll - 1) % len(REGULAR_CATEGORIES)]
             day = 1 + ((roll * 2) % 25)
             apaar = f"9{apaar_counter:011d}"
             apaar_counter += 1
@@ -607,18 +573,32 @@ def seed_students(database, rng: random.Random) -> int:
                 roll_no=roll,
                 full_name=name,
                 apaar_ref=apaar,
-                admission_category=cat,
+                admission_category=AdmissionCategory.OPEN.value,
                 classification=Classification.REGULAR.value,
                 admission_date=date(2026, 7, day),
             )
 
+    for roll, name, apaar in [(31, "Arjun Trivedi", "900000000093"), (32, "Maya Hansen", "900000000094")]:
+        create_student(
+            inst_code="VESIT",
+            prog_code="BTECH-CE",
+            academic_year="2026-27",
+            roll_no=roll,
+            full_name=name,
+            apaar_ref=apaar,
+            admission_category=AdmissionCategory.SUPERNUMERARY.value,
+            classification=Classification.SUPERNUMERARY.value,
+            admission_date=date(2026, 7, 20),
+            is_nri=(roll == 31),
+            is_foreign_national=(roll == 32),
+        )
+
     # ==========================================================================
-    # 3. SCENARIO 2: COEP / B.Tech CE / 2026-27 (54 Regular Admissions = 90.0%)
-    # Approved Regular: 60, Admitted: 54
+    # 3. COEP / B.Tech CE / 2026-27 (30 Regular + 2 Supernumerary = 32 Half-Filled)
     # ==========================================================================
-    for roll in range(1, 55):
-        # Scenario 4(a): Devansh Verma simultaneous active enrolment at COEP (Roll 10)
+    for roll in range(1, 31):
         if roll == 10:
+            # Scenario 4(a): Devansh Verma simultaneous active enrolment at COEP (Roll 10)
             create_student(
                 inst_code="COEP",
                 prog_code="BTECH-CE",
@@ -632,23 +612,22 @@ def seed_students(database, rng: random.Random) -> int:
                 contact_ref="SYN-C-0010",
                 fee_payer_ref="SYN-F-0010",
             )
-        # Scenario 5: Sponsor sharing fee-payer SYN-F-0010 - Student 1 (Roll 51)
-        elif roll == 51:
+        elif roll == 25:
+            # Scenario 5: Sponsor sharing fee-payer SYN-F-0099 - Student 1 (Roll 25)
             create_student(
                 inst_code="COEP",
                 prog_code="BTECH-CE",
                 academic_year="2026-27",
-                roll_no=51,
+                roll_no=25,
                 full_name="Vikram Deshmukh",
                 apaar_ref="900000000051",
-                admission_category=AdmissionCategory.OBC.value,
+                admission_category=AdmissionCategory.OPEN.value,
                 classification=Classification.REGULAR.value,
                 admission_date=date(2026, 7, 18),
                 fee_payer_ref="SYN-F-0099",
             )
         else:
             name, _ = next_name()
-            cat = REGULAR_CATEGORIES[(roll - 1) % len(REGULAR_CATEGORIES)]
             day = 1 + ((roll * 4) % 25)
             apaar = f"9{apaar_counter:011d}"
             apaar_counter += 1
@@ -659,18 +638,31 @@ def seed_students(database, rng: random.Random) -> int:
                 roll_no=roll,
                 full_name=name,
                 apaar_ref=apaar,
-                admission_category=cat,
+                admission_category=AdmissionCategory.OPEN.value,
                 classification=Classification.REGULAR.value,
                 admission_date=date(2026, 7, day),
             )
 
+    for roll, name, apaar in [(31, "Chetan Mehta", "900000000095"), (32, "Priya Shah", "900000000096")]:
+        create_student(
+            inst_code="COEP",
+            prog_code="BTECH-CE",
+            academic_year="2026-27",
+            roll_no=roll,
+            full_name=name,
+            apaar_ref=apaar,
+            admission_category=AdmissionCategory.SUPERNUMERARY.value,
+            classification=Classification.SUPERNUMERARY.value,
+            admission_date=date(2026, 7, 20),
+            is_nri=True,
+        )
+
     # ==========================================================================
-    # 4. SCENARIOS 2 & 3(a): COEP / Diploma Mech / 2026-27 (30 Admissions = 100% FULL)
-    # Approved Regular: 30, Admitted: 30, Excess Admission Rejection Test Target
+    # 4. COEP / Diploma Mech / 2026-27 (30 Regular + 2 Supernumerary = 32 Half-Filled)
     # ==========================================================================
     for roll in range(1, 31):
-        # Scenario 5: Sponsor sharing fee-payer SYN-F-0010 - Student 2 (Roll 25)
         if roll == 25:
+            # Scenario 5: Sponsor sharing fee-payer SYN-F-0099 - Student 2 (Roll 25)
             create_student(
                 inst_code="COEP",
                 prog_code="DIP-MECH",
@@ -685,7 +677,6 @@ def seed_students(database, rng: random.Random) -> int:
             )
         else:
             name, _ = next_name()
-            cat = REGULAR_CATEGORIES[(roll - 1) % len(REGULAR_CATEGORIES)]
             day = 1 + ((roll * 3) % 25)
             apaar = f"9{apaar_counter:011d}"
             apaar_counter += 1
@@ -696,18 +687,31 @@ def seed_students(database, rng: random.Random) -> int:
                 roll_no=roll,
                 full_name=name,
                 apaar_ref=apaar,
-                admission_category=cat,
+                admission_category=AdmissionCategory.OPEN.value,
                 classification=Classification.REGULAR.value,
                 admission_date=date(2026, 7, day),
             )
 
+    for roll, name, apaar in [(31, "Amit Mishra", "900000000097"), (32, "Neha Pandey", "900000000098")]:
+        create_student(
+            inst_code="COEP",
+            prog_code="DIP-MECH",
+            academic_year="2026-27",
+            roll_no=roll,
+            full_name=name,
+            apaar_ref=apaar,
+            admission_category=AdmissionCategory.SUPERNUMERARY.value,
+            classification=Classification.SUPERNUMERARY.value,
+            admission_date=date(2026, 7, 20),
+            is_nri=True,
+        )
+
     # ==========================================================================
-    # 5. SCENARIO 2: VJTI / B.Tech IT / 2026-27 (30 Admissions = 50.0% Low Utilisation)
-    # Approved Regular: 60, Admitted: 30
+    # 5. VJTI / B.Tech IT / 2026-27 (30 Regular + 2 Supernumerary = 32 Half-Filled)
     # ==========================================================================
     for roll in range(1, 31):
-        # Scenario 4(b): Same APAAR within institution (Roll 20)
         if roll == 20:
+            # Scenario 4(b): Same APAAR within institution (Roll 20)
             create_student(
                 inst_code="VJTI",
                 prog_code="BTECH-IT",
@@ -718,9 +722,10 @@ def seed_students(database, rng: random.Random) -> int:
                 admission_category=AdmissionCategory.OPEN.value,
                 classification=Classification.REGULAR.value,
                 admission_date=date(2026, 7, 10),
+                contact_ref="SYN-C-0020",
             )
-        # Scenario 6: Malformed / Missing APAAR format violations (Rolls 26, 27, 28, 29)
         elif roll == 26:
+            # Scenario 6: Malformed / Missing APAAR format violations (Rolls 26, 27, 28, 29)
             create_student(
                 inst_code="VJTI",
                 prog_code="BTECH-IT",
@@ -728,7 +733,7 @@ def seed_students(database, rng: random.Random) -> int:
                 roll_no=26,
                 full_name="Sameer Kulkarni",
                 apaar_ref="9123456",  # Too short (7 digits)
-                admission_category=AdmissionCategory.OBC.value,
+                admission_category=AdmissionCategory.OPEN.value,
                 classification=Classification.REGULAR.value,
                 admission_date=date(2026, 7, 14),
             )
@@ -752,7 +757,7 @@ def seed_students(database, rng: random.Random) -> int:
                 roll_no=28,
                 full_name="Tanvi Shah",
                 apaar_ref="",  # Empty string
-                admission_category=AdmissionCategory.EWS.value,
+                admission_category=AdmissionCategory.OPEN.value,
                 classification=Classification.REGULAR.value,
                 admission_date=date(2026, 7, 14),
             )
@@ -764,13 +769,12 @@ def seed_students(database, rng: random.Random) -> int:
                 roll_no=29,
                 full_name="Bhavna Shinde",
                 apaar_ref=None,  # Null
-                admission_category=AdmissionCategory.SC.value,
+                admission_category=AdmissionCategory.OPEN.value,
                 classification=Classification.REGULAR.value,
                 admission_date=date(2026, 7, 14),
             )
         else:
             name, _ = next_name()
-            cat = REGULAR_CATEGORIES[(roll - 1) % len(REGULAR_CATEGORIES)]
             day = 1 + ((roll * 5) % 25)
             apaar = f"9{apaar_counter:011d}"
             apaar_counter += 1
@@ -781,18 +785,31 @@ def seed_students(database, rng: random.Random) -> int:
                 roll_no=roll,
                 full_name=name,
                 apaar_ref=apaar,
-                admission_category=cat,
+                admission_category=AdmissionCategory.OPEN.value,
                 classification=Classification.REGULAR.value,
                 admission_date=date(2026, 7, day),
             )
 
+    for roll, name, apaar in [(31, "Nikhil Trivedi", "900000000099"), (32, "Sakshi Nadkarni", "900000000100")]:
+        create_student(
+            inst_code="VJTI",
+            prog_code="BTECH-IT",
+            academic_year="2026-27",
+            roll_no=roll,
+            full_name=name,
+            apaar_ref=apaar,
+            admission_category=AdmissionCategory.SUPERNUMERARY.value,
+            classification=Classification.SUPERNUMERARY.value,
+            admission_date=date(2026, 7, 20),
+            is_nri=True,
+        )
+
     # ==========================================================================
-    # 6. SCENARIO 2: VJTI / B.Tech EXTC / 2026-27 (48 Admissions = 80.0% Utilisation)
-    # Approved Regular: 60, Admitted: 48
+    # 6. VJTI / B.Tech EXTC / 2026-27 (30 Regular + 2 Supernumerary = 32 Half-Filled)
     # ==========================================================================
-    for roll in range(1, 49):
-        # Scenario 4(b): Same APAAR within institution - second record (Roll 20)
+    for roll in range(1, 31):
         if roll == 20:
+            # Scenario 4(b): Same APAAR within institution - second record (Roll 20)
             create_student(
                 inst_code="VJTI",
                 prog_code="BTECH-EXTC",
@@ -803,10 +820,10 @@ def seed_students(database, rng: random.Random) -> int:
                 admission_category=AdmissionCategory.OPEN.value,
                 classification=Classification.REGULAR.value,
                 admission_date=date(2026, 7, 10),
+                contact_ref="SYN-C-0020",
             )
         else:
             name, _ = next_name()
-            cat = REGULAR_CATEGORIES[(roll - 1) % len(REGULAR_CATEGORIES)]
             day = 1 + ((roll * 2) % 25)
             apaar = f"9{apaar_counter:011d}"
             apaar_counter += 1
@@ -817,10 +834,24 @@ def seed_students(database, rng: random.Random) -> int:
                 roll_no=roll,
                 full_name=name,
                 apaar_ref=apaar,
-                admission_category=cat,
+                admission_category=AdmissionCategory.OPEN.value,
                 classification=Classification.REGULAR.value,
                 admission_date=date(2026, 7, day),
             )
+
+    for roll, name, apaar in [(31, "Pranav Kapse", "900000000101"), (32, "Divya Bhosale", "900000000102")]:
+        create_student(
+            inst_code="VJTI",
+            prog_code="BTECH-EXTC",
+            academic_year="2026-27",
+            roll_no=roll,
+            full_name=name,
+            apaar_ref=apaar,
+            admission_category=AdmissionCategory.SUPERNUMERARY.value,
+            classification=Classification.SUPERNUMERARY.value,
+            admission_date=date(2026, 7, 20),
+            is_nri=True,
+        )
 
     # ==========================================================================
     # 7. HISTORICAL RECORDS (2024-25 and 2025-26)
@@ -868,7 +899,7 @@ def seed_students(database, rng: random.Random) -> int:
                 roll_no=roll,
                 full_name=name,
                 apaar_ref=apaar,
-                admission_category=AdmissionCategory.OBC.value,
+                admission_category=AdmissionCategory.OPEN.value,
                 classification=Classification.REGULAR.value,
                 admission_date=date(2025, 7, 15),
                 enrolment_status=status,
@@ -892,7 +923,7 @@ def seed_students(database, rng: random.Random) -> int:
         classification=Classification.REGULAR.value,
         result=AdmissionEventResult.REJECTED.value,
         reason_code="CAPACITY_EXCEEDED",
-        message="Admission attempt rejected: Approved regular intake capacity (30/30) reached for Diploma Mechanical Engineering",
+        message="Admission attempt rejected: Approved regular intake capacity (60/60) reached for Diploma Mechanical Engineering",
         actor_id="COEP",
         created_at=datetime(2026, 7, 28, 14, 30),
     )
@@ -968,27 +999,23 @@ def run_seeding(reset: bool = False, app: Any = None) -> None:
 
         # Print formatted summary table
         print("\n" + "=" * 60)
-        print("APAAR Nexus Seed Complete — Entity Summary")
+        print("APAARSetu Seed Complete — Entity Summary")
         print("=" * 60)
         for entity, count in sorted(counts.items()):
             print(f"  {entity.replace('_', ' ').capitalize():<28}: {count}")
         print("=" * 60)
-        print("2026-27 Dynamic Seat Ledger Utilisation Summary:")
-        print("  - VESIT / B.Tech IT  : 116/120 Reg (96.7%), 4/10 Sup (40.0%) [Remaining: 4 Reg, 6 Sup]")
-        print("  - VESIT / B.Tech CE  : 59/60 Reg (98.3%) [Remaining: 1 seat — Concurrency Test Target]")
-        print("  - COEP  / B.Tech CE  : 54/60 Reg (90.0% utilisation)")
-        print("  - COEP  / Dip. Mech  : 30/30 Reg (100.0% FULL — Rejection Test Target)")
-        print("  - VJTI  / B.Tech IT  : 30/60 Reg (50.0% low utilisation)")
-        print("  - VJTI  / B.Tech EXTC: 48/60 Reg (80.0% utilisation)")
+        print("2026-27 Dynamic Seat Ledger Utilisation Summary (Half-Filled at ~50%):")
+        print("  - Intake capacity: 60 Regular + 5 Supernumerary (65 Total) per programme")
+        print("  - Admitted       : 30 Regular + 2 Supernumerary (32 Total, 49.2% utilised)")
+        print("  - Remaining      : 30 Regular + 3 Supernumerary (33 Total seats available)")
         print("=" * 60)
         print("Pre-configured Demo Scenarios:")
-        print("  [x] Scenario 1: VESIT B.Tech IT 116 Reg / 4 Sup (4 Reg left, 6 Sup left)")
-        print("  [x] Scenario 2: Utilisation spread (50%, 80%, 90%, 100%)")
-        print("  [x] Scenario 3: 100% full programme + 1 seat left concurrency test + 2 excess rejected events")
-        print("  [x] Scenario 4: Identity conflicts (Simultaneous enrolment, duplicate APAAR, similar names)")
-        print("  [x] Scenario 5: Shared contact (siblings) & shared fee-payer (sponsor) investigation signals")
-        print("  [x] Scenario 6: 4 malformed/missing APAAR format violations (validation_status=INVALID)")
-        print("  [x] Scenario 7: Credential issuance demo student (VESIT-26-BTECH-IT-0001, Aarav Sharma)")
+        print("  [x] Half-Filled Intake: 30/60 Reg + 2/5 Sup across all 3 institutions")
+        print("  [x] Identity conflicts: Devansh Verma (simultaneous enrolment), Kunal Joshi (duplicate APAAR)")
+        print("  [x] Corroborated signals: Rahul Sharma / Rahul Sarma (fuzzy names)")
+        print("  [x] Shared signals: Sibling contact SYN-C-0050 & Sponsor fee-payer SYN-F-0099")
+        print("  [x] Format violations: 4 malformed/missing APAAR format violation records")
+        print("  [x] Credential demo: Aarav Sharma (VESIT-26-BTECH-IT-0001)")
         print("=" * 60)
         print("Demo Accounts Available (Password: Demo@12345):")
         print("  - AICTE_Admin (AICTE Super Administrator)")

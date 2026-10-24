@@ -21,6 +21,7 @@ class Classification(str, Enum):
 
 class AdmissionCategory(str, Enum):
     OPEN = "OPEN"
+    SUPERNUMERARY = "SUPERNUMERARY"
     OBC = "OBC"
     SC = "SC"
     ST = "ST"

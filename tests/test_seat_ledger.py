@@ -740,13 +740,13 @@ def test_demo_scenario_numbers_hold_after_seeding(app):
 
         summary = get_summary(vesit.id, prog.id, "2026-27")
 
-        assert summary["approved_regular"] == 120
-        assert summary["regular_admitted"] == 116
-        assert summary["regular_remaining"] == 4
+        assert summary["approved_regular"] == 60
+        assert summary["regular_admitted"] == 30
+        assert summary["regular_remaining"] == 30
 
-        assert summary["supernumerary_capacity"] == 10
-        assert summary["supernumerary_admitted"] == 4
-        assert summary["supernumerary_remaining"] == 6
+        assert summary["supernumerary_capacity"] == 5
+        assert summary["supernumerary_admitted"] == 2
+        assert summary["supernumerary_remaining"] == 3
 
-        assert summary["utilisation_pct"] == 96.7
-        assert summary["warning_level"] == 90
+        assert summary["utilisation_pct"] == 50.0
+        assert summary["warning_level"] is None

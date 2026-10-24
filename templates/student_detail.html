@@ -137,6 +137,16 @@
           <p style="color: var(--muted); margin: 0; font-size: 13px;">Loading risk references...</p>
         </div>
       </div>
+
+      <!-- Issued Academic Credentials Card -->
+      <div class="card" style="padding: 20px;">
+        <h2 style="font-size: 16px; margin: 0 0 12px 0; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+          Academic Credentials
+        </h2>
+        <div id="linked-credentials-list">
+          <p style="color: var(--muted); margin: 0; font-size: 13px;">Loading credentials...</p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -397,7 +407,7 @@
             item.style.borderBottom = "1px solid var(--border)";
             item.innerHTML = `
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <a href="/risk-cases" style="color: var(--navy); font-weight: bold; font-size: 13px;">${window.Nexus.escapeHTML(c.reference)}</a>
+                <a href="/risk-cases/${encodeURIComponent(c.id)}" style="color: var(--navy); font-weight: bold; font-size: 13px;">${window.Nexus.escapeHTML(c.reference)}</a>
                 <span class="badge badge-${sevBadge}">${window.Nexus.escapeHTML(c.severity)} (${c.score} pts)</span>
               </div>
               <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">
@@ -405,6 +415,33 @@
               </div>
             `;
             riskContainer.appendChild(item);
+          });
+        }
+      }
+
+      // Render Linked Academic Credentials
+      const credContainer = document.getElementById("linked-credentials-list");
+      if (credContainer) {
+        const creds = data.linked_credentials || [];
+        if (!creds.length) {
+          credContainer.innerHTML = `<p style="color: var(--muted); margin: 0; font-size: 13px;">No credentials issued for this student.</p>`;
+        } else {
+          credContainer.innerHTML = "";
+          creds.forEach(cr => {
+            const stBadge = cr.status_stored === 'ISSUED' ? 'ok' : 'danger';
+            const item = document.createElement("div");
+            item.style.padding = "8px 0";
+            item.style.borderBottom = "1px solid var(--border)";
+            item.innerHTML = `
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <a href="/credentials/${encodeURIComponent(cr.id)}" style="color: var(--navy); font-weight: bold; font-size: 13px;">${window.Nexus.escapeHTML(cr.reference)}</a>
+                <span class="badge badge-${stBadge}">${window.Nexus.escapeHTML(cr.status_stored)}</span>
+              </div>
+              <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">
+                ${window.Nexus.escapeHTML(cr.programme_name)} (${window.Nexus.escapeHTML(cr.award_year)}) — Issued ${window.Nexus.escapeHTML(cr.issue_date || '—')}
+              </div>
+            `;
+            credContainer.appendChild(item);
           });
         }
       }
