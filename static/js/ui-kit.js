@@ -1,61 +1,41 @@
-/* Development-only interactions. Shared Nexus helpers are implemented in B1. */
+/* Development-only examples. Reusable behaviour lives in window.Nexus. */
 (() => {
   "use strict";
 
-  const toastContainer = document.getElementById("toast-container");
-  function showToast(message, kind) {
-    const toast = document.createElement("div");
-    toast.className = `toast toast-${kind}`;
-    toast.setAttribute("role", "status");
-    const content = document.createElement("span");
-    content.textContent = message;
-    const close = document.createElement("button");
-    close.type = "button";
-    close.className = "toast-close";
-    close.textContent = "Dismiss";
-    close.setAttribute("aria-label", `Dismiss ${kind} notification`);
-    close.addEventListener("click", () => {
-      toast.remove();
-      document.querySelector(`[data-toast="${kind}"]`)?.focus();
-    });
-    toast.append(content, close);
-    toastContainer.append(toast);
-  }
+  const { api, toast, confirmDialog, renderTable, paginate, filterBar, statusBadge, withButtonLock, loadFilters } = window.Nexus;
   document.querySelectorAll("[data-toast]").forEach(button => {
-    button.addEventListener("click", () => showToast(`Example ${button.dataset.toast} notification. No records changed.`, button.dataset.toast));
+    button.addEventListener("click", () => toast(`Example ${button.dataset.toast} notification. No records changed.`, button.dataset.toast));
   });
 
-  const rows = Array.from(document.querySelectorAll("#preview-rows tr"));
-  const filters = document.getElementById("table-filter");
+  const rows = Array.from(document.querySelectorAll("#preview-rows tr"), row => ({
+    reference: row.cells[0].textContent, name: row.cells[1].textContent,
+    institution: row.cells[2].textContent, status: row.dataset.status
+  }));
   let page = 1;
   let filtered = rows;
   const pageSize = 3;
-  const previous = document.getElementById("previous-page");
-  const next = document.getElementById("next-page");
   function renderRows() {
-    const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
-    rows.forEach(row => { row.hidden = true; });
-    filtered.slice((page - 1) * pageSize, page * pageSize).forEach(row => { row.hidden = false; });
-    document.getElementById("table-empty").hidden = filtered.length > 0;
-    document.getElementById("page-status").textContent = `Page ${page} of ${pages} (${filtered.length} records)`;
-    previous.disabled = page <= 1;
-    next.disabled = page >= pages;
+    const table = renderTable("#example-table", {
+      columns: [{ key: "reference", label: "Reference" }, { key: "name", label: "Student" },
+        { key: "institution", label: "Institution" }, { key: "status", label: "Status", render: value => value === "Needs review" ? window.Nexus.badge(value, "warn") : statusBadge(value) }],
+      rows: filtered.slice((page - 1) * pageSize, page * pageSize),
+      emptyText: "No matching examples. Clear the filters to see the synthetic rows again."
+    });
+    table.classList.add("preview-table");
+    table.prepend(window.Nexus.el("caption", {}, "Synthetic records for component testing; no student data is loaded."));
+    paginate("#table-pagination", { page, per_page: pageSize, total: filtered.length }, nextPage => {
+      page = nextPage;
+      renderRows();
+    });
   }
-  function applyFilters() {
-    const query = filters.elements.query.value.trim().toLowerCase();
-    const status = filters.elements.status.value;
-    filtered = rows.filter(row => row.textContent.toLowerCase().includes(query) && (!status || row.dataset.status === status));
-    page = 1;
-    renderRows();
-  }
-  filters.addEventListener("submit", event => { event.preventDefault(); applyFilters(); });
-  filters.addEventListener("reset", () => {
-    filtered = rows;
+  filterBar("#table-filter", [
+    { name: "query", label: "Search synthetic rows", type: "text", placeholder: "Example student or institution" },
+    { name: "status", label: "Status", type: "select", placeholder: "All statuses", options: ["Verified", "Needs review", "Invalid"] }
+  ], ({ query, status }) => {
+    filtered = rows.filter(row => `${row.reference} ${row.name} ${row.institution}`.toLowerCase().includes(query.trim().toLowerCase()) && (!status || row.status === status));
     page = 1;
     renderRows();
   });
-  previous.addEventListener("click", () => { page -= 1; renderRows(); });
-  next.addEventListener("click", () => { page += 1; renderRows(); });
   renderRows();
 
   const exampleForm = document.getElementById("example-form");
@@ -69,7 +49,7 @@
     name.setAttribute("aria-invalid", String(!valid));
     if (!valid) { name.focus(); return; }
     formResult.textContent = `Preview: ${name.value.trim()} / ${exampleForm.elements.programme.value}. Nothing was saved.`;
-    showToast("Synthetic values previewed locally. Nothing was saved.", "ok");
+    toast("Synthetic values previewed locally. Nothing was saved.", "ok");
   });
   exampleForm.addEventListener("reset", () => {
     name.removeAttribute("aria-invalid");
@@ -98,16 +78,26 @@
     });
   });
 
-  const dialog = document.getElementById("example-dialog");
-  document.getElementById("open-example-dialog").addEventListener("click", () => {
-    dialog.returnValue = "cancel";
-    dialog.showModal();
+  document.getElementById("open-example-dialog").addEventListener("click", async () => {
+    const confirmed = await confirmDialog({ title: "Confirm example action", message: "This demonstrates a destructive-action confirmation. No records will be changed.", confirmText: "Confirm example", danger: true });
+    document.getElementById("dialog-result").textContent = confirmed ? "Example confirmed. No records were changed." : "Example cancelled. No records were changed.";
   });
-  dialog.addEventListener("close", () => {
-    document.getElementById("dialog-result").textContent = dialog.returnValue === "confirm" ? "Example confirmed. No records were changed." : "Example cancelled. No records were changed.";
+  document.getElementById("check-api-health").addEventListener("click", event => {
+    void withButtonLock(event.currentTarget, async () => {
+      try {
+        const { data } = await api("/api/health");
+        document.getElementById("api-result").textContent = `API status: ${data.status}. No records were changed.`;
+      } catch (error) { toast(error.message, "danger"); }
+    });
+  });
+  document.getElementById("load-filter-options").addEventListener("click", event => {
+    void withButtonLock(event.currentTarget, async () => {
+      const options = await loadFilters.institutions();
+      document.getElementById("api-result").textContent = options.length ? `${options.length} authorized institution options loaded.` : "No institution options loaded. See the notification if the module is unavailable.";
+    });
   });
 
-  // Local libraries are opt-in on this page; no network or API requests occur.
+  // These vendor demonstrations use local files and in-memory synthetic data.
   if (typeof Chart !== "undefined") {
     new Chart(document.getElementById("example-chart"), {
       type: "bar",

@@ -48,12 +48,12 @@
 
   <section class="card" id="table-components" aria-labelledby="table-heading">
     <div class="card-header"><h2 id="table-heading">Table, filters and pagination</h2><span class="badge badge-muted">Local example</span></div>
-    <form id="table-filter" class="filter-bar">
+    <div id="table-filter"><form class="filter-bar">
       <div class="form-row"><label for="filter-query">Search synthetic rows</label><input class="input" id="filter-query" name="query" type="search" placeholder="Example student or institution"></div>
       <div class="form-row"><label for="filter-status">Status</label><select class="select" id="filter-status" name="status"><option value="">All statuses</option><option value="Verified">Verified</option><option value="Needs review">Needs review</option><option value="Invalid">Invalid</option></select></div>
       <button class="btn" type="submit">Apply filters</button><button class="btn btn-secondary" type="reset">Clear</button>
-    </form>
-    <div class="table-wrapper" role="region" aria-label="Scrollable synthetic records table" tabindex="0">
+    </form></div>
+    <div id="example-table"><div class="table-wrapper" role="region" aria-label="Scrollable synthetic records table" tabindex="0">
       <table class="table preview-table">
         <caption>Synthetic records for component testing; no student data is loaded.</caption>
         <thead><tr><th scope="col">Reference</th><th scope="col">Student</th><th scope="col">Institution</th><th scope="col">Status</th></tr></thead>
@@ -63,9 +63,9 @@
           {% endfor %}
         </tbody>
       </table>
-    </div>
-    <div class="empty-state" id="table-empty" hidden><h3>No matching examples</h3><p>Clear the filters to see the synthetic rows again.</p></div>
-    <nav class="pagination" aria-label="Synthetic records pages"><span id="page-status" aria-live="polite">6 synthetic records</span><div class="actions"><button class="btn btn-secondary" id="previous-page" type="button" disabled>Previous</button><button class="btn btn-secondary" id="next-page" type="button" disabled>Next</button></div></nav>
+    </div></div>
+    <div id="table-pagination"></div>
+    <noscript><p class="helper">All six synthetic rows are shown. Enable JavaScript to try filtering and pagination.</p></noscript>
   </section>
 
   <div class="grid grid-2">
@@ -94,6 +94,8 @@
     <div class="card-header"><h2 id="feedback-heading">Buttons, toasts and confirmation</h2></div>
     <div class="actions"><button class="btn" type="button" data-toast="ok">Success toast</button><button class="btn btn-secondary" type="button" data-toast="info">Information toast</button><button class="btn btn-secondary" type="button" data-toast="warn">Warning toast</button><button class="btn btn-secondary" type="button" data-toast="danger">Error toast</button><button class="btn btn-danger" id="open-example-dialog" type="button">Open confirmation</button><button class="btn" type="button" disabled>Unavailable action</button></div>
     <p class="helper" id="dialog-result" aria-live="polite">The dialog is an example; it does not revoke or delete anything.</p>
+    <div class="actions component-nav"><button class="btn btn-secondary" id="check-api-health" type="button">Check API health</button><button class="btn btn-secondary" id="load-filter-options" type="button">Load institution options</button></div>
+    <p class="helper" id="api-result" aria-live="polite">API checks use shared helpers; optional modules may not be implemented yet.</p>
   </section>
 
   <section class="grid grid-2" id="vendor-components" aria-label="Local vendor library examples">
@@ -102,10 +104,6 @@
   </section>
 </div>
 
-<dialog id="example-dialog" aria-labelledby="dialog-heading" aria-describedby="dialog-description">
-  <h2 id="dialog-heading">Confirm example action</h2><p id="dialog-description">This demonstrates a destructive-action confirmation. No records will be changed.</p>
-  <form method="dialog" class="actions"><button class="btn btn-secondary" value="cancel" autofocus>Cancel</button><button class="btn btn-danger" value="confirm">Confirm example</button></form>
-</dialog>
 <noscript><p class="helper">Enable JavaScript to try the interactive examples. The visual components above remain available.</p></noscript>
 {% endblock %}
 {% block scripts %}
