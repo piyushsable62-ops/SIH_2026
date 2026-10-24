@@ -25,6 +25,7 @@ from models.enums import SubmissionStatus, EnrolmentStatus, ValidationStatus
 from services.validation_service import validate_student_row, parse_bool_flag
 from services.apaar_adapter import mask_apaar
 from services.audit_service import log as audit_log
+from services import seat_ledger
 
 # Canonical CSV headers in required order
 CANONICAL_HEADERS = [
@@ -588,11 +589,6 @@ def commit_submission(
                     updated_count += 1
                 continue
 
-            # -------------------------------------------------------------
-            # SEAT LEDGER INTEGRATION POINT (Task A9 / A10)
-            # In Task A9/A10, admissions that consume a seat will call:
-            # seat_ledger.commit_admission(...)
-            # -------------------------------------------------------------
             adm_date = norm.get("admission_date")
             if isinstance(adm_date, str):
                 try:
@@ -600,30 +596,41 @@ def commit_submission(
                 except ValueError:
                     adm_date = date.today()
 
-            student = StudentRecord(
-                institution_id=submission.institution_id,
-                programme_id=norm["programme_id"],
-                institution_student_id=norm["institution_student_id"],
-                apaar_ref=norm.get("apaar_ref"),
-                full_name=norm["full_name"],
-                normalized_name=norm["normalized_name"],
-                academic_year=norm["academic_year"],
-                admission_date=adm_date,
-                admission_category=norm["admission_category"],
-                classification=norm["classification"],
-                is_nri=norm.get("is_nri", False),
-                is_oci=norm.get("is_oci", False),
-                is_foreign_national=norm.get("is_fn", False),
-                enrolment_status=norm.get("enrolment_status", EnrolmentStatus.ACTIVE.value),
-                validation_status=ValidationStatus.FLAGGED.value if warnings else ValidationStatus.VALID.value,
-                validation_notes=warnings[0]["message"] if warnings else None,
-                contact_ref=norm.get("contact_ref"),
-                fee_payer_ref=norm.get("fee_payer_ref"),
-                source_submission_id=submission.id,
-                is_synthetic=True
-            )
-            db.session.add(student)
-            inserted_count += 1
+            admission_payload = {
+                "institution_id": submission.institution_id,
+                "programme_id": norm["programme_id"],
+                "institution_student_id": norm["institution_student_id"],
+                "apaar_ref": norm.get("apaar_ref"),
+                "full_name": norm["full_name"],
+                "academic_year": norm["academic_year"],
+                "admission_date": adm_date,
+                "admission_category": norm["admission_category"],
+                "classification": norm["classification"],
+                "is_nri": norm.get("is_nri", False),
+                "is_oci": norm.get("is_oci", False),
+                "is_foreign_national": norm.get("is_fn", False),
+                "enrolment_status": norm.get("enrolment_status", EnrolmentStatus.ACTIVE.value),
+                "validation_status": ValidationStatus.FLAGGED.value if warnings else ValidationStatus.VALID.value,
+                "validation_notes": warnings[0]["message"] if warnings else None,
+                "contact_ref": norm.get("contact_ref"),
+                "fee_payer_ref": norm.get("fee_payer_ref"),
+                "source_submission_id": submission.id,
+            }
+
+            try:
+                seat_ledger.commit_admission(admission_payload, actor=submission.uploaded_by)
+                inserted_count += 1
+            except seat_ledger.SeatLedgerError as exc:
+                sub_err = SubmissionError(
+                    submission_id=submission.id,
+                    row_number=row_num,
+                    field_name="intake_capacity",
+                    error_code=exc.reason_code,
+                    message=exc.message,
+                    raw_row_json=json.dumps(row_dict)
+                )
+                db.session.add(sub_err)
+                error_count += 1
 
         # Determine final submission status
         valid_total = inserted_count + updated_count

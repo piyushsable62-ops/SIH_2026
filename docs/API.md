@@ -376,6 +376,209 @@ Downloads an error report CSV containing row numbers, error codes, error message
 - `GET /upload`: 3-step interactive CSV ingestion wizard (File selection, Preview & validation, Commit results) and recent submission history table.
 
 
+## Dynamic Seat Ledger & Admissions API (Task A10)
+
+The Dynamic Seat Ledger acts as the **Prevent Engine** for APAAR Nexus (PS 26263). It enforces AICTE approved intake capacities, strictly separates regular and supernumerary quotas, validates category eligibility, prevents duplicate admissions, and logs all attempts (accepted and rejected) in an immutable ledger.
+
+### `GET /api/seats/summary`
+Lists intake capacities, active admitted student counts, and remaining seat summaries across programmes.
+- **Access:** `AICTE_ADMIN`, `AUDITOR` (all institutions); `INSTITUTION_ADMIN` (strictly scoped to own institution).
+- **Query Parameters:**
+  - `academic_year` (string, default `2026-27`)
+  - `institution_id` (UUID, optional filter for AICTE; if specified by Institution Admin for another institution, returns `403 FORBIDDEN`)
+  - `programme_id` (UUID, optional)
+- **Success Response (200):**
+  ```json
+  {
+    "ok": true,
+    "data": [
+      {
+        "institution_id": "inst-uuid",
+        "institution_code": "VESIT",
+        "institution_name": "VESIT Mumbai",
+        "programme_id": "prog-uuid",
+        "programme_code": "BTECH-IT",
+        "programme_name": "B.Tech Information Technology",
+        "programme_level": "UG",
+        "academic_year": "2026-27",
+        "approved_regular": 120,
+        "regular_admitted": 116,
+        "regular_remaining": 4,
+        "supernumerary_capacity": 10,
+        "supernumerary_admitted": 4,
+        "supernumerary_remaining": 6,
+        "utilisation_pct": 96.7,
+        "supernumerary_utilisation_pct": 40.0,
+        "warning_level": 90,
+        "category_breakdown": { "OPEN": 60, "OBC": 30, "SC": 15, "ST": 11 }
+      }
+    ],
+    "meta": { "total": 1 }
+  }
+  ```
+
+### `GET /api/seats/ledger`
+Provides detailed per-programme ledger analytics including category-wise active student breakdowns and warning levels.
+- **Access:** `AICTE_ADMIN`, `AUDITOR`, `INSTITUTION_ADMIN` (own institution only).
+- **Query Parameters:** `institution_id` (required), `programme_id` (required), `academic_year` (default `2026-27`).
+- **Success Response (200):**
+  ```json
+  {
+    "ok": true,
+    "data": {
+      "institution_id": "inst-uuid",
+      "programme_id": "prog-uuid",
+      "academic_year": "2026-27",
+      "approved_regular": 120,
+      "regular_admitted": 116,
+      "regular_remaining": 4,
+      "supernumerary_capacity": 10,
+      "supernumerary_admitted": 4,
+      "supernumerary_remaining": 6,
+      "utilisation_pct": 96.7,
+      "supernumerary_utilisation_pct": 40.0,
+      "warning_level": 90,
+      "category_breakdown": {
+        "OPEN": 60,
+        "OBC": 30,
+        "SC": 15,
+        "ST": 11,
+        "NRI": 4
+      }
+    }
+  }
+  ```
+
+### `POST /api/admissions/precheck`
+Simulates an admission to test category rules, classification quotas, and capacity limits without persisting any student or event record.
+- **Access:** `AICTE_ADMIN`, `INSTITUTION_ADMIN` (scoped).
+- **Audit Behavior:** If the pre-check is blocked, an audit log entry (`ADMISSION_PRECHECK_REJECTED`) is written.
+- **Request Body:**
+  ```json
+  {
+    "institution_id": "inst-uuid",
+    "programme_id": "prog-uuid",
+    "academic_year": "2026-27",
+    "institution_student_id": "V-2026-117",
+    "full_name": "Aanya Sharma",
+    "apaar_ref": "987654320117",
+    "category": "OPEN",
+    "classification": "REGULAR"
+  }
+  ```
+- **Success Response — Allowed (200):**
+  ```json
+  {
+    "ok": true,
+    "data": {
+      "allowed": true,
+      "reason_code": "ALLOWED",
+      "message": "Eligible for REGULAR admission (4 seats remaining).",
+      "summary_after": {
+        "approved_regular": 120,
+        "regular_admitted": 117,
+        "regular_remaining": 3,
+        "utilisation_pct": 97.5,
+        "warning_level": 90
+      }
+    }
+  }
+  ```
+- **Success Response — Blocked (200):**
+  ```json
+  {
+    "ok": true,
+    "data": {
+      "allowed": false,
+      "reason_code": "CAPACITY_EXCEEDED",
+      "message": "Approved regular intake is 120 and 120 regular admissions already exist; admission was blocked.",
+      "summary_after": null
+    }
+  }
+  ```
+
+### `POST /api/admissions`
+Commits an admission atomically through the `seat_ledger.commit_admission` engine. Creates the student record, creates an `ACCEPTED` admission event, increments the seat ledger counter, and logs an `ADMISSION_ACCEPTED` audit trail.
+- **Access:** `AICTE_ADMIN`, `INSTITUTION_ADMIN` (own institution only).
+- **Request Body:**
+  ```json
+  {
+    "institution_id": "inst-uuid",
+    "programme_id": "prog-uuid",
+    "academic_year": "2026-27",
+    "institution_student_id": "V-2026-117",
+    "full_name": "Aanya Sharma",
+    "apaar_ref": "987654320117",
+    "category": "OPEN",
+    "classification": "REGULAR",
+    "admission_date": "2026-07-20"
+  }
+  ```
+- **Success Response (201):**
+  ```json
+  {
+    "ok": true,
+    "data": {
+      "status": "ACCEPTED",
+      "student": {
+        "id": "student-uuid",
+        "institution_student_id": "V-2026-117",
+        "full_name": "Aanya Sharma",
+        "apaar_ref": "XXXXXXXX0117",
+        "academic_year": "2026-27"
+      },
+      "event": {
+        "id": "event-uuid",
+        "result": "ACCEPTED",
+        "reason_code": "APPROVED"
+      },
+      "summary": { "approved_regular": 120, "regular_admitted": 117, "regular_remaining": 3 }
+    }
+  }
+  ```
+- **Error Responses (409 Conflict):**
+  - `CAPACITY_EXCEEDED`: When the 121st student attempts regular admission. Persists a `REJECTED` admission event in `admission_events` and logs `ADMISSION_REJECTED`.
+  - `DUPLICATE_ADMISSION`: Duplicate institutional student ID or actively enrolled APAAR ID.
+  - `CATEGORY_NOT_ELIGIBLE`: Category not allowed for the requested classification (e.g. NRI in regular pool).
+
+### `GET /api/admissions/events`
+Returns paginated admission history, including all `ACCEPTED` admissions and `REJECTED` attempts with reason codes.
+- **Access:** `AICTE_ADMIN`, `AUDITOR`, `INSTITUTION_ADMIN` (scoped).
+- **Query Parameters:** `page`, `per_page`, `result` (`ACCEPTED` / `REJECTED`), `reason_code`, `institution_id`, `programme_id`, `academic_year`.
+- **Success Response (200):**
+  ```json
+  {
+    "ok": true,
+    "data": [
+      {
+        "id": "event-uuid",
+        "institution_id": "inst-uuid",
+        "institution_code": "VESIT",
+        "institution_name": "VESIT Mumbai",
+        "programme_code": "BTECH-IT",
+        "programme_name": "B.Tech Information Technology",
+        "academic_year": "2026-27",
+        "student_name": "Rejected Applicant",
+        "institution_student_id": "V-2026-121",
+        "category": "OPEN",
+        "classification": "REGULAR",
+        "result": "REJECTED",
+        "reason_code": "CAPACITY_EXCEEDED",
+        "message": "Approved regular intake is 120 and 120 regular admissions already exist; admission 121 was blocked.",
+        "created_at": "2026-10-24T12:30:00"
+      }
+    ],
+    "meta": { "page": 1, "per_page": 25, "total": 1, "pages": 1 }
+  }
+  ```
+
+### HTML Routes
+- `GET /seat-ledger`: Interactive dynamic seat ledger dashboard featuring real-time intake utilisation bars with 80%/90%/100% threshold alerts, category breakdown tables, admission pre-check simulation form, demo autofill helper, and paginated admission attempt history.
+
+
+
+
+
 
 
 

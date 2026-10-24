@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Seat Ledger — {{ app_name }}{% endblock %}
+{% block page_title %}Dynamic Seat Ledger &amp; Admission Enforcement{% endblock %}
+
+{% block content %}
+<div class="stack" id="seat-ledger-container">
+  <div class="page-heading">
+    <h1>Dynamic Seat Ledger</h1>
+    <p class="helper">
+      Real-time intake capacity enforcement, category allocation rules, and admission attempt auditing.
+    </p>
+  </div>
+
+  <!-- Global Filter Controls -->
+  <div class="card" style="padding: 16px;">
+    <form id="ledger-filter-form" class="actions" style="gap: 16px; width: 100%; align-items: flex-end;">
+      <div class="form-row" style="flex: 1; min-width: 140px;">
+        <label for="filter-year">Academic Year</label>
+        <select id="filter-year" name="academic_year" class="input">
+          {% for yr in academic_years %}
+          <option value="{{ yr }}" {% if yr == "2026-27" %}selected{% endif %}>{{ yr }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {% if is_aicte_admin %}
+      <div class="form-row" style="flex: 1.5; min-width: 200px;">
+        <label for="filter-institution">Institution</label>
+        <select id="filter-institution" name="institution_id" class="input">
+          <option value="">Select Institution...</option>
+          {% for inst in institutions %}
+          <option value="{{ inst.id }}">{{ inst.code }} — {{ inst.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% else %}
+      <input type="hidden" id="filter-institution" name="institution_id" value="{{ user_institution_id }}">
+      {% endif %}
+
+      <div class="form-row" style="flex: 2; min-width: 220px;">
+        <label for="filter-programme">Degree Programme</label>
+        <select id="filter-programme" name="programme_id" class="input">
+          <option value="">Loading programmes...</option>
+        </select>
+      </div>
+
+      <div class="actions" style="margin-bottom: 2px;">
+        <button type="button" id="refresh-ledger-btn" class="btn btn-secondary">Refresh</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Programme Summary & Utilisation Section -->
+  <div id="programme-summary-section" style="display: none;">
+    <!-- Stat Cards -->
+    <div class="grid grid-4" style="margin-bottom: 24px;">
+      <div class="card">
+        <div class="stat">
+          <span class="stat-number" id="stat-regular-approved">—</span>
+          <span class="stat-label">Regular Approved Intake</span>
+          <span class="stat-trend">AICTE approved limit</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="stat">
+          <span class="stat-number" id="stat-regular-admitted">—</span>
+          <span class="stat-label">Regular Admitted</span>
+          <span class="stat-trend" id="stat-regular-status">Active enrolments</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="stat">
+          <span class="stat-number" id="stat-regular-remaining">—</span>
+          <span class="stat-label">Regular Remaining</span>
+          <span class="stat-trend">Available capacity</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="stat">
+          <span class="stat-number" id="stat-supernumerary-admitted">—</span>
+          <span class="stat-label">Supernumerary (Admitted/Cap)</span>
+          <span class="stat-trend" id="stat-supernumerary-trend">Remaining: —</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Utilisation Bar & Category Breakdown Row -->
+    <div class="grid grid-2" style="align-items: start; margin-bottom: 24px;">
+      <!-- Utilisation Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Intake Utilisation</h2>
+          <span id="utilisation-badge" class="badge">Loading...</span>
+        </div>
+        <div style="padding: 8px 0 16px;">
+          <div class="progress-label">
+            <span>Regular Seat Consumption</span>
+            <strong id="utilisation-text">0.0%</strong>
+          </div>
+          <div class="progress" id="utilisation-progress-bar">
+            <span class="progress-fill" id="utilisation-progress-fill" style="width: 0%;"></span>
+          </div>
+        </div>
+        <p class="form-hint" id="threshold-hint" style="margin-top: 8px;">
+          Threshold warnings: Early Warning (80%), Critical Warning (90%), Strict Blocking (100%).
+        </p>
+      </div>
+
+      <!-- Category Breakdown Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Category Breakdown</h2>
+          <span class="form-hint">Admitted seats</span>
+        </div>
+        <div class="table-wrapper" style="max-height: 180px;">
+          <table class="table" id="category-breakdown-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th style="text-align: right;">Admitted Count</th>
+              </tr>
+            </thead>
+            <tbody id="category-breakdown-tbody">
+              <tr><td colspan="2" class="align-center muted">No data available</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pre-Check and Admission Form -->
+  <div class="card" id="precheck-card">
+    <div class="card-header">
+      <div>
+        <h2>Admission Pre-Check &amp; Ledger Commit</h2>
+        <p class="form-hint">Simulate seat availability and category rules before committing an admission.</p>
+      </div>
+      <div>
+        <button type="button" id="fill-demo-btn" class="btn btn-secondary" style="font-size: .85rem; padding: 4px 10px; min-height: 28px;">
+          Fill Demo Values (VESIT IT 2026-27)
+        </button>
+      </div>
+    </div>
+
+    <form id="precheck-form" style="display: grid; gap: 16px;">
+      <div class="grid grid-3" style="gap: 16px;">
+        <div class="form-row">
+          <label for="adm-student-id">Student Institutional ID *</label>
+          <input type="text" id="adm-student-id" name="institution_student_id" class="input" placeholder="e.g. V-26-IT-0117" required>
+        </div>
+        <div class="form-row">
+          <label for="adm-full-name">Full Name *</label>
+          <input type="text" id="adm-full-name" name="full_name" class="input" placeholder="Student's official name" required>
+        </div>
+        <div class="form-row">
+          <label for="adm-apaar-ref">APAAR Reference</label>
+          <input type="text" id="adm-apaar-ref" name="apaar_ref" class="input" placeholder="12-digit APAAR reference (optional)">
+        </div>
+      </div>
+
+      <div class="grid grid-3" style="gap: 16px;">
+        <div class="form-row">
+          <label for="adm-category">Admission Category *</label>
+          <select id="adm-category" name="admission_category" class="input" required>
+            <option value="OPEN">OPEN (General)</option>
+            <option value="OBC">OBC (Other Backward Class)</option>
+            <option value="SC">SC (Scheduled Caste)</option>
+            <option value="ST">ST (Scheduled Tribe)</option>
+            <option value="EWS">EWS (Economically Weaker Section)</option>
+            <option value="NRI">NRI (Non-Resident Indian)</option>
+            <option value="OCI">OCI (Overseas Citizen of India)</option>
+            <option value="FN">FN (Foreign National)</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="adm-classification">Classification *</label>
+          <select id="adm-classification" name="classification" class="input" required>
+            <option value="REGULAR">REGULAR Intake</option>
+            <option value="SUPERNUMERARY">SUPERNUMERARY Quota</option>
+          </select>
+        </div>
+        <div class="form-row" style="justify-content: flex-end;">
+          <label>Demographic Flags</label>
+          <div class="actions" style="margin-top: 6px; gap: 12px;">
+            <label style="font-weight: normal; font-size: .9rem; display: flex; align-items: center; gap: 4px;">
+              <input type="checkbox" id="flag-is-nri" name="is_nri"> NRI
+            </label>
+            <label style="font-weight: normal; font-size: .9rem; display: flex; align-items: center; gap: 4px;">
+              <input type="checkbox" id="flag-is-oci" name="is_oci"> OCI
+            </label>
+            <label style="font-weight: normal; font-size: .9rem; display: flex; align-items: center; gap: 4px;">
+              <input type="checkbox" id="flag-is-fn" name="is_foreign_national"> FN
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pre-check Response Panel (Hidden initially) -->
+      <div id="precheck-result-box" style="display: none; padding: 12px 16px; border-radius: var(--radius); border: 1px solid var(--border);">
+        <div id="precheck-result-message" style="font-weight: 600;"></div>
+        <div id="precheck-result-details" class="form-hint" style="margin-top: 4px;"></div>
+      </div>
+
+      <div class="actions" style="justify-content: flex-end; gap: 12px; margin-top: 8px;">
+        <button type="button" id="run-precheck-btn" class="btn btn-secondary">
+          Run Pre-Check
+        </button>
+        <button type="button" id="commit-admission-btn" class="btn" disabled>
+          Commit Admission
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Admission History & Audit Table -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2>Admission Events &amp; Attempt History</h2>
+        <p class="form-hint">Complete audit trail of accepted admissions and blocked capacity violations.</p>
+      </div>
+      <div class="actions">
+        <select id="events-result-filter" class="input" style="min-height: 32px; padding: 4px 8px; font-size: .85rem;">
+          <option value="">All Results</option>
+          <option value="ACCEPTED">ACCEPTED Only</option>
+          <option value="REJECTED">REJECTED Only</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table class="table" id="admission-events-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Student</th>
+            <th>Programme</th>
+            <th>Quota</th>
+            <th>Result</th>
+            <th>Reason Code</th>
+            <th>Message / Explanation</th>
+            <th>Actor</th>
+          </tr>
+        </thead>
+        <tbody id="admission-events-tbody">
+          <tr><td colspan="8" class="align-center muted">Loading events...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="events-pagination">
+      <span class="form-hint" id="events-count-label">Showing 0 events</span>
+      <div class="actions">
+        <button type="button" id="events-prev-btn" class="btn btn-secondary" disabled>Previous</button>
+        <span id="events-page-indicator" style="font-size: .85rem; padding: 0 8px;">Page 1</span>
+        <button type="button" id="events-next-btn" class="btn btn-secondary" disabled>Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/seat-ledger.js') }}" defer></script>
+{% endblock %}

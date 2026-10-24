@@ -28,6 +28,7 @@ from services.authz import roles_required, scope_query, assert_same_institution
 from services.validation_service import validate_student_row, normalize_name, parse_bool_flag
 from services.apaar_adapter import mask_apaar
 from services.audit_service import log as audit_log
+from services import seat_ledger
 
 students_bp = Blueprint("students", __name__)
 
@@ -291,35 +292,30 @@ def create_student():
             adm_date = date.today()
 
     try:
-        # -------------------------------------------------------------
-        # SEAT LEDGER INTEGRATION POINT (Task A9 / A10)
-        # In Task A9/A10, admissions that consume a seat will call:
-        # seat_ledger.commit_admission(student_record)
-        # -------------------------------------------------------------
-        student = StudentRecord(
-            institution_id=norm["institution_id"],
-            programme_id=norm["programme_id"],
-            institution_student_id=norm["institution_student_id"],
-            apaar_ref=norm["apaar_ref"],
-            full_name=norm["full_name"],
-            normalized_name=norm["normalized_name"],
-            academic_year=norm["academic_year"],
-            admission_date=adm_date,
-            admission_category=norm["admission_category"],
-            classification=norm["classification"],
-            is_nri=norm.get("is_nri", False),
-            is_oci=norm.get("is_oci", False),
-            is_foreign_national=norm.get("is_fn", False),
-            enrolment_status=norm.get("enrolment_status", EnrolmentStatus.ACTIVE.value),
-            validation_status=ValidationStatus.FLAGGED.value if validation_res.warnings else ValidationStatus.VALID.value,
-            validation_notes=validation_res.warnings[0]["message"] if validation_res.warnings else None,
-            contact_ref=norm.get("contact_ref"),
-            fee_payer_ref=norm.get("fee_payer_ref"),
-            is_synthetic=True
-        )
+        admission_payload = {
+            "institution_id": norm["institution_id"],
+            "programme_id": norm["programme_id"],
+            "institution_student_id": norm["institution_student_id"],
+            "apaar_ref": norm["apaar_ref"],
+            "full_name": norm["full_name"],
+            "academic_year": norm["academic_year"],
+            "admission_date": adm_date,
+            "admission_category": norm["admission_category"],
+            "classification": norm["classification"],
+            "is_nri": norm.get("is_nri", False),
+            "is_oci": norm.get("is_oci", False),
+            "is_foreign_national": norm.get("is_fn", False),
+            "enrolment_status": norm.get("enrolment_status", EnrolmentStatus.ACTIVE.value),
+            "validation_status": ValidationStatus.FLAGGED.value if validation_res.warnings else ValidationStatus.VALID.value,
+            "validation_notes": validation_res.warnings[0]["message"] if validation_res.warnings else None,
+            "contact_ref": norm.get("contact_ref"),
+            "fee_payer_ref": norm.get("fee_payer_ref"),
+        }
 
-        db.session.add(student)
-        db.session.commit()
+        # Commit admission through seat ledger engine
+        res = seat_ledger.commit_admission(admission_payload, actor=current_user)
+        student_id = res["student"]["id"]
+        student = db.session.get(StudentRecord, student_id)
 
         audit_log(
             actor=current_user.username,
@@ -344,6 +340,14 @@ def create_student():
             "warnings": validation_res.warnings
         }), 201
 
+    except seat_ledger.CapacityExceeded as exc:
+        return make_error("CAPACITY_EXCEEDED", exc.message, 409, details=exc.details)
+    except seat_ledger.DuplicateAdmission as exc:
+        return make_error("DUPLICATE_ADMISSION", exc.message, 409, details=exc.details)
+    except seat_ledger.CategoryNotEligible as exc:
+        return make_error("CATEGORY_NOT_ELIGIBLE", exc.message, 409, details=exc.details)
+    except seat_ledger.CapacityNotFound as exc:
+        return make_error("NOT_FOUND", exc.message, 404, details=exc.details)
     except Exception as exc:
         db.session.rollback()
         current_app.logger.error("Failed creating student record: %s", exc)
