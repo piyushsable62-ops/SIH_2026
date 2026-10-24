@@ -21,6 +21,7 @@
 - [Architecture](#architecture)
 - [Design decisions](#design-decisions)
 - [Quick start (Windows 11, PowerShell)](#quick-start-windows-11-powershell)
+- [How to run tests](#how-to-run-tests)
 - [Demo accounts (Development only)](#demo-accounts-development-only)
 - [Demo scenario (Synthetic)](#demo-scenario-synthetic)
 - [How the Seat Ledger works](#how-the-seat-ledger-works)
@@ -376,6 +377,27 @@ pytest -q
 python seed.py --reset
 ```
 *(Admins can also reset from the Policies page when `ALLOW_DEMO_RESET=true`.)*
+
+---
+
+## How to run tests
+
+All tests execute against a fast in-memory SQLite database using `pytest`:
+
+```powershell
+# Run the complete test suite quietly
+pytest -q
+
+# Run without random ordering (if pytest-randomly is installed)
+pytest -q -p no:randomly
+
+# Run specific test modules
+pytest tests/test_auth.py -q
+pytest tests/test_students.py -q
+pytest tests/test_csv.py -q
+pytest tests/test_seat_ledger.py -q
+pytest tests/test_envelope.py -q
+```
 
 ---
 
