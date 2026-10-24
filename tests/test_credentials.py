@@ -152,3 +152,48 @@ def test_audit_failure_rolls_back_issue_and_revoke(signing, monkeypatch):
     with pytest.raises(RuntimeError):
         service.issue_credential(signing[1].id, "2026", actor=signing[2][0])
     assert Credential.query.count() == 1
+
+
+def test_public_four_states_demo_seed_and_no_claims_for_tampering(client, signing):
+    from seed_b import seed_demo_credentials
+    refs = seed_demo_credentials()
+    assert refs == seed_demo_credentials() and Credential.query.count() == 4
+    for reference, status, text in zip(refs, ["VERIFIED", "REVOKED", "EXPIRED", "INVALID"],
+            ["Credential verified", "Credential revoked", "Credential expired", "Credential invalid"]):
+        page = client.get("/verify/" + reference)
+        assert page.status_code == 200 and text in page.get_data(as_text=True)
+        assert page.headers["Cache-Control"] == "no-store"
+        result = client.get("/verify/" + reference + ".json")
+        assert result.json["data"]["result"] == status
+        assert signing[0].apaar_ref not in page.get_data(as_text=True)
+        if status == "INVALID":
+            assert result.json["data"]["credential"] == {}
+            assert "DEMO ALTERED" not in page.get_data(as_text=True)
+            assert "Computer Engineering" not in page.get_data(as_text=True)
+    assert VerificationEvent.query.count() == 8
+    unknown = client.get("/verify/CRED-NOTFOUND")
+    assert unknown.status_code == 200 and "not found" in unknown.get_data(as_text=True)
+
+
+def test_public_rate_limit_shared_across_html_and_json(client, signing, app):
+    app.config["PUBLIC_RATE_CLOCK"] = lambda: 100.0
+    for index in range(30):
+        assert client.get("/verify/CRED-NOTFOUND" + (".json" if index % 2 else "")).status_code == 200
+    assert client.get("/verify/CRED-OTHER").status_code == 429
+    app.config["PUBLIC_RATE_CLOCK"] = lambda: 161.0
+    assert client.get("/verify/CRED-OTHER").status_code == 200
+
+
+def test_verify_console_login_demo_toggle_and_own_recent_events(client, signing, app):
+    from tests.test_risk import api_login
+    from seed_b import seed_demo_credentials
+    refs = seed_demo_credentials()
+    assert client.get("/verify-console").status_code == 302
+    api_login(client, signing[2][0])
+    page = client.get("/verify-console")
+    assert all(reference in page.get_data(as_text=True) for reference in refs)
+    redirect = client.get("/verify-console?reference=CRED-DEMO01")
+    assert redirect.status_code == 302 and redirect.location.endswith("/verify/CRED-DEMO01")
+    assert client.get("/verify-console?reference=https://evil.example/verify/CRED-DEMO01").status_code == 422
+    app.config["SHOW_DEMO_ACCOUNTS"] = False
+    assert "Demo credentials" not in client.get("/verify-console").get_data(as_text=True)

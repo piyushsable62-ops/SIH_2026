@@ -213,6 +213,15 @@ dialog .actions { justify-content: flex-end; }
 .risk-list-card .table-wrapper { max-height: 540px; }
 .risk-list-card td:first-child a { white-space: nowrap; }
 .credential-qr { display: block; width: 200px; height: 200px; margin: 16px 0; }
+.verification-panel { max-width: 800px; margin: 16px auto; }
+.verification-panel h1, .verification-panel h2 { margin-bottom: 16px; }
+.verification-panel .kv { margin: 20px 0; }
+.verification-VERIFIED { border-left: 4px solid var(--ok); }
+.verification-INVALID, .verification-REVOKED { border-left: 4px solid var(--danger); }
+.verification-EXPIRED { border-left: 4px solid var(--warn-ink); }
+.verification-VERIFIED h1 { color: var(--ok-ink); }
+.verification-INVALID h1, .verification-REVOKED h1 { color: var(--danger); }
+.verification-EXPIRED h1 { color: var(--warn-ink); }
 #credential-screen > .card { margin-top: 16px; }
 #risk-score-table .table-wrapper { max-height: 480px; }
 #risk-score-table tfoot th, #risk-score-table tfoot td { position: sticky; top: auto; bottom: 0; background: var(--surface); border-top: 2px solid var(--border); }

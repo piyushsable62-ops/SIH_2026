@@ -50,3 +50,14 @@ Verification records store only a keyed hash of the remote IP and internal event
 metadata. Invalid outcomes expose no untrusted claims; public revocation exposes
 only a generic reason category, never the issuer's internal note. Public GETs may
 append verification/audit events but never change credential or student state.
+
+## Public verification (B9)
+
+Public verdicts come only from backend checks, never a hard-coded UI badge.
+Unknown references intentionally render INVALID with HTTP 200, just like other
+credential states. HTML and JSON share a 30/minute hashed-IP limiter, bounded to
+10,000 recent address buckets per application process. A multi-worker production
+deployment needs a shared limiter and trusted proxy/address configuration.
+No forwarded IP header is trusted by this demo. Results are no-store. Public
+templates suppress the signed-in account header, unrelated flashes and CSRF
+metadata. Demo tampering is disabled when SHOW_DEMO_ACCOUNTS is false.

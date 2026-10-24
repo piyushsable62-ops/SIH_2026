@@ -11,6 +11,9 @@ import hmac
 import json
 import re
 import secrets
+import time
+from collections import OrderedDict, deque
+from threading import Lock
 from typing import Any
 
 from cryptography.exceptions import InvalidSignature
@@ -250,6 +253,36 @@ def verification_event(row: Credential | None, result: str, sharing_session_id: 
         result=result, verifier_user_id=user_id, ip_hash=digest)
     db.session.add(event)
     return event
+
+
+class PublicLimiter:
+    """Bounded per-process 30/minute limiter; keys are hashed remote addresses."""
+    def __init__(self):
+        self.entries = OrderedDict()
+        self.lock = Lock()
+
+    def allow(self, key: str, now: float) -> bool:
+        """Atomically discard expired entries and admit at most thirty requests."""
+        with self.lock:
+            bucket = self.entries.setdefault(key, deque())
+            self.entries.move_to_end(key)
+            while bucket and bucket[0] <= now - 60:
+                bucket.popleft()
+            if len(self.entries) > 10000:
+                self.entries.popitem(last=False)
+            if len(bucket) >= 30:
+                return False
+            bucket.append(now)
+            return True
+
+
+def public_limit(area: str) -> None:
+    """Apply a shared-IP bucket independent of reference/token and response format."""
+    limiter = current_app.extensions.setdefault("nexus_public_limiter", PublicLimiter())
+    clock = current_app.config.get("PUBLIC_RATE_CLOCK", time.monotonic)
+    key = area + hmac.new(str(current_app.config["SECRET_KEY"]).encode(), (request.remote_addr or "unknown").encode(), "sha256").hexdigest()
+    if not limiter.allow(key, clock()):
+        raise CredentialError("Too many verification requests. Try again in a minute.", "RATE_LIMITED", 429)
 
 
 def verify_credential(reference: str, *, commit: bool = True) -> VerificationOutcome:

@@ -1040,3 +1040,29 @@ select an eligible student, confirm issue, inspect masked claims and actual QR,
 then revoke with a required reason and verify REVOKED in history. Public links
 are exercised in B9. API tests cover cross-institution/student scope, auditor
 read-only behavior, PNG content/type/URL, CSRF, and response redaction.
+
+## Member B: Public QR verification (B9)
+
+`GET /verify/<reference>` is anonymous HTML; `.json` selects the same backend
+outcome in `{ok:true,data:{result,reason,credential,key_id}}`. All four states,
+including unknown references (INVALID / "not found"), use HTTP 200 so the route
+does not add a second HTTP existence signal. INVALID never contains claims.
+REVOKED contains only revocation time/category, not internal notes; EXPIRED
+contains expiry. Responses are no-store. A per-process hashed-IP bucket admits
+30 requests per 60 seconds across HTML/JSON and all references; exceeding it
+returns 429 with Retry-After 60. Public templates exclude account identity, flash
+messages and unnecessary CSRF metadata.
+
+`GET /verify-console` (alias `/verify`) requires any authenticated role. Its GET
+form accepts a reference or a QR URL from this platform and redirects to the
+public result. External origins are rejected. VERIFIER sees only their own last
+10 event summaries. Development-only demo links appear only with
+SHOW_DEMO_ACCOUNTS=true. `seed_b.seed_prove_and_detect(db)` hooks into the existing
+seed.py and prepares CRED-DEMO01 (valid), 02 (revoked), 03 (expired), 04 (tampered).
+The tampering helper is explicitly demo-only, modifies claims after signing and
+does not re-sign that edit. Seeding is idempotent and adds no logins/institutions.
+
+Tests exercise all four anonymous HTML/JSON states, rate-window boundaries,
+unknown references, no claims on tampering, actual event recording and demo
+visibility. Browser checks confirmed a backend VERIFIED page and a tampered
+INVALID page without institution/programme/APAAR claims.

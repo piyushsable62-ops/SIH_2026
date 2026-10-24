@@ -3,7 +3,7 @@ import base64
 from io import BytesIO
 from urllib.parse import quote, urlsplit
 
-from flask import Blueprint, current_app, jsonify, render_template, request, Response
+from flask import Blueprint, current_app, jsonify, render_template, request, Response, redirect, url_for
 from flask_login import current_user, login_required
 import qrcode
 from sqlalchemy import func, select
@@ -22,7 +22,12 @@ READ_ROLES = ("AICTE_ADMIN", "INSTITUTION_ADMIN", "STUDENT", "AUDITOR")
 @credentials_bp.app_errorhandler(service.CredentialError)
 def domain_error(error):
     """Expose safe domain errors and explicit warning acknowledgements."""
-    return jsonify(ok=False, error={"code": error.code, "message": str(error), "details": error.details}), error.status
+    response = jsonify(ok=False, error={"code": error.code, "message": str(error), "details": error.details})
+    response.status_code = error.status
+    response.headers["Cache-Control"] = "no-store"
+    if error.status == 429:
+        response.headers["Retry-After"] = "60"
+    return response
 
 
 @credentials_bp.errorhandler(ValueError)
@@ -194,6 +199,41 @@ def credential_page(id_):
     """Read-only in-scope passport, with no issue/revoke controls."""
     row = scoped_credential(id_)
     return render_template("passport.html", credential_id=row.id)
+
+
+@credentials_bp.get("/verify/<reference>")
+@credentials_bp.get("/verify/<reference>.json", endpoint="public_verify_json")
+def public_verify(reference):
+    """Public backend verdict only. All four outcomes, including unknown, use HTTP 200."""
+    service.public_limit("credential")
+    outcome = service.verify_credential(reference)
+    if request.path.endswith(".json"):
+        return jsonify(ok=True, data=outcome.to_dict())
+    return render_template("verification.html", console=False, outcome=outcome, checked_at=service.utcnow().isoformat())
+
+
+@credentials_bp.get("/verify")
+@credentials_bp.get("/verify-console")
+@login_required
+def verify_console():
+    """All authenticated roles can paste a reference or a trusted platform QR URL."""
+    text = request.args.get("reference", "").strip()
+    if text:
+        import re
+        parsed = urlsplit(text)
+        if parsed.scheme or text.startswith("/verify/"):
+            trusted = {urlsplit(request.host_url).netloc, urlsplit(current_app.config.get("PUBLIC_BASE_URL") or request.host_url).netloc}
+            if parsed.scheme and (parsed.scheme not in {"http", "https"} or parsed.netloc not in trusted):
+                raise service.CredentialError("Use a credential reference or this platform's QR link.")
+            text = parsed.path.rsplit("/", 1)[-1]
+        if not re.fullmatch(r"CRED-[A-Za-z0-9-]{1,24}", text):
+            raise service.CredentialError("Enter a valid credential reference.")
+        return redirect(url_for("credentials.public_verify", reference=text))
+    demo_refs = ("CRED-DEMO01", "CRED-DEMO02", "CRED-DEMO03", "CRED-DEMO04")
+    demos = db.session.execute(select(Credential).where(Credential.reference.in_(demo_refs)).order_by(Credential.reference)).scalars().all() if current_app.config.get("SHOW_DEMO_ACCOUNTS") else []
+    recent = db.session.execute(select(VerificationEvent).where(VerificationEvent.verifier_user_id == current_user.id)
+        .order_by(VerificationEvent.created_at.desc()).limit(10)).scalars().all() if current_user.role == "VERIFIER" else []
+    return render_template("verification.html", console=True, demos=[{"reference": row.reference, "result": service.check_credential(row).result} for row in demos], recent=recent)
 
 
 @credentials_bp.after_request
