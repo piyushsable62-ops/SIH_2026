@@ -181,6 +181,122 @@ Retrieves or updates system-wide governance configuration.
 - `GET /policies`: System policy cards with inline validation (AICTE Admin only).
 
 
+## Student Records, Manual Entry, Change History & Export (Task A7)
+
+### `GET /api/students`
+Retrieves paginated student records with multi-dimensional filtering.
+- **Access:** `AICTE_ADMIN`, `AUDITOR` (all institutions); `INSTITUTION_ADMIN` (scoped strictly to own institution).
+- **Query Parameters:**
+  - `page` (int, default 1)
+  - `per_page` (int, default 25, max 100)
+  - `academic_year` (string, e.g. `2026-27`)
+  - `institution_id` (UUID, AICTE only; cross-institution requests by institution admins return 403)
+  - `programme_id` (UUID)
+  - `category` or `admission_category` (`OPEN`, `OBC`, `SC`, `ST`, `EWS`, `NRI`, `OCI`, `FN`)
+  - `classification` (`REGULAR`, `SUPERNUMERARY`)
+  - `validation_status` (`PENDING`, `VALID`, `INVALID`, `FLAGGED`)
+  - `enrolment_status` (`ACTIVE`, `WITHDRAWN`, `GRADUATED`)
+  - `q` (search name, student ID, or APAAR reference)
+  - `reveal` (boolean string: `true` or `false`).
+- **Masking & Reveal Behavior:**
+  - Masked by default (`XXXXXXXX1234`).
+  - `reveal=true` reveals full APAAR for authorized `AICTE_ADMIN` and `INSTITUTION_ADMIN` (for own students only).
+  - Every reveal query is audit-logged with actor, count, and institution scope.
+- **Success Response (200):**
+  ```json
+  {
+    "ok": true,
+    "data": [
+      {
+        "id": "uuid",
+        "institution_id": "inst-uuid",
+        "institution_code": "VESIT",
+        "programme_id": "prog-uuid",
+        "programme_code": "IT",
+        "institution_student_id": "V-2026-001",
+        "full_name": "Aarav Sharma",
+        "normalized_name": "aarav sharma",
+        "apaar_ref": "XXXXXXXX1012",
+        "academic_year": "2026-27",
+        "admission_date": "2026-07-01",
+        "admission_category": "OPEN",
+        "classification": "REGULAR",
+        "enrolment_status": "ACTIVE",
+        "validation_status": "VALID"
+      }
+    ],
+    "meta": { "page": 1, "per_page": 25, "total": 1, "pages": 1 }
+  }
+  ```
+
+### `POST /api/students`
+Manual student academic registration validated through central `validation_service`.
+- **Access:** `AICTE_ADMIN`, `INSTITUTION_ADMIN` (own institution only).
+- **Validation:** Enforces 12-digit APAAR format check, academic year consecutive format, programme existence, and category/classification consistency.
+- **Seat Ledger Hook:** Prepares admission transaction with clear `seat_ledger.commit_admission` integration point.
+- **Success Response (201):**
+  ```json
+  {
+    "ok": true,
+    "data": { "id": "uuid", "institution_student_id": "V-2026-002", "apaar_ref": "XXXXXXXX1099", "validation_status": "VALID" },
+    "warnings": []
+  }
+  ```
+- **Error Response (422):** Returns `VALIDATION_ERROR` with row-level error codes (`APAAR_FORMAT`, `BAD_CATEGORY`, `MISSING_FIELD`, etc.).
+
+### `GET /api/students/<id>`
+Retrieves comprehensive student profile, field modification history timeline, and linked risk case references.
+- **Access:** `AICTE_ADMIN`, `INSTITUTION_ADMIN` (own institution), `AUDITOR`, `STUDENT` (own profile only).
+- **Query Parameter:** `reveal=true` (audit-logged if authorized admin).
+- **Success Response (200):**
+  ```json
+  {
+    "ok": true,
+    "data": {
+      "id": "uuid",
+      "full_name": "Aarav Sharma",
+      "apaar_ref": "XXXXXXXX1012",
+      "history": [
+        {
+          "field": "full_name",
+          "old_value": "Aarav Sharma",
+          "new_value": "Aarav Suresh Sharma",
+          "changed_by": "VESIT",
+          "reason": "Name correction",
+          "changed_at": "2026-10-24T12:00:00"
+        }
+      ],
+      "linked_risk_cases": [
+        { "id": "case-uuid", "reference": "CASE-0A1B2C", "severity": "HIGH", "score": 65, "status": "OPEN" }
+      ]
+    }
+  }
+  ```
+
+### `PATCH /api/students/<id>`
+Updates mutable fields on a student record. Requires an explicit audit reason.
+- **Access:** `AICTE_ADMIN`, `INSTITUTION_ADMIN` (own institution only; cross-institution updates return 403).
+- **Payload:**
+  - `reason` (string, required): Explanation for the audit trail.
+  - Allowed fields: `full_name`, `programme_id`, `academic_year`, `admission_category`, `classification`, `is_nri`, `is_oci`, `is_foreign_national`, `enrolment_status`, `contact_ref`, `fee_payer_ref`, `apaar_ref`.
+- **Audit & Workflow:**
+  - In the same database transaction, records `StudentRecordHistory` rows for each changed field.
+  - Re-runs central format validation.
+  - Re-triggers identity resolution scan hook.
+
+### `GET /api/students/export`
+Exports filtered student records as a CSV download.
+- **Access:** `AICTE_ADMIN`, `INSTITUTION_ADMIN` (scoped), `AUDITOR`.
+- **Privacy:** APAAR references are always masked (`XXXXXXXX1234`).
+- **Audit:** Action is recorded in `AuditLog` (`EXPORT_STUDENTS_CSV`) with record counts and filter criteria.
+- **Content-Type:** `text/csv; charset=utf-8` with `Content-Disposition: attachment`.
+
+### HTML Routes
+- `GET /students`: Central student repository interface with multi-field filter bar, compact table, pagination, and "Add Student" modal dialog.
+- `GET /students/<id>`: Student detail profile card, validation notes, linked risk cases, change history audit trail, and "Edit Student" dialog.
+
+
+
 
 ## Member B: Development UI preview (B0)
 
