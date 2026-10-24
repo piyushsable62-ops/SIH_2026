@@ -1,133 +1,40 @@
-{% extends "base.html" %}
-
-{% block title %}Dashboard — {{ app_name }}{% endblock %}
-{% block page_title %}Portal Dashboard{% endblock %}
-
+{% extends 'base.html' %}
+{% block title %}Dashboard — APAAR Nexus{% endblock %}
+{% block page_title %}{{ 'AICTE Governance' if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] else 'Institution Dashboard' }}{% endblock %}
 {% block content %}
-<div class="stack">
-  <div class="page-heading">
-    <h1>Welcome, {{ current_user.full_name or current_user.username }}</h1>
-    <p class="helper">
-      Logged in as <span class="badge badge-info">{{ current_user.role }}</span>
-      {% if institution %}
-        &mdash; <strong>{{ institution.name }}</strong> ({{ institution.code }})
-      {% endif %}
-    </p>
+{% if current_user.role in ['AICTE_ADMIN', 'AUDITOR', 'INSTITUTION_ADMIN'] %}
+<section id="governance-screen" data-mode="{{ 'governance' if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] else 'institution' }}" data-institution="{{ current_user.institution_id or '' }}">
+  <h1>{{ 'National governance overview' if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] else 'Institution operations' }}</h1>
+  <p class="muted">Current synthetic academic records and capacity indicators. Select filters to update the view.</p>
+  <form id="governance-filters" class="card filter-bar">
+    <div class="form-row"><label for="dash-year">Academic year</label><select id="dash-year" name="academic_year" class="select"><option value="">All years</option></select></div>
+    {% if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] %}<div class="form-row"><label for="dash-institution">Institution</label><select id="dash-institution" name="institution_id" class="select"><option value="">All institutions</option></select></div>{% endif %}
+    <div class="form-row"><label for="dash-programme">Programme</label><select id="dash-programme" name="programme_id" class="select"><option value="">All programmes</option></select></div>
+    <div class="form-row"><label for="dash-category">Category</label><select id="dash-category" name="category" class="select"><option value="">All categories</option>{% for value in ['OPEN','OBC','SC','ST','EWS','NRI','OCI','FN'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></div>
+    <div class="form-row"><label for="dash-validation">Validation</label><select id="dash-validation" name="validation_status" class="select"><option value="">All statuses</option>{% for value in ['PENDING','VALID','INVALID','FLAGGED'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></div>
+    <div class="form-row"><label for="dash-risk">Risk level</label><select id="dash-risk" name="risk_level" class="select"><option value="">All levels</option>{% for value in ['LOW','MEDIUM','HIGH','CRITICAL'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></div>
+    <button class="btn" type="submit">Apply filters</button><button class="btn btn-secondary" id="dash-reset" type="button">Clear</button>
+  </form>
+  <p id="governance-status" role="status"></p>
+  <div id="governance-stats" class="grid grid-4"></div>
+  {% if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] %}
+  <div class="grid grid-2 governance-charts">
+    <section class="card"><h2>Risk cases by severity</h2><p class="muted">Case count by review priority. Select a bar to open cases.</p><div class="chart-frame"><canvas id="chart-risk" aria-label="Risk cases by severity"></canvas></div></section>
+    <section class="card"><h2>Category-wise enrolment</h2><p class="muted">Active and graduated student records by category.</p><div class="chart-frame"><canvas id="chart-category" aria-label="Enrolment by category"></canvas></div></section>
+    <section class="card"><h2>Institution admission trend</h2><p class="muted">Admissions by academic year and institution.</p><div class="chart-frame"><canvas id="chart-trend" aria-label="Admission trend by year"></canvas></div></section>
+    <section class="card"><h2>Capacity utilisation</h2><p class="muted">Regular intake by institution. Reference levels: 80% caution, 90% warning, 100% full.</p><div class="chart-frame"><canvas id="chart-capacity" aria-label="Capacity utilisation by institution"></canvas></div></section>
+    <section class="card"><h2>Credential verification activity</h2><p class="muted">Verification results per day over the last 14 days.</p><div class="chart-frame"><canvas id="chart-verification" aria-label="Verification activity"></canvas></div></section>
   </div>
-
-  {% if current_user.role == 'AICTE_ADMIN' %}
-  <!-- AICTE Super Admin Governance Overview -->
-  <div class="grid grid-4">
-    <div class="card stat">
-      <div class="stat-number">{{ stats.institutions_count }}</div>
-      <div class="stat-label">Institutions</div>
-      <div class="stat-trend">Approved participating entities</div>
-    </div>
-    <div class="card stat">
-      <div class="stat-number">{{ stats.programmes_count }}</div>
-      <div class="stat-label">Programmes</div>
-      <div class="stat-trend">Degree programmes tracked</div>
-    </div>
-    <div class="card stat">
-      <div class="stat-number">{{ stats.students_count }}</div>
-      <div class="stat-label">Student Records</div>
-      <div class="stat-trend">Synthetic student records</div>
-    </div>
-    <div class="card stat">
-      <div class="stat-number">{{ stats.active_enrolments }}</div>
-      <div class="stat-label">Active Enrolments</div>
-      <div class="stat-trend">Currently active status</div>
-    </div>
+  <div class="grid grid-2 governance-lists">
+    <section class="card"><h2>Institutions approaching capacity</h2><div id="capacity-list"></div></section>
+    <section class="card"><h2>Recent high and critical cases</h2><div id="high-cases"></div></section>
+    <section class="card"><h2>Recent audit events</h2><div id="recent-audit"></div></section>
   </div>
-
-  <div class="grid grid-2">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>System Governance &amp; Modules</h2>
-          <p class="helper">Quick access to implemented platform components</p>
-        </div>
-      </div>
-      <ul style="list-style: none; padding: 0; margin: 0; display: grid; gap: 12px;">
-        <li style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg); border-radius: var(--radius);">
-          <div>
-            <a href="/institutions" style="font-weight: 600; text-decoration: none;">Institutions Directory &rarr;</a>
-            <div class="muted" style="font-size: 0.85rem;">Manage approved institutions, programmes, and intake capacities</div>
-          </div>
-          <span class="badge badge-ok">Live</span>
-        </li>
-        <li style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg); border-radius: var(--radius);">
-          <div>
-            <a href="/policies" style="font-weight: 600; text-decoration: none;">System Policies &rarr;</a>
-            <div class="muted" style="font-size: 0.85rem;">Configure APAAR regex, risk weights, warning thresholds, and expiry</div>
-          </div>
-          <span class="badge badge-ok">Live</span>
-        </li>
-        <li style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg); border-radius: var(--radius);">
-          <div>
-            <strong>Identity &amp; Risk Engine APIs</strong>
-            <div class="muted" style="font-size: 0.85rem;">Cross-institution identity scanning &amp; explainable risk scoring</div>
-          </div>
-          <span class="badge badge-ok">Live API</span>
-        </li>
-      </ul>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Prototype Integrity Notice</h2>
-          <p class="helper">Smart India Hackathon Problem Statement PS 26263</p>
-        </div>
-      </div>
-      <p style="margin-bottom: 12px; line-height: 1.6;">
-        APAAR Nexus validates and monitors student-level records using APAAR ID as the unique identifier.
-      </p>
-      <p class="muted" style="font-size: 0.9rem; line-height: 1.6;">
-        All data displayed in this prototype is 100% synthetic. No connection exists to AICTE, APAAR, UIDAI, or DigiLocker government databases.
-      </p>
-    </div>
-  </div>
-
-  {% elif current_user.role == 'INSTITUTION_ADMIN' %}
-  <!-- Institution Admin Overview -->
-  <div class="grid grid-3">
-    <div class="card stat">
-      <div class="stat-number">{{ stats.students_count }}</div>
-      <div class="stat-label">Institution Enrolments</div>
-      <div class="stat-trend">{{ stats.institution_code }} records</div>
-    </div>
-    <div class="card stat">
-      <div class="stat-number">{{ stats.active_enrolments }}</div>
-      <div class="stat-label">Active Students</div>
-      <div class="stat-trend">Enrolled students</div>
-    </div>
-    <div class="card stat">
-      <div class="stat-number">{{ stats.programmes_count }}</div>
-      <div class="stat-label">Approved Programmes</div>
-      <div class="stat-trend">Degree offerings</div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <div>
-        <h2>Institution Operations</h2>
-        <p class="helper">Manage intake compliance for {{ stats.institution_name }}</p>
-      </div>
-    </div>
-    <div class="actions">
-      <a href="/institutions" class="btn">View Institution Directory</a>
-    </div>
-  </div>
-
   {% else %}
-  <div class="card">
-    <div class="card-header">
-      <h2>Welcome to APAAR Nexus</h2>
-    </div>
-    <p>Please select an option from the sidebar to continue.</p>
-  </div>
+  <div class="grid grid-2 governance-charts"><section class="card"><h2>Category-wise capacity</h2><div class="chart-frame"><canvas id="chart-category" aria-label="Admitted students by category"></canvas></div><div id="category-capacity"></div></section><section class="card"><h2>Regular intake utilisation</h2><div id="institution-utilisation"></div></section></div>
+  <div class="grid grid-2 governance-lists"><section class="card"><h2>Submission history</h2><div id="submission-list"></div></section><section class="card"><h2>Validation errors</h2><div id="validation-errors"></div></section><section class="card"><h2>Pending identity checks</h2><div id="identity-checks"></div></section><section class="card"><h2>Institutional risk cases</h2><div id="institution-risk"></div></section><section class="card"><h2>Credential issuance history</h2><div id="credential-history"></div></section></div>
   {% endif %}
-</div>
+</section>
+{% else %}<section class="card"><h1>Welcome to APAAR Nexus</h1><p>Choose a page from the menu to continue.</p></section>{% endif %}
 {% endblock %}
+{% block scripts %}{% if current_user.role in ['AICTE_ADMIN', 'AUDITOR', 'INSTITUTION_ADMIN'] %}<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}" defer></script><script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>{% endif %}{% endblock %}

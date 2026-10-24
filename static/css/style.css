@@ -224,6 +224,11 @@ dialog .actions { justify-content: flex-end; }
 .verification-EXPIRED h1 { color: var(--warn-ink); }
 #credential-screen > .card { margin-top: 16px; }
 #sharing-screen > .card, #sharing-form { margin-top: 16px; }
+.governance-charts, .governance-lists { margin-top: 24px; }
+.governance-charts .chart-frame { position: relative; height: 260px; margin-top: 16px; }
+#governance-stats { margin-top: 16px; }
+#governance-filters { margin-top: 16px; }
+#governance-filters .form-row { min-width: 145px; }
 .sharing-options { border: 1px solid var(--border); padding: 16px; margin: 16px 0; }
 .sharing-options legend { font-weight: 600; padding: 0 8px; }
 .sharing-options label { display: block; margin: 12px 0; }
