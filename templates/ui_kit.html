@@ -1,0 +1,115 @@
+{% extends 'base_public.html' if preview_public else 'base.html' %}
+{% block title %}UI kit | APAAR Nexus{% endblock %}
+{% block page_title %}Visual foundation{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <h1>UI kit</h1>
+  <p class="helper">Shared components for the prototype. All examples are synthetic and kept in this page only.</p>
+</div>
+
+<section class="card preview-controls" aria-labelledby="preview-heading">
+  <div class="card-header"><h2 id="preview-heading">Development preview</h2><span class="badge badge-muted">Debug only</span></div>
+  <form class="filter-bar" method="get" action="{{ url_for('ui_kit.index') }}">
+    <div class="form-row">
+      <label for="preview-role">Navigation role</label>
+      <select class="select" id="preview-role" name="role">
+        {% for role in preview_roles %}<option value="{{ role }}"{% if preview_role == role %} selected{% endif %}>{{ role }}</option>{% endfor %}
+        <option value="ANONYMOUS"{% if preview_role == 'ANONYMOUS' %} selected{% endif %}>ANONYMOUS</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="preview-shell">Layout</label>
+      <select class="select" id="preview-shell" name="shell"><option value="standard">Standard</option><option value="public"{% if preview_public %} selected{% endif %}>Public / login (no sidebar)</option></select>
+    </div>
+    <button class="btn" type="submit">Apply preview</button>
+  </form>
+  <p class="form-hint">Role selection changes navigation only; it does not sign you in. Unbuilt modules are unavailable.</p>
+  <nav class="actions component-nav" aria-label="Component sections"><a href="#status-components">Status</a><a href="#table-components">Table</a><a href="#form-components">Forms</a><a href="#feedback-components">Feedback</a><a href="#vendor-components">Local libraries</a></nav>
+</section>
+
+<div class="stack">
+  <section class="grid grid-4" aria-label="Example statistics">
+    {% for number, label, trend in [('6', 'Synthetic rows', 'In-memory table examples'), ('5', 'Status styles', 'Text labels accompany colours'), ('5', 'Navigation roles', 'No preview accounts created'), ('2', 'Local libraries', 'No runtime CDN requests')] %}
+      <div class="card stat"><span class="stat-number">{{ number }}</span><span class="stat-label">{{ label }}</span><span class="stat-trend">{{ trend }}</span></div>
+    {% endfor %}
+  </section>
+
+  <section class="card" id="status-components" aria-labelledby="status-heading">
+    <div class="card-header"><h2 id="status-heading">Status and utilisation</h2><span class="badge badge-info">Synthetic examples</span></div>
+    <div class="actions">
+      <span class="badge badge-ok">Verified</span><span class="badge badge-warn">Needs review</span><span class="badge badge-danger">Invalid</span><span class="badge badge-info">In progress</span><span class="badge badge-muted">Not started</span>
+    </div>
+    <div class="grid grid-3 component-nav">
+      {% for value in [80, 90, 100] %}
+        <div><p class="progress-label"><span id="progress-label-{{ value }}">Example utilisation</span><strong>{{ value }}%</strong></p><div class="progress progress-{{ value }}" role="progressbar" aria-labelledby="progress-label-{{ value }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ value }}"><span class="progress-fill" style="--value: {{ value }}%"></span></div></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card" id="table-components" aria-labelledby="table-heading">
+    <div class="card-header"><h2 id="table-heading">Table, filters and pagination</h2><span class="badge badge-muted">Local example</span></div>
+    <form id="table-filter" class="filter-bar">
+      <div class="form-row"><label for="filter-query">Search synthetic rows</label><input class="input" id="filter-query" name="query" type="search" placeholder="Example student or institution"></div>
+      <div class="form-row"><label for="filter-status">Status</label><select class="select" id="filter-status" name="status"><option value="">All statuses</option><option value="Verified">Verified</option><option value="Needs review">Needs review</option><option value="Invalid">Invalid</option></select></div>
+      <button class="btn" type="submit">Apply filters</button><button class="btn btn-secondary" type="reset">Clear</button>
+    </form>
+    <div class="table-wrapper" role="region" aria-label="Scrollable synthetic records table" tabindex="0">
+      <table class="table preview-table">
+        <caption>Synthetic records for component testing; no student data is loaded.</caption>
+        <thead><tr><th scope="col">Reference</th><th scope="col">Student</th><th scope="col">Institution</th><th scope="col">Status</th></tr></thead>
+        <tbody id="preview-rows">
+          {% for reference, name, institution, status, kind in [('SAMPLE-01', 'Example student 1', 'VESIT', 'Verified', 'ok'), ('SAMPLE-02', 'Example student 2', 'COEP', 'Needs review', 'warn'), ('SAMPLE-03', 'Example student 3', 'VJTI', 'Invalid', 'danger'), ('SAMPLE-04', 'Example student 4', 'VESIT', 'Verified', 'ok'), ('SAMPLE-05', 'Example student 5', 'COEP', 'Verified', 'ok'), ('SAMPLE-06', 'Example student 6', 'VJTI', 'Needs review', 'warn')] %}
+          <tr data-status="{{ status }}"><td>{{ reference }}</td><td>{{ name }}</td><td>{{ institution }}</td><td><span class="badge badge-{{ kind }}">{{ status }}</span></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="table-empty" hidden><h3>No matching examples</h3><p>Clear the filters to see the synthetic rows again.</p></div>
+    <nav class="pagination" aria-label="Synthetic records pages"><span id="page-status" aria-live="polite">6 synthetic records</span><div class="actions"><button class="btn btn-secondary" id="previous-page" type="button" disabled>Previous</button><button class="btn btn-secondary" id="next-page" type="button" disabled>Next</button></div></nav>
+  </section>
+
+  <div class="grid grid-2">
+    <section class="card" id="form-components" aria-labelledby="form-heading">
+      <div class="card-header"><h2 id="form-heading">Form fields</h2><span class="badge badge-muted">Preview only</span></div>
+      <form id="example-form" class="preview-form" novalidate>
+        <div class="form-row"><label for="example-name">Display name (required)</label><input class="input" id="example-name" name="display_name" required maxlength="60" aria-describedby="name-hint name-error"><span class="form-hint" id="name-hint">Use a synthetic name. Nothing is saved.</span><span class="field-error" id="name-error" hidden>Enter a display name (up to 60 characters).</span></div>
+        <div class="form-row"><label for="example-programme">Programme</label><select class="select" id="example-programme" name="programme"><option>Computer Engineering</option><option>Information Technology</option></select></div>
+        <div class="form-row"><label for="example-notes">Notes</label><textarea class="textarea" id="example-notes" name="notes" maxlength="240" placeholder="Synthetic preview notes"></textarea></div>
+        <div class="actions"><button class="btn" type="submit">Preview values</button><button class="btn btn-secondary" type="reset">Reset form</button></div>
+        <p class="form-hint" id="form-result" aria-live="polite">No values submitted.</p>
+      </form>
+    </section>
+    <section class="card" aria-labelledby="detail-heading">
+      <div class="card-header"><h2 id="detail-heading">Tabs and key-value details</h2></div>
+      <div class="tabs" role="tablist" aria-label="Example details">
+        <button id="tab-summary" role="tab" aria-selected="true" aria-controls="panel-summary" type="button">Summary</button>
+        <button id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history" tabindex="-1" type="button">History</button>
+      </div>
+      <div id="panel-summary" role="tabpanel" aria-labelledby="tab-summary" tabindex="0"><dl class="kv"><dt>Record</dt><dd>Synthetic example</dd><dt>Institution</dt><dd>VESIT</dd><dt>Programme</dt><dd>Computer Engineering</dd><dt>State</dt><dd><span class="badge badge-muted">UI preview only</span></dd></dl></div>
+      <div id="panel-history" role="tabpanel" aria-labelledby="tab-history" tabindex="0" hidden><div class="empty-state"><h3>No history yet</h3><p>This component preview does not create or change records.</p></div></div>
+    </section>
+  </div>
+
+  <section class="card" id="feedback-components" aria-labelledby="feedback-heading">
+    <div class="card-header"><h2 id="feedback-heading">Buttons, toasts and confirmation</h2></div>
+    <div class="actions"><button class="btn" type="button" data-toast="ok">Success toast</button><button class="btn btn-secondary" type="button" data-toast="info">Information toast</button><button class="btn btn-secondary" type="button" data-toast="warn">Warning toast</button><button class="btn btn-secondary" type="button" data-toast="danger">Error toast</button><button class="btn btn-danger" id="open-example-dialog" type="button">Open confirmation</button><button class="btn" type="button" disabled>Unavailable action</button></div>
+    <p class="helper" id="dialog-result" aria-live="polite">The dialog is an example; it does not revoke or delete anything.</p>
+  </section>
+
+  <section class="grid grid-2" id="vendor-components" aria-label="Local vendor library examples">
+    <div class="card"><div class="card-header"><h2>Chart.js: synthetic row counts</h2></div><div class="chart-frame"><canvas id="example-chart" role="img" aria-label="Synthetic row counts: VESIT 2, COEP 2, VJTI 2">VESIT: 2. COEP: 2. VJTI: 2.</canvas></div><p class="vendor-status" id="chart-status" role="status">Loading local Chart.js.</p></div>
+    <div class="card"><div class="card-header"><h2>Cytoscape.js: synthetic relationship</h2></div><div class="graph-frame" id="example-graph" role="img" aria-label="Synthetic student connected to VESIT. No real identities are shown."></div><p class="vendor-status" id="graph-status" role="status">Loading local Cytoscape.js.</p></div>
+  </section>
+</div>
+
+<dialog id="example-dialog" aria-labelledby="dialog-heading" aria-describedby="dialog-description">
+  <h2 id="dialog-heading">Confirm example action</h2><p id="dialog-description">This demonstrates a destructive-action confirmation. No records will be changed.</p>
+  <form method="dialog" class="actions"><button class="btn btn-secondary" value="cancel" autofocus>Cancel</button><button class="btn btn-danger" value="confirm">Confirm example</button></form>
+</dialog>
+<noscript><p class="helper">Enable JavaScript to try the interactive examples. The visual components above remain available.</p></noscript>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='vendor/cytoscape.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/ui-kit.js') }}" defer></script>
+{% endblock %}

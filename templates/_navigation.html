@@ -1,0 +1,24 @@
+{# All role menus live here. Unbuilt routes are text, not broken links. #}
+{% macro navigation(role, paths) -%}
+  {% set menus = {
+    'AICTE_ADMIN': [('Dashboard', '/dashboard'), ('Institutions', '/institutions'), ('Students', '/students'), ('Seat Ledger', '/seat-ledger'), ('Identity Graph', '/identity-graph'), ('Risk Cases', '/risk-cases'), ('Credentials', '/credentials'), ('Reports', '/reports'), ('Audit Logs', '/audit-logs'), ('Policies', '/policies')],
+    'INSTITUTION_ADMIN': [('Dashboard', '/dashboard'), ('Students', '/students'), ('Upload CSV', '/upload'), ('Seat Ledger', '/seat-ledger'), ('Risk Cases (own)', '/risk-cases'), ('Issue Credential', '/credentials/issue'), ('Reports', '/reports')],
+    'STUDENT': [('My Passport', '/passport'), ('Sharing', '/sharing')],
+    'VERIFIER': [('Verify Credential', '/verify')],
+    'AUDITOR': [('Reports', '/reports'), ('Risk Cases (read-only)', '/risk-cases'), ('Audit Logs', '/audit-logs')]
+  } %}
+  <ul>
+    {% for label, path in menus.get(role, []) %}
+      <li>
+        {% if path in paths %}
+          <a class="nav-link" href="{{ path }}"{% if request.path == path or request.path.startswith(path ~ '/') %} aria-current="page"{% endif %}>{{ label }}</a>
+        {% else %}
+          <span class="nav-link" aria-disabled="true" title="Available when this module is implemented">{{ label }}</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+    {% if config.DEBUG and '/ui-kit' in paths %}
+      <li><a class="nav-link" href="{{ url_for('ui_kit.index') }}"{% if request.path == '/ui-kit' %} aria-current="page"{% endif %}>UI kit</a></li>
+    {% endif %}
+  </ul>
+{%- endmacro %}
