@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — {{ app_name }}{% endblock %}
+{% block page_title %}Portal Dashboard{% endblock %}
+
+{% block content %}
+<div class="stack">
+  <div class="page-heading">
+    <h1>Welcome, {{ current_user.full_name or current_user.username }}</h1>
+    <p class="helper">
+      Logged in as <span class="badge badge-info">{{ current_user.role }}</span>
+      {% if institution %}
+        &mdash; <strong>{{ institution.name }}</strong> ({{ institution.code }})
+      {% endif %}
+    </p>
+  </div>
+
+  {% if current_user.role == 'AICTE_ADMIN' %}
+  <!-- AICTE Super Admin Governance Overview -->
+  <div class="grid grid-4">
+    <div class="card stat">
+      <div class="stat-number">{{ stats.institutions_count }}</div>
+      <div class="stat-label">Institutions</div>
+      <div class="stat-trend">Approved participating entities</div>
+    </div>
+    <div class="card stat">
+      <div class="stat-number">{{ stats.programmes_count }}</div>
+      <div class="stat-label">Programmes</div>
+      <div class="stat-trend">Degree programmes tracked</div>
+    </div>
+    <div class="card stat">
+      <div class="stat-number">{{ stats.students_count }}</div>
+      <div class="stat-label">Student Records</div>
+      <div class="stat-trend">Synthetic student records</div>
+    </div>
+    <div class="card stat">
+      <div class="stat-number">{{ stats.active_enrolments }}</div>
+      <div class="stat-label">Active Enrolments</div>
+      <div class="stat-trend">Currently active status</div>
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>System Governance &amp; Modules</h2>
+          <p class="helper">Quick access to implemented platform components</p>
+        </div>
+      </div>
+      <ul style="list-style: none; padding: 0; margin: 0; display: grid; gap: 12px;">
+        <li style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg); border-radius: var(--radius);">
+          <div>
+            <a href="/institutions" style="font-weight: 600; text-decoration: none;">Institutions Directory &rarr;</a>
+            <div class="muted" style="font-size: 0.85rem;">Manage approved institutions, programmes, and intake capacities</div>
+          </div>
+          <span class="badge badge-ok">Live</span>
+        </li>
+        <li style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg); border-radius: var(--radius);">
+          <div>
+            <a href="/policies" style="font-weight: 600; text-decoration: none;">System Policies &rarr;</a>
+            <div class="muted" style="font-size: 0.85rem;">Configure APAAR regex, risk weights, warning thresholds, and expiry</div>
+          </div>
+          <span class="badge badge-ok">Live</span>
+        </li>
+        <li style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg); border-radius: var(--radius);">
+          <div>
+            <strong>Identity &amp; Risk Engine APIs</strong>
+            <div class="muted" style="font-size: 0.85rem;">Cross-institution identity scanning &amp; explainable risk scoring</div>
+          </div>
+          <span class="badge badge-ok">Live API</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Prototype Integrity Notice</h2>
+          <p class="helper">Smart India Hackathon Problem Statement PS 26263</p>
+        </div>
+      </div>
+      <p style="margin-bottom: 12px; line-height: 1.6;">
+        APAAR Nexus validates and monitors student-level records using APAAR ID as the unique identifier.
+      </p>
+      <p class="muted" style="font-size: 0.9rem; line-height: 1.6;">
+        All data displayed in this prototype is 100% synthetic. No connection exists to AICTE, APAAR, UIDAI, or DigiLocker government databases.
+      </p>
+    </div>
+  </div>
+
+  {% elif current_user.role == 'INSTITUTION_ADMIN' %}
+  <!-- Institution Admin Overview -->
+  <div class="grid grid-3">
+    <div class="card stat">
+      <div class="stat-number">{{ stats.students_count }}</div>
+      <div class="stat-label">Institution Enrolments</div>
+      <div class="stat-trend">{{ stats.institution_code }} records</div>
+    </div>
+    <div class="card stat">
+      <div class="stat-number">{{ stats.active_enrolments }}</div>
+      <div class="stat-label">Active Students</div>
+      <div class="stat-trend">Enrolled students</div>
+    </div>
+    <div class="card stat">
+      <div class="stat-number">{{ stats.programmes_count }}</div>
+      <div class="stat-label">Approved Programmes</div>
+      <div class="stat-trend">Degree offerings</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2>Institution Operations</h2>
+        <p class="helper">Manage intake compliance for {{ stats.institution_name }}</p>
+      </div>
+    </div>
+    <div class="actions">
+      <a href="/institutions" class="btn">View Institution Directory</a>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="card">
+    <div class="card-header">
+      <h2>Welcome to APAAR Nexus</h2>
+    </div>
+    <p>Please select an option from the sidebar to continue.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
