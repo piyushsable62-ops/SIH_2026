@@ -185,3 +185,78 @@ Manual verification: run `python -m pytest tests/test_identity.py -q`, inspect
 `result.to_dict()` from a committed synthetic app-context dataset, rerun with the
 same scope and compare match/edge IDs. Contact-only/payer-only pairs must produce
 signals and zero identity matches. Graph click-testing becomes available in B4/B5.
+
+## Member B: Explainable risk service (B3)
+
+No HTTP routes are added in B3. Use the committed B2 result from a trusted job or
+an authenticated administrator context:
+
+```python
+from services.identity_resolution import scan
+from services.risk_engine import evaluate_all, explain, record_excess_intake_event, score_events
+
+cases = evaluate_all(scan(academic_year="2026-27"))
+for case in cases:
+    paragraph = explain(case)
+# After committing a REJECTED capacity admission event:
+case = record_excess_intake_event(admission_event)
+```
+
+- `score_events(events, weights)` is pure and returns `(score, severity,
+  breakdown)` using standard bands. Events may be B2 dataclasses or dictionaries.
+  Points apply once per `event_key`, even across different rules. Conflicting
+  rules for a key choose the highest configured weight with a lexical tie-break,
+  independent of scan order. Unknown rules contribute zero points.
+- `evaluate_all(scan_result)` reads `risk_weights`, merging partial overrides
+  with AGENTS.md defaults. A missing policy logs a warning. Values must be
+  non-negative integers. `risk_bands`, when present, is an object of inclusive
+  `[minimum, maximum]` ranges, for example
+  `{"LOW":[0,29],"MEDIUM":[30,59],"HIGH":[60,79],"CRITICAL":[80,100]}`.
+  The four ordered ranges must cover every integer 0–100 without gaps/overlaps.
+  Invalid policies fail before committing case changes.
+- Signal-only totals have a safety ceiling of `min(29, LOW upper bound)`, even
+  when configured weights are very large. Breakdown rows retain their raw points;
+  `explain` identifies the cap. Other totals are capped at 100. Shared contacts,
+  fee payers and duplicate uploads always retain signal status.
+- Substantive events connect student components. Signals wholly inside one
+  component attach there; other signals form separate cases labelled
+  `Investigation signal`. Signals never bridge two identity components. An event
+  is allocated once per evaluation, including when it touches several records.
+- Evidence is cumulative. Repeated/partial scans cannot erase earlier evidence
+  or reopen/resolve a human decision. Re-evaluation refreshes policy points while
+  keeping case/reference, status, assignee, evidence IDs and history. If new
+  substantive evidence joins cases, the oldest case survives with its workflow;
+  every other case's action history is moved to it, redundant cases are removed,
+  and evidence is deduplicated. The oldest case's status/assignee wins when merged
+  workflows differ. Historical evidence is not automatically withdrawn after a
+  source-record correction; this requires human review.
+- Affected student/institution IDs and the stable cluster key are in
+  `RiskEvidence.details._risk`; related IDs are also in `related_student_ids`.
+  Cross-institution cases have `RiskCase.institution_id = null`. Case-list APIs
+  must enforce authorized membership explicitly rather than exposing these
+  cases to institution administrators. The current service permits only own
+  local cases for institution administrators; AICTE may evaluate cross-institution
+  cases. App-context jobs are trusted; anonymous/other request roles are rejected.
+- `record_excess_intake_event` accepts the persisted ORM `AdmissionEvent` after
+  its caller commits. It handles `result=REJECTED` with reason
+  `CAPACITY_EXCEEDED` or `EXCESS_INTAKE_VIOLATION`; other results/reasons return
+  `None`. Coordinate any additional reason code with Member A. Cases group by
+  institution across programmes/years; evidence retains each attempt's programme,
+  year, category and classification. Admission UUID is the exact event key.
+  Repeated delivery adds no points; distinct rejected attempts each contribute.
+- The service owns its transaction. Commit caller work first (including flushed
+  writes). `audit_service.log` commits case/evidence/history and `RISK_EVALUATED`
+  together; failures roll back. Same-cluster concurrent calls require caller
+  serialization/retry. No student, credential or admission record is changed.
+  The initial history note is `Case opened by system scan` (OPEN to OPEN); the
+  existing action enum's `UNDER_REVIEW` value records this note without changing
+  case status. A dedicated system-open action would require a Member A enum change.
+
+Verification: `python -m pytest tests/test_risk.py -q` exercises scoring,
+authorization, idempotency, cluster merging, policy changes and non-punitive
+behavior. The five-scenario fixture creates LOW (malformed reference/shared
+contact), MEDIUM (rejected excess intake), HIGH (40+35) and CRITICAL (40+35+15)
+cases from real scan/admission engine output. This is not a seed verification:
+`seed.py` is absent on main. Member A must provide those isolated scenarios in
+A3/A4 before a real `seed + scan` check is possible. B4/B6 will provide browser
+case pages; no risk buttons exist to click-test yet.
