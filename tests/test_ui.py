@@ -121,9 +121,11 @@ def test_active_link_and_public_override_for_authenticated_template(preview_app)
 
 
 def test_flash_content_is_escaped_and_logout_is_post_with_csrf(preview_app):
-    @preview_app.post("/logout", endpoint="auth.logout")
-    def logout():
-        return "Test endpoint only"
+    if "auth.logout" not in preview_app.view_functions:
+        @preview_app.post("/logout", endpoint="auth.logout")
+        def logout():
+            return "Test endpoint only"
+
 
     user = SimpleNamespace(is_authenticated=True, role="STUDENT", username="<script>name</script>")
     with preview_app.test_request_context("/passport"):
