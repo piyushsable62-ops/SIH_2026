@@ -763,6 +763,7 @@ def commit_admission(payload: Dict[str, Any], actor: Any) -> Dict[str, Any]:
                 is_foreign_national=flags["is_foreign_national"],
                 contact_ref=payload.get("contact_ref"),
                 fee_payer_ref=payload.get("fee_payer_ref"),
+                source_submission_id=payload.get("source_submission_id"),
                 enrolment_status=payload.get("enrolment_status", EnrolmentStatus.ACTIVE.value),
                 validation_status=payload.get("validation_status", ValidationStatus.PENDING.value),
                 validation_notes=payload.get("validation_notes"),
