@@ -1066,3 +1066,36 @@ Tests exercise all four anonymous HTML/JSON states, rate-window boundaries,
 unknown references, no claims on tampering, actual event recording and demo
 visibility. Browser checks confirmed a backend VERIFIED page and a tampered
 INVALID page without institution/programme/APAAR claims.
+# B10 — Consent sharing backend
+
+`POST /api/sharing-sessions` (STUDENT, own credential) accepts
+`{credential_id, claims: ["DEGREE_AUTHENTICITY", "AWARD_YEAR"], expiry_hours: 24}`.
+Expiry choices are 24/72/168 hours, narrowed by policy
+`sharing_allowed_expiry_hours`. Each sensitive selected claim additionally needs
+its own true flag, for example
+`explicit_authorisation: {"STUDENT_NAME": true, "APAAR_MASKED": true}`.
+Unsupported/duplicate/empty claims or invalid authorisation/expiry return 422;
+foreign credentials return 404; currently unverified credentials return 409.
+201 returns `id`, `token` **once**, `share_url`, server-generated PNG
+`qr_data_uri`, `expires_at`, and `claims`. Copy the link immediately.
+
+`GET /api/sharing-sessions` paginates own STUDENT metadata; AICTE_ADMIN and
+AUDITOR can read metadata across students. Only `token_prefix` is retained in
+metadata, never raw tokens or hashes. Status is computed ACTIVE/EXPIRED/REVOKED.
+`POST /api/sharing-sessions/<id>/revoke` accepts `{}` for the owning student or
+AICTE support administrator. Every revocation is audited; repeats return 409.
+
+`GET /public/verify/<token>?format=json` needs no login. A valid response contains
+only selected claim keys, result, message and expiry. Invalid/unknown/malformed
+tokens return the same generic 404 envelope. Known expired/revoked links return
+200 with their state and **no claims**. Revoked/expired/altered credentials also
+withhold all claims. The public route is 30/IP/minute per process, no-store and
+no-referrer. Tokens are SHA-256 indexed, never written in audit/verification rows;
+Werkzeug URL logs are redacted. Reverse proxies need equivalent redaction.
+
+The service accepts an injectable `SHARING_CLOCK` for expiry tests. A profile
+name is shared only with explicit consent; the credential's signed payload does
+not assert a student name. This implements consent-based selective disclosure,
+not zero-knowledge proofs. Session creation, access counters and revocation are
+committed together with their audit entry; an active access records one linked
+credential verification event. No academic records are changed.

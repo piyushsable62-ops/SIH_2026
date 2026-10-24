@@ -285,7 +285,7 @@ def public_limit(area: str) -> None:
         raise CredentialError("Too many verification requests. Try again in a minute.", "RATE_LIMITED", 429)
 
 
-def verify_credential(reference: str, *, commit: bool = True) -> VerificationOutcome:
+def verify_credential(reference: str, *, commit: bool = True, sharing_session_id: str | None = None) -> VerificationOutcome:
     """Verify publicly and record every call, including unknown or malformed references.
 
     commit=False is for sharing's encompassing audited transaction only.
@@ -295,7 +295,7 @@ def verify_credential(reference: str, *, commit: bool = True) -> VerificationOut
     try:
         row = db.session.execute(select(Credential).where(Credential.reference == reference)).scalar_one_or_none() if isinstance(reference, str) and len(reference) <= 30 else None
         result = check_credential(row)
-        verification_event(row, result.result)
+        verification_event(row, result.result, sharing_session_id)
         if commit:
             user = current_user if has_request_context() and current_user.is_authenticated else None
             _audit(user, "CREDENTIAL_VERIFICATION", row.id if row else "UNKNOWN", {"result": result.result})

@@ -61,3 +61,27 @@ deployment needs a shared limiter and trusted proxy/address configuration.
 No forwarded IP header is trusted by this demo. Results are no-store. Public
 templates suppress the signed-in account header, unrelated flashes and CSRF
 metadata. Demo tampering is disabled when SHOW_DEMO_ACCOUNTS is false.
+# Consent and sharing links
+
+Sharing uses 32 random bytes (`secrets.token_urlsafe(32)`), a SHA-256 database
+lookup hash, and a six-character display prefix. The create response discloses
+the bearer token/link once; list responses never recover it. Consent rows store
+the selected claim list. Personal name and masked APAAR each require their own
+explicit authorisation flag. Full APAAR, DOB, address and contact data have no
+sharing claim and cannot be selected. Public responses contain only selected
+claims; even student internal identifiers are omitted.
+
+Every active access checks the stored consent, ownership, expiry and current
+credential signature/revocation/expiry. Dead links disclose no claims. An
+injectable server clock supports expiry tests. Unknown and malformed links use
+the same generic 404 response. Responses disable caching, referrers and indexing;
+the process limiter is shared across token paths. Access counts, pseudonymous
+verification events and audit records do not include bearer tokens.
+
+The sharing blueprint installs Werkzeug access-log redaction for bearer paths.
+Production ingress, reverse proxies, error monitoring and analytics must also
+redact `/public/verify/<token>`; never capture full request URLs on these routes.
+The prototype has no third-party page resources on verification pages. A bearer
+recipient can copy disclosed information, so revocation prevents future access
+but cannot retract a copy already made. Database administrators are trusted;
+hashes protect token recovery, not against an administrator changing consent.
