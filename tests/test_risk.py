@@ -497,3 +497,75 @@ def test_graph_get_does_not_mutate_and_focus_survives_small_limit(client, data, 
     assert AuditLog.query.count() == before
     assert client.get("/api/identity/node/not-a-node").status_code == 422
     assert client.get("/api/identity/graph?case_id=" + str(uuid4())).status_code == 404
+
+
+def test_graph_explorer_page_permissions_and_offline_assets(client, data, accounts):
+    own = data[2]()
+    data[2]("Foreign student", institution=1, academic_year="2027-28")
+    db.session.commit()
+    assert client.get("/identity-graph").status_code == 302
+    api_login(client, accounts[0])
+    page = client.get("/identity-graph")
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert 'id="graph-institution"' in html and 'id="graph-scan"' in html
+    assert '/static/vendor/cytoscape.min.js' in html and '/static/js/identity-graph.js' in html
+    assert "Records and evidence" in html and "not proof of duplicate identity" in html
+    assert own.apaar_ref not in html
+    api_login(client, accounts[1])
+    html = client.get("/identity-graph").get_data(as_text=True)
+    assert 'id="graph-institution"' not in html and 'id="graph-scan"' in html
+    assert "2027-28" not in html
+    accounts[0].role = "AUDITOR"
+    db.session.commit()
+    api_login(client, accounts[0])
+    assert 'id="graph-scan"' not in client.get("/identity-graph").get_data(as_text=True)
+    accounts[0].role = "VERIFIER"
+    db.session.commit()
+    assert client.get("/identity-graph").status_code == 403
+
+
+def test_graph_name_search_edge_evidence_and_programme_labels(client, data, accounts):
+    a = data[2]("Devansh Verma")
+    b = data[2]("Devansh Verma", institution=1)
+    data[2]("Unrelated student", "100000000002")
+    db.session.commit()
+    api_login(client, accounts[0])
+    assert client.post("/api/identity/scan", json={}).status_code == 200
+    graph = client.get("/api/identity/graph?q=Devansh%20Verma&include_signals=false").json["data"]
+    assert [node["type"] for node in graph["nodes"]].count("STUDENT") == 2
+    assert [node["type"] for node in graph["nodes"]].count("INSTITUTION") == 2
+    assert [node["type"] for node in graph["nodes"]].count("APAAR") == 1
+    assert all(isinstance(edge["evidence"], dict) and "identity_scope" not in edge["evidence"] for edge in graph["edges"])
+    assert next(edge for edge in graph["edges"] if edge["type"] == "SIMULTANEOUS_ENROLMENT")["evidence"]["academic_year"] == "2026-27"
+    panel = client.get("/api/identity/node/student:" + a.id).json["data"]
+    assert all(record["programme_name"] == "Computer Engineering" for record in panel["linked_records"])
+    assert a.apaar_ref not in str(graph) + str(panel)
+    assert client.get("/api/identity/graph?q=Nonexistent").json["data"]["nodes"] == []
+    assert client.get("/api/identity/graph?q=123456789012").status_code == 422
+    assert client.get("/api/identity/graph?q=___").status_code == 422
+    api_login(client, accounts[1])
+    graph = client.get("/api/identity/graph?q=Devansh").json["data"]
+    assert b.id not in str(graph)
+
+
+def test_graph_explorer_deep_link_checks_case_scope(client, data, accounts):
+    _, case = local_case(data)
+    api_login(client, accounts[0])
+    page = client.get("/identity-graph?case_id=" + case.id)
+    assert page.status_code == 200 and f'data-case-id="{case.id}"' in page.get_data(as_text=True)
+    api_login(client, accounts[2])
+    assert client.get("/identity-graph?case_id=" + case.id).status_code == 404
+
+
+def test_truncated_graph_keeps_relationship_context(client, data, accounts):
+    for index in range(12):
+        data[2](f"Synthetic record {index}", f"{index + 1:012}", admission_date=date(2026, 7, index + 1))
+    db.session.commit()
+    identity_resolution.scan()
+    api_login(client, accounts[0])
+    view = client.get("/api/identity/graph?limit=10").json["data"]
+    assert view["truncated"] and len(view["nodes"]) <= 10
+    assert view["edges"] and {node["type"] for node in view["nodes"]} >= {"STUDENT", "APAAR", "INSTITUTION"}
+    ids = {node["id"] for node in view["nodes"]}
+    assert all(edge["source"] in ids and edge["target"] in ids for edge in view["edges"])
