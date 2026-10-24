@@ -510,6 +510,13 @@
       }
       return stepEl;
     }));
+
+    const conversionPct = Math.round((credCount / base) * 100);
+    const footerEl = N.el("div", { class: "dash-funnel-footer" },
+      N.el("span", {}, "Pipeline conversion rate:"),
+      N.el("strong", {}, `${conversionPct}% issued`)
+    );
+    container.append(footerEl);
   }
 
   /** 5. CHARTS: Category, Donut, Programmes, Risk */
