@@ -78,7 +78,7 @@ class TestingConfig(Config):
     """Testing environment configuration."""
     TESTING = True
     DEBUG = False
-    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    SQLALCHEMY_DATABASE_URI = os.getenv("TEST_DATABASE_URL", "sqlite:///:memory:")
     # CSRF configurable, disabled by default for simpler client test invocations
     WTF_CSRF_ENABLED = os.getenv("TEST_WTF_CSRF_ENABLED", "false").lower() in ("true", "1", "yes")
 

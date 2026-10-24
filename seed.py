@@ -947,6 +947,11 @@ def run_seeding(reset: bool = False) -> None:
         counts["student_records"] = student_count
         counts["admission_events"] = AdmissionEvent.query.count()
 
+        # Reconcile intake capacity counters (Task A9)
+        from services.seat_ledger import recompute_counters
+        recomputed = recompute_counters()
+        print(f"Reconciled intake capacity counters for {recomputed} programmes.")
+
         # Hook for Member B (Prove & Detect scenarios)
         try:
             import seed_b
