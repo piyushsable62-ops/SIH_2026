@@ -409,11 +409,12 @@ for `DISMISS_FALSE_POSITIVE`, `CONFIRM_DATA_ERROR`, and `RESOLVE`; notes must be
 text of at most 4000 characters. Optional `assigned_to` on an action uses the same
 reviewer validation as PATCH and is atomic with that transition.
 
-An institution administrator may only send
-`{action:"REQUEST_CLARIFICATION",note:"...response..."}` on a wholly local case
+An institution administrator may send
+`{action:"INSTITUTION_RESPONSE",note:"...response..."}` (B6), or the compatible B4
+`{action:"REQUEST_CLARIFICATION",note:"...response..."}` alias, on a wholly local case
 already in `CLARIFICATION_REQUESTED`. A non-empty note is required; the status
 stays unchanged. History records the same from/to status and an institution
-response note; audit action is `RISK_CASE_RESPONSE`. They cannot assign reviewers,
+response note with action type `INSTITUTION_RESPONSE`; audit action is `RISK_CASE_RESPONSE`. They cannot assign reviewers,
 resolve or reopen cases. Auditors cannot mutate anything (403).
 
 Transitions use an optimistic status/update-time guard; a concurrent stale update
@@ -473,8 +474,8 @@ exercised through PowerShell or the browser's developer console using `Nexus.api
   while its request is active. Stale responses cannot replace a newer selection.
 - Related case anchors use `/risk-cases/<id>`. Until B6 registers that page,
   ordinary clicks show an authorized read-only API-backed case preview in the
-  Inspector with a Back to node button. Once the route exists, the links navigate
-  normally. Direct/new-tab case URLs still require the B6 page.
+  Inspector with a Back to node button. B6 now registers the case page, so these
+  links navigate normally, including direct/new-tab URLs.
 
 Manual browser checklist (performed against an isolated in-memory A3/A4 seed,
 with exactly the four official logins and three institutions):
@@ -498,3 +499,82 @@ with exactly the four official logins and three institutions):
 
 Seed follow-up: HIGH severity is missing from A4's current dataset; the exact
 scenario to add is documented in B3 above. No Member A files were changed.
+
+## Member B: Risk investigation centre (B6)
+
+`GET /risk-cases` and `GET /risk-cases/<id>` render the simple case list/detail
+screens for AICTE administrators, institution administrators and auditors. The
+detail page authorizes the case before rendering any identifiers. Existing B4 API
+URLs are unchanged. Shared `Nexus` helpers provide JSON/CSRF requests, tables,
+pagination, badges, button locks, dialog helpers and toasts; no vendor library or
+build step is added.
+
+New read-only APIs (same three read roles):
+
+- `GET /api/risk/summary` returns
+  `{severity:{CRITICAL,HIGH,MEDIUM,LOW},status:{OPEN,...},total}`. Counts cover all
+  authorized cases in the institution/reviewer/search context, independent of
+  pagination and the selected severity/status. Clicking a summary card sets or
+  clears that filter. Zero counts are real query results, not placeholder data.
+- `GET /api/risk/reviewers` returns active AICTE administrators as
+  `[{username,full_name}]`. It exposes no hashes, passwords, contact details or
+  unrelated account metadata. The required seed returns only `AICTE_Admin`;
+  `Unassigned` is a UI choice and never a new account.
+- `GET /api/risk/cases?q=...` now searches authorized student names as well as
+  case references/summaries. Student names are matched through scoped evidence
+  membership in the database before pagination. Case rows add
+  `institutions:[{id,code,name}]` for compact institution labels. Reviewer filter
+  `assigned_to=__unassigned__` selects null assignments; omitted means all (B4's
+  empty-string API behavior is preserved).
+- Case detail adds `allowed_actions` as an alias of `allowed_next_actions`.
+  AICTE buttons are enabled only for those returned actions. Auditors receive no
+  action/assignment/clarification controls in the rendered HTML and cannot mutate
+  through the API. Institution administrators receive only their own local cases
+  and, when clarification is requested, a required-note response form.
+
+Institution response contract: `POST /api/risk/cases/<id>/actions` with
+`{action:"INSTITUTION_RESPONSE",note:"..."}` records the explicit
+`case_actions.action = INSTITUTION_RESPONSE`, retaining
+`CLARIFICATION_REQUESTED -> CLARIFICATION_REQUESTED`. A non-blank note is required.
+The old `REQUEST_CLARIFICATION` institution input remains accepted and normalizes
+to the explicit response history type. AICTE cannot use the institution response
+action; institution users cannot assign, resolve, confirm or reopen cases. Response
+history and `RISK_CASE_RESPONSE` audit persist atomically via the existing service.
+**Member A coordination:** add `INSTITUTION_RESPONSE` to the shared
+`models/enums.py:CaseActionType` catalog. The existing string column already stores
+it, so no model/schema change was necessary in B-owned code. AGENTS.md's enum
+catalog should be updated by the team to reflect this explicit B6 extension.
+
+Detail UI shows score/severity/status/reviewer/timestamps, raw rule points with a
+sticky capped total, engine explanation, masked affected records/programmes,
+institution labels, the human-review notice, and chronological information for
+each persisted action (newest first). The initial system-scan entry is shown from
+actual history; no entries are fabricated. Native action dialogs require notes for
+confirm/dismiss/resolve and show server errors. Every mutation refreshes the case
+from its persisted API response, locks concurrent submits, and shows a toast.
+Reloading fetches the stored workflow again. Naive model timestamps are interpreted
+as UTC before local `en-IN` display.
+
+Student links use `/students/<id>` when Member A's detail route is registered.
+Until A7 is available, an ordinary click opens the authorized masked record summary
+in a read-only native dialog; direct/new-tab student URLs still need Member A's
+page. Graph links always use `/identity-graph?case_id=<id>` and the B5 case links
+now open the full investigation page.
+
+Manual verification completed against the real A3/A4 synthetic seed in an isolated
+in-memory app with CSRF enabled:
+
+1. List counts, High-card quick filtering to an empty result, student-name search,
+   and descending-score results with institution labels.
+2. The single eligible reviewer option `AICTE_Admin`, assignment persistence,
+   Under Review dialog submission and persisted status/history after reload.
+3. Resolve's empty required-note validation; masked student-summary dialog.
+4. AICTE requesting clarification on a VESIT case; VESIT submitting its response;
+   reload preserving `CLARIFICATION_REQUESTED` and showing `Institution response`.
+5. Auditor/foreign-case HTML isolation, explicit response API type, and audit
+   atomicity are covered in `tests/test_risk.py`; no auditor account was seeded.
+
+The current main branch has no Member A audit-log page, so audit-page click-testing
+is blocked until A11. Real `AuditLog` creation and rollback behavior were tested in
+pytest. No A-owned files, student records, credentials or seeded account definitions
+were changed by this task.

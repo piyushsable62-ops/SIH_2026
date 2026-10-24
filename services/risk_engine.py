@@ -384,7 +384,8 @@ def explain(case: RiskCase) -> str:
 ACTION_STATUS = {"UNDER_REVIEW": "UNDER_REVIEW", "REQUEST_CLARIFICATION": "CLARIFICATION_REQUESTED",
     "CONFIRM_DATA_ERROR": "DATA_ERROR_CONFIRMED", "DISMISS_FALSE_POSITIVE": "FALSE_POSITIVE", "RESOLVE": "RESOLVED"}
 # Explicit human workflow. Only AICTE may reopen RESOLVED. Institution responses
-# are REQUEST_CLARIFICATION notes on CLARIFICATION_REQUESTED, with no transition.
+# are INSTITUTION_RESPONSE notes on CLARIFICATION_REQUESTED, with no transition.
+# The B4 REQUEST_CLARIFICATION input remains a compatibility alias for that response.
 TRANSITIONS = {
     "OPEN": {"UNDER_REVIEW", "CLARIFICATION_REQUESTED", "FALSE_POSITIVE"},
     "UNDER_REVIEW": {"CLARIFICATION_REQUESTED", "DATA_ERROR_CONFIRMED", "FALSE_POSITIVE", "RESOLVED"},
@@ -430,6 +431,7 @@ def case_detail(case: RiskCase) -> dict:
         "affected_records": [public_record(row) for row in records],
         "affected_institutions": [{"id": row.id, "code": row.code, "name": row.name} for row in institutions],
         "history": [_clean(row.to_dict()) for row in case.actions.all()],
+        "allowed_actions": allowed_actions(case),
         "allowed_next_actions": allowed_actions(case)}
 
 
@@ -446,7 +448,7 @@ def public_record(row: StudentRecord) -> dict:
 def allowed_actions(case: RiskCase) -> list[str]:
     """List actions for this actor, including a non-transitioning institutional response."""
     if current_user.role == "INSTITUTION_ADMIN":
-        return ["REQUEST_CLARIFICATION"] if case.status == "CLARIFICATION_REQUESTED" else []
+        return ["INSTITUTION_RESPONSE"] if case.status == "CLARIFICATION_REQUESTED" else []
     if current_user.role != "AICTE_ADMIN":
         return []
     return sorted(action for action, target in ACTION_STATUS.items() if target in TRANSITIONS.get(case.status, set()))
@@ -482,8 +484,13 @@ def act_on_case(case_id: str, action: str, note: Any = None, **assignment) -> Ri
     _actor()
     try:
         case = get_case(case_id)
-        if current_user.role == "INSTITUTION_ADMIN" and (case.status != "CLARIFICATION_REQUESTED" or action != "REQUEST_CLARIFICATION" or assignment):
+        response = current_user.role == "INSTITUTION_ADMIN"
+        if action == "INSTITUTION_RESPONSE" and not response:
+            raise PermissionError("Only an institution administrator may submit a clarification response.")
+        if response and (case.status != "CLARIFICATION_REQUESTED" or action not in {"REQUEST_CLARIFICATION", "INSTITUTION_RESPONSE"} or assignment):
             raise PermissionError("Institution administrators may only respond to their own clarification requests.")
+        if response:
+            action = "INSTITUTION_RESPONSE"  # B4's old input remains an alias; stored history is explicit.
         allowed = allowed_actions(case)
         if action not in allowed:
             raise WorkflowConflict(allowed)
@@ -501,7 +508,6 @@ def act_on_case(case_id: str, action: str, note: Any = None, **assignment) -> Ri
             RiskCase.updated_at == case.updated_at).values(**values).execution_options(synchronize_session=False))
         if changed.rowcount != 1:
             raise WorkflowConflict(allowed)
-        response = current_user.role == "INSTITUTION_ADMIN"
         db.session.add(CaseAction(case_id=case.id, actor_id=current_user.username, action=action,
             from_status=old, to_status=target, note=_clean(("Institution response: " if response else "") + note)))
         db.session.flush()

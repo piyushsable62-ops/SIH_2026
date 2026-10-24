@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}{{ case.reference }} — APAAR Nexus{% endblock %}
+{% block page_title %}Risk Case{% endblock %}
+{% block content %}
+<section id="risk-centre" data-view="detail" data-case-id="{{ case.id }}" data-role="{{ current_user.role }}">
+  <div class="risk-page-heading"><div><a href="{{ url_for('risk.case_list_page') }}">Back to risk cases</a><h1>{{ case.reference }}</h1></div><button id="risk-refresh" class="btn btn-secondary" type="button">Refresh case</button></div>
+  <p id="risk-load-status" role="status" aria-live="polite"></p>
+  <div class="card"><div id="risk-case-header"></div></div>
+  <div class="risk-detail-grid">
+    <section class="card"><div class="card-header"><h2>Why this score</h2></div><div id="risk-score-table"></div><p id="risk-explanation" class="risk-explanation"></p></section>
+    <section class="card"><div class="card-header"><h2>Recommended next action</h2></div><p id="risk-recommendation"></p><p class="risk-notice">Risk scores support human review. They do not prove fraud and never trigger automatic action.</p></section>
+    <section class="card risk-wide"><div class="card-header"><h2>Affected records and institutions</h2></div><p id="risk-institutions"></p><div id="risk-record-table"></div><p class="risk-link-row"><a class="btn btn-secondary" href="{{ url_for('identity.explorer', case_id=case.id) }}">Open in identity graph</a></p></section>
+    {% if can_decide %}
+    <section class="card" id="risk-actions-card"><div class="card-header"><h2>Actions</h2></div><p class="muted">Only valid next actions are enabled. Every decision is recorded.</p><div class="actions risk-actions">
+      <button class="btn btn-secondary" type="button" data-action="UNDER_REVIEW" disabled>Under Review</button>
+      <button class="btn btn-secondary" type="button" data-action="REQUEST_CLARIFICATION" disabled>Request Institutional Clarification</button>
+      <button class="btn btn-secondary" type="button" data-action="CONFIRM_DATA_ERROR" disabled>Confirm Data Error</button>
+      <button class="btn btn-secondary" type="button" data-action="DISMISS_FALSE_POSITIVE" disabled>Dismiss False Positive</button>
+      <button class="btn btn-secondary" type="button" data-action="RESOLVE" disabled>Resolve Case</button>
+    </div></section>
+    <section class="card"><div class="card-header"><h2>Assign reviewer</h2></div><form id="risk-assign-form" class="risk-form"><div class="form-row"><label for="risk-reviewer">Eligible AICTE reviewer</label><select id="risk-reviewer" class="select" disabled><option value="">Unassigned</option></select></div><button id="risk-assign-submit" class="btn" type="submit" disabled>Save assignment</button><p id="risk-reviewer-status" role="status"></p></form></section>
+    <dialog id="risk-action-dialog" aria-labelledby="risk-action-title"><form id="risk-action-form" class="risk-form"><h2 id="risk-action-title">Case action</h2><p id="risk-action-help"></p><div class="form-row"><label for="risk-action-note">Note <span id="risk-note-required"></span></label><textarea id="risk-action-note" class="textarea" maxlength="4000" rows="5"></textarea></div><p id="risk-action-error" class="field-error" role="alert"></p><div class="actions"><button id="risk-action-cancel" class="btn btn-secondary" type="button">Cancel</button><button id="risk-action-submit" class="btn" type="submit">Confirm action</button></div></form></dialog>
+    {% endif %}
+    {% if institution_user %}<section class="card risk-wide" id="risk-response-card" {% if case.status != 'CLARIFICATION_REQUESTED' %}hidden{% endif %}><div class="card-header"><h2>Submit clarification</h2></div><p class="muted">Respond to the clarification request. This records your note without changing the case status.</p><form id="risk-response-form" class="risk-form"><div class="form-row"><label for="risk-response-note">Institution response (required)</label><textarea id="risk-response-note" class="textarea" rows="5" maxlength="4000" required></textarea></div><button id="risk-response-submit" class="btn" type="submit">Submit clarification</button><p id="risk-response-error" class="field-error" role="alert"></p></form></section>{% endif %}
+    <section class="card risk-wide"><div class="card-header"><h2>Investigation history</h2></div><ol id="risk-history" class="risk-history"></ol></section>
+  </div>
+  <dialog id="risk-record-dialog" aria-labelledby="risk-record-title"><h2 id="risk-record-title">Student record</h2><div id="risk-record-preview"></div><form method="dialog"><button class="btn btn-secondary" type="submit">Close</button></form></dialog>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/risk.js') }}" defer></script>{% endblock %}
