@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In — {{ app_name }}{% endblock %}
+{% block page_title %}Institutional Portal Sign In{% endblock %}
+{% block shell %}public-shell{% endblock %}
+
+{% block content %}
+<div style="max-width: 480px; margin: 32px auto;" class="stack">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2>Sign In to {{ app_name }}</h2>
+        <p class="helper">Enter your credentials to access institution records and services.</p>
+      </div>
+    </div>
+
+    <form id="login-form" class="stack" style="gap: 16px;" novalidate>
+      <div id="login-error" class="field-error" style="display: none;" role="alert"></div>
+
+      <div class="form-row">
+        <label for="username">Username</label>
+        <input
+          type="text"
+          id="username"
+          name="username"
+          class="input"
+          autocomplete="username"
+          required
+          autofocus
+          placeholder="e.g. AICTE_Admin or VESIT"
+        >
+      </div>
+
+      <div class="form-row">
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          class="input"
+          autocomplete="current-password"
+          required
+          placeholder="Enter your password"
+        >
+      </div>
+
+      <div class="actions" style="margin-top: 8px;">
+        <button type="submit" id="login-submit-btn" class="btn" style="width: 100%;">
+          Sign In
+        </button>
+      </div>
+    </form>
+  </div>
+
+  {% if show_demo_accounts %}
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3>Demo Accounts (Development Only)</h3>
+        <p class="helper">Click any row below to auto-fill credentials. Default password: <code>{{ demo_password }}</code></p>
+      </div>
+    </div>
+
+    <div class="table-wrapper" style="max-height: none;">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Institution Scope</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>AICTE_Admin</strong></td>
+            <td><span class="badge badge-info">AICTE_ADMIN</span></td>
+            <td>All Institutions</td>
+            <td>
+              <button
+                type="button"
+                class="btn btn-secondary fill-demo-btn"
+                data-username="AICTE_Admin"
+                data-password="{{ demo_password }}"
+                style="min-height: 28px; padding: 2px 8px; font-size: 0.85rem;"
+              >
+                Use
+              </button>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>VESIT</strong></td>
+            <td><span class="badge badge-info">INSTITUTION_ADMIN</span></td>
+            <td>VESIT Only</td>
+            <td>
+              <button
+                type="button"
+                class="btn btn-secondary fill-demo-btn"
+                data-username="VESIT"
+                data-password="{{ demo_password }}"
+                style="min-height: 28px; padding: 2px 8px; font-size: 0.85rem;"
+              >
+                Use
+              </button>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>COEP</strong></td>
+            <td><span class="badge badge-info">INSTITUTION_ADMIN</span></td>
+            <td>COEP Only</td>
+            <td>
+              <button
+                type="button"
+                class="btn btn-secondary fill-demo-btn"
+                data-username="COEP"
+                data-password="{{ demo_password }}"
+                style="min-height: 28px; padding: 2px 8px; font-size: 0.85rem;"
+              >
+                Use
+              </button>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>VJTI</strong></td>
+            <td><span class="badge badge-info">INSTITUTION_ADMIN</span></td>
+            <td>VJTI Only</td>
+            <td>
+              <button
+                type="button"
+                class="btn btn-secondary fill-demo-btn"
+                data-username="VJTI"
+                data-password="{{ demo_password }}"
+                style="min-height: 28px; padding: 2px 8px; font-size: 0.85rem;"
+              >
+                Use
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("login-form");
+  const usernameInput = document.getElementById("username");
+  const passwordInput = document.getElementById("password");
+  const submitBtn = document.getElementById("login-submit-btn");
+  const errorBanner = document.getElementById("login-error");
+
+  // Support fill demo credentials buttons
+  document.querySelectorAll(".fill-demo-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      usernameInput.value = btn.dataset.username || "";
+      passwordInput.value = btn.dataset.password || "";
+      errorBanner.style.display = "none";
+      errorBanner.textContent = "";
+      passwordInput.focus();
+    });
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errorBanner.style.display = "none";
+    errorBanner.textContent = "";
+
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value;
+
+    if (!username || !password) {
+      const msg = "Please enter both username and password.";
+      errorBanner.textContent = msg;
+      errorBanner.style.display = "block";
+      if (window.Nexus?.toast) {
+        window.Nexus.toast(msg, "danger");
+      }
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Signing in...";
+
+    try {
+      const apiFn = window.Nexus?.api || window.api;
+      if (!apiFn) {
+        throw new Error("Client API wrapper is not loaded.");
+      }
+
+      const res = await apiFn("/api/auth/login", {
+        method: "POST",
+        body: { username, password }
+      });
+
+      if (window.Nexus?.toast) {
+        window.Nexus.toast("Signed in successfully. Redirecting...", "ok");
+      }
+
+      const redirectUrl = res?.data?.redirect_url || "/";
+      window.location.href = redirectUrl;
+    } catch (err) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Sign In";
+
+      const errorMsg = err.message || "Invalid username or password.";
+      errorBanner.textContent = errorMsg;
+      errorBanner.style.display = "block";
+
+      if (window.Nexus?.toast) {
+        window.Nexus.toast(errorMsg, "danger");
+      }
+    }
+  });
+});
+</script>
+{% endblock %}
