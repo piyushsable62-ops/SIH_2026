@@ -1291,3 +1291,28 @@ Safely resets database and re-runs the initial synthetic baseline demo seed (`se
     }
   }
   ```
+
+## Member B: Governance and anomaly reporting (B12)
+
+`GET /api/dashboard/governance` requires AICTE_ADMIN or AUDITOR. Optional filters
+are `academic_year`, `institution_id`, `programme_id`, `category`,
+`validation_status`, and `risk_level`; unsupported categories and risk values
+return 422. The envelope contains live totals, risk counts by severity,
+category enrolment, admission trends by year/institution, capacity utilisation,
+14 daily credential verification result counts, and ten recent audit/high-risk
+rows. Capacity counts use regular admissions against approved regular intake;
+student validation and risk filters narrow the counted cohort, with the approved
+capacity denominator retained. An institution administrator receives 403.
+
+`GET /api/reports/anomalies` and `/api/reports/anomalies.csv` allow AICTE_ADMIN,
+AUDITOR and institution administrators; the latter are restricted to their own
+institution. They accept the same filters and return case/evidence rows with
+masked APAAR references. CSV formula injection is neutralised. The filename
+contains `SYNTHETIC`, and each CSV export writes an audit event.
+
+`/dashboard` presents national governance to AICTE_ADMIN/AUDITOR and Member A's
+institution API to INSTITUTION_ADMIN, using locally vendored Chart.js. `/reports`
+preserves the existing enrolment CSV and adds anomaly preview/download and
+recent export events. Member A's audit endpoint currently returns scoped JSON
+only; its button downloads that authorized JSON response. A server-side audit
+CSV endpoint needs Member A ownership if that format is required.

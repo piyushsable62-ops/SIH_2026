@@ -4,11 +4,12 @@ from datetime import timedelta
 import json
 
 from flask import current_app
+from flask_login import login_user
 from sqlalchemy import select
 
 from extensions import db
-from models import Credential, StudentRecord, User
-from services import credential_service as service, key_store
+from models import AdmissionEvent, Credential, RiskCase, StudentRecord, User
+from services import credential_service as service, identity_resolution, key_store, risk_engine, sharing_service
 
 
 def make_tampered_demo(row: Credential, actor: User) -> None:
@@ -56,5 +57,34 @@ def seed_demo_credentials() -> list[str]:
 
 
 def seed_prove_and_detect(database) -> None:
-    """Hook called by Member A's seed script; no private key or token is printed."""
-    seed_demo_credentials()
+    """Build real Detect cases and synthetic Prove demos, without extra users."""
+    if not current_app.config.get("SHOW_DEMO_ACCOUNTS"):
+        return
+    result = identity_resolution.scan()
+    risk_engine.evaluate_all(result)
+    rejected = db.session.execute(select(AdmissionEvent).where(
+        AdmissionEvent.result == "REJECTED", AdmissionEvent.reason_code == "CAPACITY_EXCEEDED")).scalars().all()
+    for event in rejected:
+        risk_engine.record_excess_intake_event(event)
+    bands = {case.severity for case in db.session.execute(select(RiskCase)).scalars()}
+    missing = {"LOW", "MEDIUM", "HIGH", "CRITICAL"} - bands
+    if missing:
+        current_app.logger.warning("Member A seed scenarios need adjustment: missing %s risk band(s).", ", ".join(sorted(missing)))
+    actor = db.session.execute(select(User).where(User.username == "AICTE_Admin")).scalar_one()
+    review_case = db.session.execute(select(RiskCase).where(RiskCase.severity == "LOW", RiskCase.status == "OPEN")
+        .order_by(RiskCase.reference)).scalars().first()
+    if review_case:
+        # The development seed creates a synthetic administrator review action
+        # through the same authenticated service used by the live workflow.
+        with current_app.test_request_context("/internal/seed-b"):
+            login_user(actor)
+            risk_engine.act_on_case(review_case.id, "UNDER_REVIEW", "Synthetic demonstration review")
+    refs = seed_demo_credentials()
+    credential = db.session.execute(select(Credential).where(Credential.reference == "CRED-DEMO01")).scalar_one()
+    token = sharing_service.seed_demo_sessions(credential, actor)
+    print(f"Synthetic Detect/Prove summary: {len(result.events)} identity events, "
+          f"{db.session.query(RiskCase).count()} risk cases, {len(refs)} demo credentials, 3 sharing sessions.")
+    if missing:
+        print(f"Member A seed adjustment needed: missing risk band(s): {', '.join(sorted(missing))}.")
+    if token:
+        print(f"Demo-only sharing token (shown once; copy now): {token}")

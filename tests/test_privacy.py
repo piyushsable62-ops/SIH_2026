@@ -1,5 +1,6 @@
 """Credential/privacy boundary tests. No extra demo logins are seeded."""
 import pytest
+import re
 
 from extensions import db
 from models import User
@@ -7,6 +8,73 @@ from tests.test_identity import data, accounts
 from tests.test_credentials import signing
 from tests.test_risk import api_login
 from tests.test_sharing import shared, create as create_share
+
+
+def test_all_json_get_endpoints_are_secret_free_for_each_role(client, signing, app):
+    """Sweep every registered JSON GET API with all five roles and anonymity."""
+    from models import Credential
+    a, b, users = signing
+    api_login(client, users[0])
+    issued = client.post("/api/credentials/issue", json={"student_id": a.id, "award_year": "2026"}).json["data"]
+    credential_id = issued["id"]
+    password_hashes = [user.password_hash for user in users]
+    share_owner = users[3]
+    share_owner.role, share_owner.student_id, share_owner.institution_id = "STUDENT", a.id, None
+    db.session.commit()
+    api_login(client, share_owner)
+    created = client.post("/api/sharing-sessions", json={"credential_id": credential_id,
+        "claims": ["DEGREE_AUTHENTICITY", "AWARD_YEAR"], "expiry_hours": 72})
+    assert created.status_code == 201, created.json
+    full_token = created.json["data"]["token"]
+    routes = [rule for rule in app.url_map.iter_rules() if rule.rule.startswith("/api/") and "GET" in rule.methods
+              and not rule.rule.endswith(".csv") and not rule.rule.endswith(".png")]
+    assert len(routes) >= 25
+    role_user = users[3]
+    identities = [None, users[0], users[1], (role_user, "STUDENT"), (role_user, "AUDITOR"), (role_user, "VERIFIER")]
+    for identity in identities:
+        if identity is None:
+            probe = app.test_client()
+        else:
+            probe = client
+            user, role = identity if isinstance(identity, tuple) else (identity, None)
+            if role:
+                role_user.role = role
+                role_user.student_id = a.id if role == "STUDENT" else None
+                role_user.institution_id = None
+                db.session.commit()
+            api_login(probe, user)
+        for rule in routes:
+            path = rule.rule
+            for key, value in {"institution_id": a.institution_id, "id": a.id, "id_": credential_id,
+                               "case_id": "missing-case", "node_id": "missing-node", "submission_id": "missing-submission"}.items():
+                path = path.replace(f"<{key}>", value)
+            response = probe.get(path, headers={"Accept": "application/json"})
+            assert response.status_code < 500, (identity, path, response.status_code)
+            if response.is_json:
+                body = response.get_data(as_text=True)
+                assert a.apaar_ref not in body and b.apaar_ref not in body, path
+                assert "-----BEGIN PRIVATE KEY-----" not in body
+                assert full_token not in body, path
+                assert all(secret not in body for secret in password_hashes)
+
+
+def test_anonymous_get_surface_is_explicitly_bounded(app):
+    """Pin the current public surface, including Member A's import template."""
+    allowed = {"/", "/login", "/landing", "/api/health", "/verify", "/verify/<reference>",
+               "/verify/<reference>.json", "/public/verify", "/public/verify/", "/public/verify/<path:token>",
+               "/api/students/import/template"}
+    anonymous = app.test_client()
+    observed = set()
+    for rule in app.url_map.iter_rules():
+        if "GET" not in rule.methods or rule.rule.startswith("/static/"):
+            continue
+        path = rule.rule.replace("<reference>", "missing-reference").replace("<path:token>", "invalid!")
+        for variable in re.findall(r"<[^>]+>", path):
+            path = path.replace(variable, "missing")
+        response = anonymous.get(path, headers={"Accept": "application/json"})
+        if response.status_code == 200:
+            observed.add(rule.rule)
+    assert observed <= allowed, observed - allowed
 
 
 def test_public_sharing_html_is_minimal_anonymous_and_revocable(client, shared, app):

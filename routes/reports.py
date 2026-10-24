@@ -25,6 +25,10 @@ from models.enums import Role, Classification, AdmissionCategory, EnrolmentStatu
 from services import seat_ledger
 from services import audit_service
 from services.audit_service import log as audit_log
+from sqlalchemy import select
+from services.apaar_adapter import mask_apaar
+from services.authz import roles_required
+from routes.dashboards import governance_filters, governance_cohort
 
 reports_bp = Blueprint("reports", __name__)
 
@@ -414,3 +418,79 @@ def download_enrolment_report_csv():
             "Content-Type": "text/csv; charset=utf-8"
         }
     )
+
+
+# Member B: anomaly report; enrolment and audit routes above remain A-owned.
+def anomaly_rows(filters):
+    """Return one safe evidence row per affected institution and risk event."""
+    records, cases = governance_cohort(filters)
+    cohort = {row.id: row for row in records}
+    rows = []
+    for case, evidence, affected in cases:
+        for item in evidence:
+            related = [cohort[id_] for id_ in (item.related_student_ids or []) if id_ in cohort]
+            institution_ids = {student.institution_id for student in related} or ({case.institution_id} if case.institution_id else affected)
+            if filters["institution_id"]:
+                institution_ids &= {filters["institution_id"]}
+            for institution_id in sorted(institution_ids):
+                institution = db.session.get(Institution, institution_id)
+                if institution is None:
+                    continue
+                in_institution = [student for student in related if student.institution_id == institution_id]
+                rows.append({"case_id": case.id, "case_reference": case.reference, "severity": case.severity,
+                    "status": case.status, "institution_code": institution.code, "institution_name": institution.name,
+                    "rule_key": item.rule_key, "points": item.points,
+                    "explanation": re.sub(r"(?<!\d)\d{12}(?!\d)", lambda match: mask_apaar(match.group()), item.description),
+                    "masked_apaar": ", ".join(sorted({mask_apaar(student.apaar_ref) for student in in_institution}))})
+    return sorted(rows, key=lambda row: (-_ANOMALY_ORDER[row["severity"]], row["institution_code"], row["case_reference"], row["rule_key"]))
+
+
+_ANOMALY_ORDER = {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "CRITICAL": 3}
+
+
+def _anomaly_filters():
+    """Restrict institution administrators before applying shared filters."""
+    from routes.risk import institution_scope
+    try:
+        filters = governance_filters(request.args)
+        filters["institution_id"] = institution_scope(filters["institution_id"])
+        return filters
+    except PermissionError as exc:
+        return _make_error("FORBIDDEN", str(exc), 403)
+    except (ValueError, LookupError) as exc:
+        return _make_error("NOT_FOUND" if isinstance(exc, LookupError) else "VALIDATION_ERROR", str(exc), 404 if isinstance(exc, LookupError) else 422)
+
+
+@reports_bp.get("/api/reports/anomalies")
+@login_required
+@roles_required("AICTE_ADMIN", "INSTITUTION_ADMIN", "AUDITOR")
+def anomaly_report():
+    """List explainable cases without internal identifiers or full APAAR values."""
+    filters = _anomaly_filters()
+    if isinstance(filters, tuple):
+        return filters
+    rows = anomaly_rows(filters)
+    return jsonify(ok=True, data={"rows": rows, "filters": filters}, meta={"total": len(rows)})
+
+
+@reports_bp.get("/api/reports/anomalies.csv")
+@login_required
+@roles_required("AICTE_ADMIN", "INSTITUTION_ADMIN", "AUDITOR")
+def anomaly_report_csv():
+    """Export safe anomaly evidence, audit the download and neutralize formulas."""
+    filters = _anomaly_filters()
+    if isinstance(filters, tuple):
+        return filters
+    rows = anomaly_rows(filters)
+    output = io.StringIO()
+    writer = csv.writer(output, lineterminator="\r\n")
+    columns = ("case_reference", "severity", "status", "institution_code", "institution_name", "rule_key", "points", "explanation", "masked_apaar")
+    writer.writerow(("Case", "Severity", "Status", "Institution Code", "Institution", "Rule", "Points", "Evidence", "Masked APAAR"))
+    for row in rows:
+        writer.writerow([_sanitize_csv_cell(row[key]) for key in columns])
+    filename = "anomaly_report_SYNTHETIC_" + re.sub(r"[^A-Za-z0-9_-]", "", filters["academic_year"] or "ALL") + ".csv"
+    audit_log(actor=current_user.username, action="EXPORT_ANOMALY_REPORT_CSV", entity_type="REPORT",
+        entity_id="ANOMALIES", details={"filename": filename, "records_count": len(rows), "filters": filters},
+        institution_id=filters["institution_id"])
+    return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": f"attachment; filename={filename}",
+        "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
