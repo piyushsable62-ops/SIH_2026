@@ -978,3 +978,170 @@ The current main branch has no Member A audit-log page, so audit-page click-test
 is blocked until A11. Real `AuditLog` creation and rollback behavior were tested in
 pytest. No A-owned files, student records, credentials or seeded account definitions
 were changed by this task.
+
+---
+
+## Member A: Auditing, Institution Dashboard & Enrolment Report (A11)
+
+### `GET /api/audit-logs`
+Query immutable, append-only system audit logs.
+- **Roles:** `AICTE_ADMIN`, `AUDITOR` (all institutions), `INSTITUTION_ADMIN` (strictly scoped to own institution).
+- **Query Parameters:**
+  - `actor`: Username search (case-insensitive substring).
+  - `action`: Exact action code (e.g. `CREATE_STUDENT`, `ADMISSION_ACCEPTED`, `AUTH_LOGIN_SUCCESS`, `POLICY_UPDATE`, etc.).
+  - `entity_type`: Target entity type (`STUDENT`, `ADMISSION`, `SYSTEM_POLICY`, `REPORT`, etc.).
+  - `institution_id`: Scoped institution UUID (forbidden if `INSTITUTION_ADMIN` attempts to view another).
+  - `date_from`: ISO date/timestamp string.
+  - `date_to`: ISO date/timestamp string.
+  - `page`: Page index (1-based, default: 1).
+  - `per_page`: Records per page (default: 25, max: 100).
+- **Append-only Contract:** Audit rows cannot be modified or deleted. Details are recursively scrubbed to redact sensitive secrets and mask 12-digit APAAR numbers (`XXXXXXXX1234`).
+- **Success Response (200):**
+  ```json
+  {
+    "ok": true,
+    "data": [
+      {
+        "id": "uuid",
+        "actor_id": "VESIT",
+        "actor_role": "INSTITUTION_ADMIN",
+        "action": "CREATE_STUDENT",
+        "entity_type": "STUDENT",
+        "entity_id": "stud-uuid",
+        "institution_id": "inst-vesit-uuid",
+        "details": {
+          "institution_student_id": "VESIT-2026-001",
+          "academic_year": "2026-27"
+        },
+        "created_at": "2026-10-24T12:00:00"
+      }
+    ],
+    "meta": { "page": 1, "per_page": 25, "total": 140 }
+  }
+  ```
+
+### `GET /api/dashboard/institution`
+Dynamic institution-level metrics for capacity, intake, risk, submissions, and credentials.
+- **Roles:** `INSTITUTION_ADMIN` (own institution only; 403 on mismatch), `AICTE_ADMIN`, `AUDITOR` (can pass `?institution_id=`; defaults to first active institution).
+- **Filters:** `academic_year`, `programme_id`, `category`, `validation_status`, `risk_level`.
+- **All numbers come dynamically from database queries; none hard-coded.**
+- **JSON Contract for Member B (`dashboard.html` / `dashboard.js`):**
+  ```json
+  {
+    "ok": true,
+    "data": {
+      "institution": {
+        "id": "inst-vesit-uuid",
+        "name": "VESIT Mumbai",
+        "code": "VESIT",
+        "status": "ACTIVE"
+      },
+      "filters_applied": {
+        "academic_year": "2026-27",
+        "programme_id": null,
+        "category": null,
+        "validation_status": null,
+        "risk_level": null
+      },
+      "seat_summary": {
+        "approved_regular_intake": 120,
+        "regular_admitted": 116,
+        "regular_remaining": 4,
+        "regular_utilisation_pct": 96.7,
+        "supernumerary_capacity": 10,
+        "supernumerary_admitted": 4,
+        "supernumerary_remaining": 6,
+        "supernumerary_utilisation_pct": 40.0,
+        "total_approved_intake": 130,
+        "total_admitted": 120,
+        "warning_level": 90,
+        "category_capacity": {
+          "OPEN": { "category": "OPEN", "admitted": 50, "capacity": null, "utilisation_pct": null },
+          "OBC": { "category": "OBC", "admitted": 30, "capacity": null, "utilisation_pct": null },
+          "SC": { "category": "SC", "admitted": 15, "capacity": null, "utilisation_pct": null },
+          "ST": { "category": "ST", "admitted": 8, "capacity": null, "utilisation_pct": null },
+          "EWS": { "category": "EWS", "admitted": 10, "capacity": null, "utilisation_pct": null },
+          "NRI": { "category": "NRI", "admitted": 2, "capacity": 5, "utilisation_pct": 40.0 },
+          "OCI": { "category": "OCI", "admitted": 0, "capacity": null, "utilisation_pct": null },
+          "FN": { "category": "FN", "admitted": 1, "capacity": 5, "utilisation_pct": 20.0 }
+        }
+      },
+      "submission_history": [
+        {
+          "id": "sub-uuid",
+          "reference": "SUB-20261024-000001",
+          "filename": "students_vesit.csv",
+          "status": "COMMITTED",
+          "total_rows": 120,
+          "valid_rows": 116,
+          "error_rows": 4,
+          "created_at": "2026-10-24T10:00:00"
+        }
+      ],
+      "validation_error_counts": {
+        "MALFORMED_APAAR": 2,
+        "DUPLICATE_INSTITUTE_ID": 1
+      },
+      "pending_identity_checks": {
+        "pending": 2,
+        "flagged": 1,
+        "total": 3
+      },
+      "risk_cases_by_severity": {
+        "LOW": 1,
+        "MEDIUM": 2,
+        "HIGH": 0,
+        "CRITICAL": 0,
+        "total": 3
+      },
+      "credential_issuance_history": [
+        {
+          "id": "cred-uuid",
+          "reference": "CRED-000001",
+          "student_id": "stud-uuid",
+          "student_name": "Aarav Sharma",
+          "programme_name": "Information Technology",
+          "award_year": "2026",
+          "status": "ISSUED",
+          "issue_date": "2026-07-15",
+          "created_at": "2026-07-15T12:00:00"
+        }
+      ]
+    }
+  }
+  ```
+
+### `GET /api/reports/enrolment`
+Enrolment compliance and seat utilisation report (JSON).
+- **Roles:** `AICTE_ADMIN`, `INSTITUTION_ADMIN`, `AUDITOR`. Scope-aware.
+- **Query Parameters:** `academic_year` (default: 2026-27), `institution_id`, `programme_id`.
+- **Success Response (200):**
+  Returns array of programme-level enrolment rows (intake, regular admitted, remaining, utilisation %, supernumerary counts, and category breakdown) plus `summary_totals`.
+
+### `GET /api/reports/enrolment.csv`
+Clean CSV download of enrolment compliance report.
+- **Roles:** `AICTE_ADMIN`, `INSTITUTION_ADMIN`, `AUDITOR`. Scope-aware.
+- **Filename:** Strictly contains uppercase `"SYNTHETIC"` (e.g. `enrolment_report_SYNTHETIC_VESIT_2026-27.csv`).
+- **Formula Injection Defense:** Prefix `'` applied to any cell starting with `=`, `+`, `-`, `@`, `\t`, `\r`.
+- **No comment rows or extraneous metadata.** Clean RFC-4180 CSV with standard headers.
+- **Audit Logging:** Every export creates an `EXPORT_ENROLMENT_REPORT_CSV` audit row.
+
+### `POST /api/admin/demo-reset`
+Safely resets database and re-runs the initial synthetic baseline demo seed (`seed.py`).
+- **Roles:** `AICTE_ADMIN` only (403 for others).
+- **Environment Guard:** Disabled in production unless `ALLOW_DEMO_RESET=true`.
+- **Request Body:** Requires confirmation token:
+  ```json
+  { "confirmation": "RESET" }
+  ```
+- **Audit Logging:** Mutation is permanently logged under action `DEMO_RESET`.
+- **Success Response (200):**
+  ```json
+  {
+    "ok": true,
+    "data": {
+      "message": "Demo database successfully reset and seeded with baseline synthetic data."
+    }
+  }
+  ```
+

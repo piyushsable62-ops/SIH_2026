@@ -920,12 +920,14 @@ def seed_students(database, rng: random.Random) -> int:
     return len(students_to_add)
 
 
-def run_seeding(reset: bool = False) -> None:
+def run_seeding(reset: bool = False, app: Any = None) -> None:
     """Main execution orchestrator for database seeding."""
     check_production_safety(reset)
-    app = create_app()
+    if app is None:
+        app = create_app()
 
     with app.app_context():
+        db.session.remove()
         if reset:
             print("Reset flag detected: Dropping all database tables...")
             db.drop_all()

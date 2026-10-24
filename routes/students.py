@@ -882,6 +882,16 @@ def download_submission_errors_csv(submission_id: str):
 
     try:
         csv_text, filename = generate_error_report_csv(submission_id, institution_id=inst_scope)
+
+        audit_log(
+            actor=current_user.username,
+            action="EXPORT_SUBMISSION_ERRORS_CSV",
+            entity_type="DATA_SUBMISSION",
+            entity_id=submission_id,
+            details={"filename": filename},
+            institution_id=inst_scope
+        )
+
         return Response(
             csv_text,
             mimetype="text/csv",

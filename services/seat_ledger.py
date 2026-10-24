@@ -562,7 +562,7 @@ def _create_and_persist_rejected_event(
 
     # Audit log
     audit_service.log(
-        actor=actor,
+        actor=actor_id,
         action="ADMISSION_REJECTED",
         entity_type="admission_event",
         entity_id=event.id,

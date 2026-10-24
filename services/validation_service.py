@@ -163,7 +163,7 @@ class StudentInput:
             admission_date=data.get("admission_date") or data.get("date") or "",
             admission_category=data.get("admission_category") or data.get("category") or "",
             classification=data.get("classification") or "",
-            apaar_ref=data.get("apaar_ref") or data.get("apaar") or None,
+            apaar_ref=data.get("apaar_ref") or data.get("apaar") or data.get("apaar_id") or None,
             is_nri=data.get("is_nri") or data.get("nri", False),
             is_oci=data.get("is_oci") or data.get("oci", False),
             is_fn=data.get("is_fn") or data.get("fn", False),
