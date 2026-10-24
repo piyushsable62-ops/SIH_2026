@@ -569,3 +569,85 @@ def test_truncated_graph_keeps_relationship_context(client, data, accounts):
     assert view["edges"] and {node["type"] for node in view["nodes"]} >= {"STUDENT", "APAAR", "INSTITUTION"}
     ids = {node["id"] for node in view["nodes"]}
     assert all(edge["source"] in ids and edge["target"] in ids for edge in view["edges"])
+
+
+def test_risk_pages_reviewer_options_and_read_only_role_rendering(client, data, accounts):
+    _, case = local_case(data)
+    assert client.get("/risk-cases").status_code == 302
+    api_login(client, accounts[0])
+    listing = client.get("/risk-cases")
+    assert listing.status_code == 200 and '/static/js/risk.js' in listing.get_data(as_text=True)
+    html = client.get("/risk-cases/" + case.id).get_data(as_text=True)
+    assert 'data-action="RESOLVE"' in html and 'id="risk-reviewer"' in html
+    reviewers = client.get("/api/risk/reviewers")
+    assert reviewers.status_code == 200 and [row["username"] for row in reviewers.json["data"]] == ["AICTE_Admin"]
+    assert len(accounts) == 4 and "password_hash" not in str(reviewers.json)
+    api_login(client, accounts[1])
+    html = client.get("/risk-cases/" + case.id).get_data(as_text=True)
+    assert 'data-action=' not in html and 'id="risk-reviewer"' not in html
+    assert 'id="risk-response-form"' in html
+    api_login(client, accounts[2])
+    assert client.get("/risk-cases/" + case.id).status_code == 404
+    accounts[3].role = "AUDITOR"
+    db.session.commit()
+    api_login(client, accounts[3])
+    html = client.get("/risk-cases/" + case.id).get_data(as_text=True)
+    assert 'data-action=' not in html and 'id="risk-response-form"' not in html and 'id="risk-assign-form"' not in html
+    assert client.get("/risk-cases").status_code == 200
+    assert client.post(f"/api/risk/cases/{case.id}/actions", json={"action": "INSTITUTION_RESPONSE", "note": "No"}).status_code == 403
+
+
+def test_risk_summary_counts_full_scope_and_student_name_search(client, data, accounts):
+    own, case = local_case(data)
+    foreign = data[2]("Foreign Example", "bad", institution=1)
+    db.session.commit()
+    risk.evaluate_all(identity_resolution.scan(institution_id=foreign.institution_id))
+    case.status, case.assigned_to = "UNDER_REVIEW", "AICTE_Admin"
+    db.session.commit()
+    api_login(client, accounts[0])
+    response = client.get("/api/risk/summary?severity=CRITICAL&status=RESOLVED")
+    assert response.status_code == 200
+    assert response.json["data"]["total"] == 2
+    assert response.json["data"]["severity"]["LOW"] == 2
+    assert response.json["data"]["status"]["OPEN"] == response.json["data"]["status"]["UNDER_REVIEW"] == 1
+    assert client.get("/api/risk/cases?per_page=1").json["meta"]["total"] == 2
+    found = client.get("/api/risk/cases?q=Arjun%20Mehta")
+    assert found.status_code == 200 and [row["id"] for row in found.json["data"]] == [case.id]
+    assert found.json["data"][0]["institutions"][0]["code"] == "VESIT"
+    assert client.get("/api/risk/summary?q=Arjun%20Mehta").json["data"]["total"] == 1
+    assert client.get("/api/risk/summary?assigned_to=__unassigned__").json["data"]["total"] == 1
+    api_login(client, accounts[1])
+    assert client.get("/api/risk/summary").json["data"]["total"] == 1
+    assert client.get("/api/risk/cases?q=Foreign%20Example").json["data"] == []
+    assert client.get("/api/risk/summary?q=Foreign%20Example").json["data"]["total"] == 0
+    assert client.get("/api/risk/summary?institution_id=" + foreign.institution_id).status_code == 403
+
+
+def test_institution_response_has_explicit_history_type_and_no_status_change(client, data, accounts):
+    student, case = local_case(data)
+    case.status = "CLARIFICATION_REQUESTED"
+    db.session.commit()
+    before = (student.to_dict(), Credential.query.one().to_dict())
+    api_login(client, accounts[1])
+    url = f"/api/risk/cases/{case.id}"
+    assert client.get(url).json["data"]["allowed_actions"] == ["INSTITUTION_RESPONSE"]
+    assert client.post(url + "/actions", json={"action": "INSTITUTION_RESPONSE", "note": " "}).status_code == 422
+    response = client.post(url + "/actions", json={"action": "INSTITUTION_RESPONSE", "note": "Synthetic clarification"})
+    assert response.status_code == 200 and response.json["data"]["status"] == "CLARIFICATION_REQUESTED"
+    action = response.json["data"]["history"][0]
+    assert action["action"] == "INSTITUTION_RESPONSE" and action["from_status"] == action["to_status"]
+    assert AuditLog.query.filter_by(action="RISK_CASE_RESPONSE", entity_id=case.id).count() == 1
+    assert before == (student.to_dict(), Credential.query.one().to_dict())
+    api_login(client, accounts[0])
+    assert client.post(url + "/actions", json={"action": "INSTITUTION_RESPONSE", "note": "Wrong role"}).status_code == 403
+
+
+def test_reviewer_options_exclude_inactive_and_unsupported_roles(client, data, accounts):
+    accounts[2].role, accounts[2].is_active = "AICTE_ADMIN", False
+    db.session.commit()
+    api_login(client, accounts[0])
+    assert [row["username"] for row in client.get("/api/risk/reviewers").json["data"]] == ["AICTE_Admin"]
+    accounts[1].role = "VERIFIER"
+    db.session.commit()
+    api_login(client, accounts[1])
+    assert client.get("/api/risk/reviewers").status_code == client.get("/api/risk/summary").status_code == 403
