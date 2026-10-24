@@ -67,6 +67,7 @@ class DataSubmission(db.Model):
     error_rows = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     committed_at = db.Column(db.DateTime, nullable=True)
+    details = db.Column(db.JSON, nullable=True)
 
     # Relationships
     institution = db.relationship("Institution", backref=db.backref("submissions", lazy="dynamic"))
@@ -86,6 +87,7 @@ class DataSubmission(db.Model):
             "error_rows": self.error_rows,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "committed_at": self.committed_at.isoformat() if self.committed_at else None,
+            "details": self.details,
         }
 
     def __repr__(self) -> str:

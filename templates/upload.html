@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Upload CSV — {{ app_name }}{% endblock %}
+{% block page_title %}Batch CSV Ingestion Wizard{% endblock %}
+
+{% block content %}
+<div class="stack" id="upload-wizard-container" style="gap: 24px;">
+  <div class="page-heading" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <h1>CSV Ingestion Wizard</h1>
+      <p class="helper">
+        Batch submit student records with pre-commit format validation, duplicate detection, and seat allocation rules.
+      </p>
+    </div>
+    <div class="actions">
+      <a href="/api/students/import/template" class="btn btn-secondary" id="download-template-btn">
+        Download CSV Template
+      </a>
+    </div>
+  </div>
+
+  <!-- Wizard Step Indicator -->
+  <div class="card" style="padding: 12px 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; max-width: 600px; margin: 0 auto; gap: 16px;">
+      <div id="step-ind-1" class="step-indicator active" style="display: flex; align-items: center; gap: 8px;">
+        <span class="badge badge-info" style="border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">1</span>
+        <strong style="font-size: 13px;">Choose File</strong>
+      </div>
+      <div style="flex: 1; height: 1px; background: var(--border);"></div>
+      <div id="step-ind-2" class="step-indicator" style="display: flex; align-items: center; gap: 8px; opacity: 0.5;">
+        <span class="badge badge-muted" style="border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">2</span>
+        <strong style="font-size: 13px;">Preview &amp; Validate</strong>
+      </div>
+      <div style="flex: 1; height: 1px; background: var(--border);"></div>
+      <div id="step-ind-3" class="step-indicator" style="display: flex; align-items: center; gap: 8px; opacity: 0.5;">
+        <span class="badge badge-muted" style="border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">3</span>
+        <strong style="font-size: 13px;">Commit Results</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 1: File Selection -->
+  <div class="card" id="wizard-panel-1" style="padding: 24px;">
+    <h2 style="font-size: 16px; margin: 0 0 16px 0; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+      Step 1: Select CSV File
+    </h2>
+
+    <form id="csv-preview-form" class="stack" style="gap: 16px; max-width: 560px;">
+      {% if is_aicte_admin %}
+      <div>
+        <label for="upload-institution">Target Institution *</label>
+        <select id="upload-institution" name="institution_id" class="input" required style="width: 100%;">
+          <option value="">Select Institution</option>
+          {% for inst in institutions %}
+          <option value="{{ inst.id }}">{{ inst.name }} ({{ inst.code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% else %}
+      <input type="hidden" id="upload-institution" name="institution_id" value="{{ current_institution_id }}">
+      {% endif %}
+
+      <div>
+        <label for="csv-file-input">Select Student CSV File (.csv, max 2MB) *</label>
+        <input type="file" id="csv-file-input" name="file" accept=".csv" class="input" required style="width: 100%; padding: 8px;">
+        <p class="helper" style="margin-top: 4px;">
+          Files must be UTF-8 encoded with canonical headers: <code>institution_student_id, apaar_ref, full_name, programme_code, academic_year, admission_date, admission_category, classification</code>
+        </p>
+      </div>
+
+      <div class="actions" style="margin-top: 8px;">
+        <button type="submit" class="btn" id="preview-upload-btn">
+          Preview &amp; Validate File →
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Step 2: Preview & Validation Table -->
+  <div class="card" id="wizard-panel-2" style="display: none; padding: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+      <div>
+        <h2 style="font-size: 16px; margin: 0 0 4px 0;">Step 2: Validation Preview</h2>
+        <p class="helper" style="margin: 0;" id="preview-filename-text">Reviewing uploaded file</p>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn-secondary" id="back-to-step1-btn">← Back to File</button>
+        <button type="button" class="btn" id="confirm-commit-btn">Confirm &amp; Commit Ingestion</button>
+      </div>
+    </div>
+
+    <!-- Metrics Cards -->
+    <div class="grid grid-4" style="gap: 12px; margin-bottom: 20px;">
+      <div class="card" style="padding: 12px; text-align: center; background: #f8fafc;">
+        <div style="font-size: 20px; font-weight: bold; color: var(--navy);" id="stat-total">0</div>
+        <div style="font-size: 12px; color: var(--muted);">Total Rows</div>
+      </div>
+      <div class="card" style="padding: 12px; text-align: center; background: #f0fff4; border-color: #c6f6d5;">
+        <div style="font-size: 20px; font-weight: bold; color: var(--ok);" id="stat-valid">0</div>
+        <div style="font-size: 12px; color: var(--ok);">Valid Rows</div>
+      </div>
+      <div class="card" style="padding: 12px; text-align: center; background: #fff5f5; border-color: #fed7d7;">
+        <div style="font-size: 20px; font-weight: bold; color: var(--danger);" id="stat-errors">0</div>
+        <div style="font-size: 12px; color: var(--danger);">Errors (Rejected)</div>
+      </div>
+      <div class="card" style="padding: 12px; text-align: center; background: #fffaf0; border-color: #feebc8;">
+        <div style="font-size: 20px; font-weight: bold; color: #b7791f;" id="stat-warnings">0</div>
+        <div style="font-size: 12px; color: #b7791f;">Warnings / Flags</div>
+      </div>
+    </div>
+
+    <!-- Update existing records toggle -->
+    <div style="padding: 12px; background: #ebf8ff; border: 1px solid #bee3f8; border-radius: 4px; margin-bottom: 16px;">
+      <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: #2b6cb0;">
+        <input type="checkbox" id="update-existing-checkbox" name="update_existing">
+        Overwrite and update existing records if data has changed (creates audit history)
+      </label>
+      <div style="font-size: 12px; color: var(--muted); margin-left: 24px; margin-top: 2px;">
+        Unchecked: conflicting records will be skipped with an error. Checked: differences will update student records with full change tracking.
+      </div>
+    </div>
+
+    <!-- Preview Table -->
+    <div style="overflow-x: auto;">
+      <table class="table" style="width: 100%;">
+        <thead>
+          <tr>
+            <th style="width: 60px;">Row</th>
+            <th>Status</th>
+            <th>Student ID</th>
+            <th>Name</th>
+            <th>APAAR (Masked)</th>
+            <th>Prog</th>
+            <th>Year</th>
+            <th>Category</th>
+            <th>Validation Messages</th>
+          </tr>
+        </thead>
+        <tbody id="preview-table-body">
+          <tr><td colspan="9" style="text-align: center; padding: 20px;">No preview data loaded.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Step 3: Ingestion Results -->
+  <div class="card" id="wizard-panel-3" style="display: none; padding: 24px;">
+    <div style="text-align: center; max-width: 600px; margin: 0 auto; padding: 20px 0;">
+      <h2 style="font-size: 20px; margin: 0 0 8px 0;" id="result-title">Ingestion Completed</h2>
+      <p class="helper" id="result-desc" style="margin-bottom: 20px;">
+        Student records have been committed to the registry.
+      </p>
+
+      <div style="display: flex; justify-content: center; gap: 12px; align-items: center; margin-bottom: 24px;">
+        <span>Submission Reference:</span>
+        <code id="result-ref" style="font-size: 14px; font-weight: bold; background: #edf2f7; padding: 4px 10px; border-radius: 4px;">—</code>
+        <span id="result-status-badge" class="badge badge-ok">COMMITTED</span>
+      </div>
+
+      <div class="grid grid-3" style="gap: 12px; margin-bottom: 24px; text-align: center;">
+        <div class="card" style="padding: 12px;">
+          <div style="font-size: 18px; font-weight: bold; color: var(--ok);" id="result-inserted">0</div>
+          <div style="font-size: 12px; color: var(--muted);">New Students Created</div>
+        </div>
+        <div class="card" style="padding: 12px;">
+          <div style="font-size: 18px; font-weight: bold; color: var(--info);" id="result-updated">0</div>
+          <div style="font-size: 12px; color: var(--muted);">Existing Records Updated</div>
+        </div>
+        <div class="card" style="padding: 12px;">
+          <div style="font-size: 18px; font-weight: bold; color: var(--danger);" id="result-errors">0</div>
+          <div style="font-size: 12px; color: var(--muted);">Errors / Rejected Rows</div>
+        </div>
+      </div>
+
+      <div class="actions" style="justify-content: center; gap: 12px;">
+        <a href="#" class="btn btn-secondary" id="download-error-report-btn" style="display: none;">
+          Download Error Report (CSV)
+        </a>
+        <button type="button" class="btn" id="upload-another-btn">
+          Upload Another File
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Historical Submissions Table -->
+  <div class="card" style="padding: 0;">
+    <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+      <h2 style="font-size: 16px; margin: 0;">Recent Batch Data Submissions</h2>
+      <button type="button" class="btn btn-secondary" id="refresh-history-btn" style="padding: 4px 10px; font-size: 12px;">
+        Refresh History
+      </button>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table class="table" style="width: 100%;">
+        <thead>
+          <tr>
+            <th>Reference</th>
+            <th>Institution</th>
+            <th>Filename</th>
+            <th>Status</th>
+            <th>Total Rows</th>
+            <th>Valid</th>
+            <th>Errors</th>
+            <th>Uploaded By</th>
+            <th>Date</th>
+            <th style="text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="history-table-body">
+          <tr><td colspan="10" style="text-align: center; color: var(--muted); padding: 20px;">Loading submission history...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %}

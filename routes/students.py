@@ -679,3 +679,218 @@ def export_students_csv():
             "Content-Type": "text/csv; charset=utf-8"
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# CSV Upload Wizard & Ingestion Pipeline (Task A8)
+# ---------------------------------------------------------------------------
+
+@students_bp.route("/upload", methods=["GET"])
+@login_required
+@roles_required(Role.AICTE_ADMIN.value, Role.INSTITUTION_ADMIN.value)
+def upload_page():
+    """Render the 3-step CSV upload wizard and submission history."""
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    is_aicte_admin = (user_role == Role.AICTE_ADMIN.value)
+
+    inst_query = scope_query(Institution.query, Institution)
+    institutions = inst_query.order_by(Institution.name).all()
+
+    return render_template(
+        "upload.html",
+        is_aicte_admin=is_aicte_admin,
+        current_institution_id=current_user.institution_id,
+        institutions=institutions
+    )
+
+
+@students_bp.route("/api/students/import/template", methods=["GET"])
+def download_template():
+    """Download the canonical CSV template."""
+    from services.csv_service import generate_csv_template
+    csv_content = generate_csv_template()
+    return Response(
+        csv_content,
+        mimetype="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=students_template.csv",
+            "Content-Type": "text/csv; charset=utf-8"
+        }
+    )
+
+
+@students_bp.route("/api/students/import", methods=["POST"])
+@login_required
+@roles_required(Role.AICTE_ADMIN.value, Role.INSTITUTION_ADMIN.value)
+def import_students_csv():
+    """
+    Handle CSV upload for preview or commit.
+    Fields: file (multipart), mode ('preview' or 'commit'), submission_id, update_existing.
+    """
+    from services.csv_service import preview_csv, commit_submission
+    from models.admission import DataSubmission
+
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    json_data = request.get_json(silent=True) or {}
+
+    mode = (request.form.get("mode") or json_data.get("mode") or "preview").lower()
+    target_inst = request.form.get("institution_id") or json_data.get("institution_id")
+
+    # Enforce institution isolation
+    if user_role == Role.INSTITUTION_ADMIN.value:
+        if target_inst and target_inst != current_user.institution_id:
+            return make_error("FORBIDDEN", "Cannot import records into another institution.", 403)
+        institution_id = current_user.institution_id
+    else:
+        if not target_inst:
+            return make_error("VALIDATION_ERROR", "An institution selection is required.", 422)
+        institution_id = target_inst
+
+    if mode == "preview":
+        if "file" not in request.files:
+            return make_error("VALIDATION_ERROR", "A CSV file is required for preview.", 422)
+
+        file_obj = request.files["file"]
+        if not file_obj.filename:
+            return make_error("VALIDATION_ERROR", "No file selected.", 422)
+
+        file_bytes = file_obj.read()
+        try:
+            res = preview_csv(
+                file_bytes=file_bytes,
+                institution_id=institution_id,
+                filename=file_obj.filename,
+                uploaded_by=current_user.username
+            )
+            return jsonify({"ok": True, "data": res})
+        except ValueError as val_err:
+            return make_error("VALIDATION_ERROR", str(val_err), 422)
+        except Exception as exc:
+            current_app.logger.error("Preview failed: %s", exc)
+            return make_error("SERVER_ERROR", "Failed to parse CSV preview.", 500, details={"error": str(exc)})
+
+    elif mode == "commit":
+        submission_id = request.form.get("submission_id") or json_data.get("submission_id")
+        update_flag = parse_bool_flag(request.form.get("update_existing") or json_data.get("update_existing", False))
+
+        if not submission_id:
+            # Check if file was supplied to preview and commit in one go
+            if "file" in request.files:
+                file_obj = request.files["file"]
+                try:
+                    p_res = preview_csv(file_obj.read(), institution_id, file_obj.filename, current_user.username)
+                    if p_res.get("already_imported"):
+                        return jsonify({"ok": True, "data": p_res})
+                    submission_id = p_res["submission_id"]
+                except Exception as exc:
+                    return make_error("VALIDATION_ERROR", str(exc), 422)
+            else:
+                return make_error("VALIDATION_ERROR", "submission_id is required for commit.", 422)
+
+        try:
+            commit_res = commit_submission(
+                submission_id=submission_id,
+                institution_id=institution_id,
+                update_existing=update_flag,
+                committed_by=current_user.username
+            )
+            return jsonify({"ok": True, "data": commit_res})
+        except PermissionError:
+            return make_error("FORBIDDEN", "Cross-institution commit denied.", 403)
+        except ValueError as val_err:
+            return make_error("VALIDATION_ERROR", str(val_err), 422)
+        except Exception as exc:
+            current_app.logger.error("Commit failed: %s", exc)
+            return make_error("SERVER_ERROR", "Failed to commit submission.", 500, details={"error": str(exc)})
+
+    return make_error("VALIDATION_ERROR", f"Invalid mode '{mode}'. Must be 'preview' or 'commit'.", 422)
+
+
+@students_bp.route("/api/students/import/history", methods=["GET"])
+@login_required
+@roles_required(Role.AICTE_ADMIN.value, Role.INSTITUTION_ADMIN.value, Role.AUDITOR.value)
+def import_history():
+    """List historical CSV data submissions scoped to the active institution."""
+    from models.admission import DataSubmission
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+
+    query = scope_query(DataSubmission.query, DataSubmission)
+
+    target_inst = request.args.get("institution_id")
+    if target_inst:
+        if user_role == Role.INSTITUTION_ADMIN.value and target_inst != current_user.institution_id:
+            return make_error("FORBIDDEN", "Cannot view submission history of another institution.", 403)
+        query = query.filter(DataSubmission.institution_id == target_inst)
+
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+        per_page = min(100, max(1, int(request.args.get("per_page", 25))))
+    except (ValueError, TypeError):
+        page = 1
+        per_page = 25
+
+    total = query.count()
+    submissions = query.order_by(desc(DataSubmission.created_at)).offset((page - 1) * per_page).limit(per_page).all()
+
+    data = []
+    for s in submissions:
+        item = s.to_dict()
+        item["institution_code"] = s.institution.code if s.institution else ""
+        item["institution_name"] = s.institution.name if s.institution else ""
+        data.append(item)
+
+    pages = max(1, (total + per_page - 1) // per_page)
+    return jsonify({
+        "ok": True,
+        "data": data,
+        "meta": {"page": page, "per_page": per_page, "total": total, "pages": pages}
+    })
+
+
+@students_bp.route("/api/students/import/<id>", methods=["GET"])
+@login_required
+@roles_required(Role.AICTE_ADMIN.value, Role.INSTITUTION_ADMIN.value, Role.AUDITOR.value)
+def get_submission_detail(id: str):
+    """Get metadata, error count, and status for a specific data submission."""
+    from models.admission import DataSubmission
+    submission = db.session.get(DataSubmission, id)
+    if not submission:
+        return make_error("NOT_FOUND", "Submission record not found.", 404)
+
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if user_role == Role.INSTITUTION_ADMIN.value and submission.institution_id != current_user.institution_id:
+        return make_error("FORBIDDEN", "Cannot access submission from another institution.", 403)
+
+    data = submission.to_dict()
+    data["institution_code"] = submission.institution.code if submission.institution else ""
+    data["institution_name"] = submission.institution.name if submission.institution else ""
+    return jsonify({"ok": True, "data": data})
+
+
+@students_bp.route("/api/students/import/<submission_id>/errors.csv", methods=["GET"])
+@login_required
+@roles_required(Role.AICTE_ADMIN.value, Role.INSTITUTION_ADMIN.value, Role.AUDITOR.value)
+def download_submission_errors_csv(submission_id: str):
+    """Download error report CSV for a submission with formula injection neutralized."""
+    from services.csv_service import generate_error_report_csv
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    inst_scope = current_user.institution_id if user_role == Role.INSTITUTION_ADMIN.value else None
+
+    try:
+        csv_text, filename = generate_error_report_csv(submission_id, institution_id=inst_scope)
+        return Response(
+            csv_text,
+            mimetype="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Type": "text/csv; charset=utf-8"
+            }
+        )
+    except PermissionError:
+        return make_error("FORBIDDEN", "Access to error report for another institution is forbidden.", 403)
+    except ValueError as val_err:
+        return make_error("NOT_FOUND", str(val_err), 404)
+    except Exception as exc:
+        current_app.logger.error("Failed downloading error report: %s", exc)
+        return make_error("SERVER_ERROR", "Failed to generate error report.", 500)
+
