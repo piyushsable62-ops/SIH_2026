@@ -116,7 +116,7 @@ Fetches current authenticated user profile attributes. Password hash is never re
 
 ## Member B: Identity evidence service (B2)
 
-Python interface (no HTTP endpoint until B4):
+Python interface (HTTP endpoints are documented in B4 below):
 
 ```python
 from services.identity_resolution import scan
@@ -163,7 +163,7 @@ the caller's ingestion work, with no unrelated pending/flushed writes.
 
 Integration notes for Member A:
 
-- A6/authz are currently absent. The service imports A6 normalization, masking,
+- A6 is currently absent; authz is available and used. The service imports A6 normalization, masking,
   format validation and `authz.scope_query` when available. Until then it uses
   documented Unicode/contact normalization, masked labels, the `apaar_regex`
   policy (12 digits by default), and explicit institution predicates. Adapter
@@ -176,7 +176,7 @@ Integration notes for Member A:
   and whose action is `DUPLICATE_SUBMISSION`/`SUBMISSION_DUPLICATE`,
   `details.rule_key` is `DUPLICATE_SUBMISSION`, or `details.duplicate_submission`
   is true. Hash equality alone is not inferred as an ingestion flag.
-- A3/A4 seed data is absent; tests use isolated synthetic fixtures without adding
+- A3 reference seed data is available; A4 student scenarios are absent. Tests use isolated synthetic fixtures without adding
   seed accounts or changing Member A's files. No model changes are required for
   sequential scope-idempotent scans. Concurrent scans of the same scope require
   caller serialization/retry; this service does not implement a distributed lock.
@@ -184,7 +184,7 @@ Integration notes for Member A:
 Manual verification: run `python -m pytest tests/test_identity.py -q`, inspect
 `result.to_dict()` from a committed synthetic app-context dataset, rerun with the
 same scope and compare match/edge IDs. Contact-only/payer-only pairs must produce
-signals and zero identity matches. Graph click-testing becomes available in B4/B5.
+signals and zero identity matches. Graph browser click-testing becomes available in B5.
 
 ## Member B: Explainable risk service (B3)
 
@@ -257,6 +257,104 @@ authorization, idempotency, cluster merging, policy changes and non-punitive
 behavior. The five-scenario fixture creates LOW (malformed reference/shared
 contact), MEDIUM (rejected excess intake), HIGH (40+35) and CRITICAL (40+35+15)
 cases from real scan/admission engine output. This is not a seed verification:
-`seed.py` is absent on main. Member A must provide those isolated scenarios in
-A3/A4 before a real `seed + scan` check is possible. B4/B6 will provide browser
-case pages; no risk buttons exist to click-test yet.
+`seed.py` now supplies A3 reference data, but A4's student generation hook is not
+implemented. Member A must provide those isolated scenarios in A4 before a real
+`seed + scan` check is possible. B6 will provide browser case pages; B4 supplies
+the APIs documented below.
+
+## Member B: Investigation APIs and human workflow (B4)
+
+All endpoints below require an authenticated session and use the standard
+`{ok,data}` / `{ok:false,error:{code,message,details}}` envelope. All POST/PATCH
+requests require `X-CSRFToken`. No endpoint changes student records or revokes
+credentials. Every decision requires human review.
+
+| Method and path | Roles | Behavior |
+|---|---|---|
+| `POST /api/identity/scan` | AICTE, institution admin | JSON object with optional `institution_id`, `academic_year`; institution users are forced to their own scope. Runs scan then risk evaluation in the same request. Returns `scan_id`, `stats`, `cases_created`, `cases_updated`, `case_count`. Both services audit their runs. |
+| `GET /api/identity/graph` | AICTE, institution admin, auditor | Read-only stored graph with masked nodes, explained edges and `truncated`. Does not run a scan. |
+| `GET /api/identity/node/<node_id>` | Same read roles | Typed node ID from graph; returns `node`, `linked_records` (masked), `institutions`, `edges`, `linked_cases`, `truncated`. Foreign/missing nodes return 404. |
+| `GET /api/risk/cases` | Same read roles | Descending score, UUID tie-break; returns a list with pagination `meta`. |
+| `GET /api/risk/cases/<id>` | Same read roles | Case summary, score `breakdown`, `evidence`, masked `affected_records`, `affected_institutions`, recommendation, assignee, `history`, `explanation`, `allowed_next_actions`. |
+| `POST /api/risk/cases/<id>/actions` | AICTE, limited institution response | `{action,note?,assigned_to?}`; see state machine below. Case action and audit commit together. |
+| `PATCH /api/risk/cases/<id>` | AICTE only | `{assigned_to}`; active AICTE administrator username or `null` to clear. Assignment and audit commit together. Does not change status. |
+
+Graph filters: `institution_id`, `academic_year`, `case_id`, `apaar_masked`
+(`XXXXXXXX` + four digits only), `min_severity` (`LOW/MEDIUM/HIGH/CRITICAL`),
+`include_signals` (`true/false/1/0`, default true), `limit` (1–1000, default 300
+nodes). Node panels accept the same filters and ceiling. Only edges whose two
+endpoints are present are returned. Node shape is
+`{id,type,label,institution,severity,meta}`; edge shape is
+`{id,source,target,type,explanation}`. Shared-reference labels/opaque IDs never
+contain contacts or fee-payer values. Visible sharing counts are recomputed within
+the filtered view. Overlapping stored scan projections are deduplicated by fact;
+corrected reference links are omitted until a fresh scan supplies current links.
+The view is bounded; use institution/year/case filters for larger datasets.
+
+Case-list filters: `severity`, `status`, `institution_id`, `assigned_to`, `q`,
+`page` (default 1), `per_page` (default 25, max 100). An empty `assigned_to` selects
+unassigned cases. `q` is a literal substring of reference or summary (max 200
+characters). `meta` includes `page`, `per_page`, `total`, `pages`. AICTE/auditor
+institution filters include national cases whose affected-institution metadata
+contains that institution. Institution administrators still only see wholly local
+cases with their own `institution_id`; foreign and national case details return
+404. They cannot obtain foreign records through graph edges or node panels.
+
+Action-to-status mapping:
+
+| Action | Target status |
+|---|---|
+| `UNDER_REVIEW` | `UNDER_REVIEW` |
+| `REQUEST_CLARIFICATION` | `CLARIFICATION_REQUESTED` |
+| `CONFIRM_DATA_ERROR` | `DATA_ERROR_CONFIRMED` |
+| `DISMISS_FALSE_POSITIVE` | `FALSE_POSITIVE` |
+| `RESOLVE` | `RESOLVED` |
+
+Allowed AICTE transitions:
+
+| Current status | Allowed next statuses |
+|---|---|
+| `OPEN` | `UNDER_REVIEW`, `CLARIFICATION_REQUESTED`, `FALSE_POSITIVE` |
+| `UNDER_REVIEW` | `CLARIFICATION_REQUESTED`, `DATA_ERROR_CONFIRMED`, `FALSE_POSITIVE`, `RESOLVED` |
+| `CLARIFICATION_REQUESTED` | `UNDER_REVIEW`, `DATA_ERROR_CONFIRMED`, `FALSE_POSITIVE`, `RESOLVED` |
+| `DATA_ERROR_CONFIRMED` | `RESOLVED` |
+| `FALSE_POSITIVE` | `UNDER_REVIEW` (reopen), `RESOLVED` |
+| `RESOLVED` | `UNDER_REVIEW` (reopen, AICTE only) |
+
+Invalid transitions return 409 `CONFLICT`, with
+`error.details.allowed_next_actions` containing action names. Unknown action
+names, malformed JSON/fields and invalid reviewers return 422. Notes are required
+for `DISMISS_FALSE_POSITIVE`, `CONFIRM_DATA_ERROR`, and `RESOLVE`; notes must be
+text of at most 4000 characters. Optional `assigned_to` on an action uses the same
+reviewer validation as PATCH and is atomic with that transition.
+
+An institution administrator may only send
+`{action:"REQUEST_CLARIFICATION",note:"...response..."}` on a wholly local case
+already in `CLARIFICATION_REQUESTED`. A non-empty note is required; the status
+stays unchanged. History records the same from/to status and an institution
+response note; audit action is `RISK_CASE_RESPONSE`. They cannot assign reviewers,
+resolve or reopen cases. Auditors cannot mutate anything (403).
+
+Transitions use an optimistic status/update-time guard; a concurrent stale update
+returns 409 without appending history. Case status/optional assignment,
+`case_actions` row, and `RISK_CASE_ACTION` audit row share one transaction through
+the existing audit service. Failure rolls them all back. Assignment PATCH writes
+`RISK_CASE_ASSIGNED`; it does not invent a status-transition history entry.
+Scan/evaluation remain two separately audited commits in one request; if risk
+evaluation fails, the committed identity projection remains available for retry.
+
+PowerShell/manual checks after seeding and login (use the CSRF meta token from
+`GET /login` and the same `WebRequestSession` for subsequent requests):
+
+```powershell
+$headers = @{ 'X-CSRFToken' = $csrf; Accept = 'application/json' }
+Invoke-RestMethod "$base/api/identity/scan" -Method Post -WebSession $session -Headers $headers -ContentType 'application/json' -Body '{}'
+Invoke-RestMethod "$base/api/risk/cases?per_page=25" -WebSession $session
+Invoke-RestMethod "$base/api/identity/graph?include_signals=false" -WebSession $session
+Invoke-RestMethod "$base/api/risk/cases/$caseId/actions" -Method Post -WebSession $session -Headers $headers -ContentType 'application/json' -Body '{"action":"UNDER_REVIEW","note":"Review started"}'
+```
+
+Verify repeated scans update cases, an invalid OPEN-to-RESOLVED transition returns
+409, required notes return 422 when absent, and institution login hides foreign
+cases/nodes. Case/graph browser screens are B5/B6; these B4 endpoints can be
+exercised through PowerShell or the browser's developer console using `Nexus.api`.

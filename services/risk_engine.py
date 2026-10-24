@@ -6,6 +6,7 @@ first: the current audit service commits this service's unit of work.
 """
 
 from collections import defaultdict
+from datetime import datetime, timezone
 from dataclasses import asdict, is_dataclass
 from hashlib import sha256
 import json
@@ -16,12 +17,13 @@ from uuid import UUID, uuid4
 
 from flask import current_app, has_request_context
 from flask_login import current_user
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from extensions import db
 from models import AdmissionEvent, CaseAction, Institution, RiskCase, RiskEvidence
-from models import StudentRecord, SystemPolicy
+from models import StudentRecord, SystemPolicy, User
 from services import audit_service
+from services.authz import scope_query
 
 DEFAULT_WEIGHTS = {
     "DUPLICATE_APAAR": 40, "SIMULTANEOUS_ENROLMENT": 35,
@@ -377,3 +379,154 @@ def explain(case: RiskCase) -> str:
     signal_only = bool(items) and all((item.details or {}).get("is_signal") for item in items)
     cap = "signal-only safety cap: LOW, at most 29; investigation signal, not proof" if signal_only else "capped at 100"
     return f"Score {case.score} ({case.severity.title()}) = {terms} ({cap}). Human review required."
+
+
+ACTION_STATUS = {"UNDER_REVIEW": "UNDER_REVIEW", "REQUEST_CLARIFICATION": "CLARIFICATION_REQUESTED",
+    "CONFIRM_DATA_ERROR": "DATA_ERROR_CONFIRMED", "DISMISS_FALSE_POSITIVE": "FALSE_POSITIVE", "RESOLVE": "RESOLVED"}
+# Explicit human workflow. Only AICTE may reopen RESOLVED. Institution responses
+# are REQUEST_CLARIFICATION notes on CLARIFICATION_REQUESTED, with no transition.
+TRANSITIONS = {
+    "OPEN": {"UNDER_REVIEW", "CLARIFICATION_REQUESTED", "FALSE_POSITIVE"},
+    "UNDER_REVIEW": {"CLARIFICATION_REQUESTED", "DATA_ERROR_CONFIRMED", "FALSE_POSITIVE", "RESOLVED"},
+    "CLARIFICATION_REQUESTED": {"UNDER_REVIEW", "DATA_ERROR_CONFIRMED", "FALSE_POSITIVE", "RESOLVED"},
+    "DATA_ERROR_CONFIRMED": {"RESOLVED"}, "FALSE_POSITIVE": {"UNDER_REVIEW", "RESOLVED"},
+    "RESOLVED": {"UNDER_REVIEW"},
+}
+
+
+class WorkflowConflict(Exception):
+    """A rejected transition with machine-readable allowed next actions."""
+
+    def __init__(self, allowed: list[str]):
+        super().__init__("This action is not allowed from the current case status.")
+        self.allowed = allowed
+
+
+def visible_cases():
+    """Scope cases through the shared authorization helper; NULL cases stay national."""
+    return scope_query(select(RiskCase), RiskCase)
+
+
+def get_case(case_id: str) -> RiskCase:
+    """Return an authorized case or an indistinguishable missing-resource error."""
+    case = db.session.execute(visible_cases().where(RiskCase.id == case_id)).scalar_one_or_none()
+    if case is None:
+        raise LookupError("Risk case not found.")
+    return case
+
+
+def case_detail(case: RiskCase) -> dict:
+    """Serialize masked evidence, authorized records, institutions and human history."""
+    evidence = case.evidence_items.order_by(RiskEvidence.rule_key, RiskEvidence.event_key).all()
+    ids = {id_ for row in evidence for id_ in (row.related_student_ids or [])}
+    records = db.session.execute(scope_query(select(StudentRecord), StudentRecord).where(StudentRecord.id.in_(ids))).scalars().all()
+    institution_ids = {row.institution_id for row in records}
+    if case.institution_id:
+        institution_ids.add(case.institution_id)
+    institutions = db.session.execute(scope_query(select(Institution), Institution).where(Institution.id.in_(institution_ids))).scalars()
+    return {**_clean(case.to_dict()), "explanation": explain(case),
+        "breakdown": [{"rule_key": row.rule_key, "points": row.points, "event_key": row.event_key} for row in evidence],
+        "evidence": [_clean(row.to_dict()) for row in evidence],
+        "affected_records": [public_record(row) for row in records],
+        "affected_institutions": [{"id": row.id, "code": row.code, "name": row.name} for row in institutions],
+        "history": [_clean(row.to_dict()) for row in case.actions.all()],
+        "allowed_next_actions": allowed_actions(case)}
+
+
+def public_record(row: StudentRecord) -> dict:
+    """Expose a small record summary with a masked reference and no contact values."""
+    from services.identity_resolution import _mask
+    return {"id": row.id, "full_name": _clean(row.full_name), "institution_id": row.institution_id,
+        "institution_student_id": row.institution_student_id, "programme_id": row.programme_id,
+        "academic_year": row.academic_year, "enrolment_status": row.enrolment_status,
+        "validation_status": row.validation_status, "apaar_masked": _mask(row.apaar_ref)}
+
+
+def allowed_actions(case: RiskCase) -> list[str]:
+    """List actions for this actor, including a non-transitioning institutional response."""
+    if current_user.role == "INSTITUTION_ADMIN":
+        return ["REQUEST_CLARIFICATION"] if case.status == "CLARIFICATION_REQUESTED" else []
+    if current_user.role != "AICTE_ADMIN":
+        return []
+    return sorted(action for action, target in ACTION_STATUS.items() if target in TRANSITIONS.get(case.status, set()))
+
+
+def _reviewer(value: Any) -> str | None:
+    """Assignments use an active AICTE administrator username, or null to clear."""
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip() or len(value) > 80:
+        raise ValueError("assigned_to must be an active AICTE_ADMIN username or null.")
+    user = db.session.execute(select(User).where(User.username == value, User.role == "AICTE_ADMIN", User.is_active == True)).scalar_one_or_none()
+    if user is None:
+        raise ValueError("Reviewer must be an active user with AICTE_ADMIN role.")
+    return user.username
+
+
+def _workflow_commit(case: RiskCase, action: str, details: dict) -> None:
+    """Commit the action/assignment and audit in the same transaction, or roll back."""
+    audit = audit_service.log(current_user.username, action, "RISK_CASE", case.id,
+        {"actor_role": current_user.role, **details}, institution_id=case.institution_id)
+    if not audit.get("id"):
+        raise RuntimeError("Case action could not persist its audit record.")
+
+
+def act_on_case(case_id: str, action: str, note: Any = None, **assignment) -> RiskCase:
+    """Persist human review only: NEVER modify students or revoke credentials.
+
+    Case status, optional assignment, case_actions and audit share one transaction.
+    An institution's clarification response records a note and retains status.
+    """
+    _ready()
+    _actor()
+    try:
+        case = get_case(case_id)
+        if current_user.role == "INSTITUTION_ADMIN" and (case.status != "CLARIFICATION_REQUESTED" or action != "REQUEST_CLARIFICATION" or assignment):
+            raise PermissionError("Institution administrators may only respond to their own clarification requests.")
+        allowed = allowed_actions(case)
+        if action not in allowed:
+            raise WorkflowConflict(allowed)
+        if note is not None and (not isinstance(note, str) or len(note) > 4000):
+            raise ValueError("note must be text of at most 4000 characters.")
+        note = (note or "").strip()
+        if (action in {"DISMISS_FALSE_POSITIVE", "CONFIRM_DATA_ERROR", "RESOLVE"} or current_user.role == "INSTITUTION_ADMIN") and not note:
+            raise ValueError("A note is required for this action.")
+        old = case.status
+        target = old if current_user.role == "INSTITUTION_ADMIN" else ACTION_STATUS[action]
+        values = {"status": target, "updated_at": datetime.now(timezone.utc)}
+        if "assigned_to" in assignment:
+            values["assigned_to"] = _reviewer(assignment["assigned_to"])
+        changed = db.session.execute(update(RiskCase).where(RiskCase.id == case.id, RiskCase.status == old,
+            RiskCase.updated_at == case.updated_at).values(**values).execution_options(synchronize_session=False))
+        if changed.rowcount != 1:
+            raise WorkflowConflict(allowed)
+        response = current_user.role == "INSTITUTION_ADMIN"
+        db.session.add(CaseAction(case_id=case.id, actor_id=current_user.username, action=action,
+            from_status=old, to_status=target, note=_clean(("Institution response: " if response else "") + note)))
+        db.session.flush()
+        _workflow_commit(case, "RISK_CASE_RESPONSE" if response else "RISK_CASE_ACTION",
+            {"action": action, "from_status": old, "to_status": target, "note": _clean(note), **assignment})
+        return case
+    except Exception:
+        db.session.rollback()
+        raise
+
+
+def assign_case(case_id: str, assigned_to: Any) -> RiskCase:
+    """Assign a human reviewer without changing students, credentials or case status."""
+    _ready()
+    if not current_user.is_authenticated or current_user.role != "AICTE_ADMIN":
+        raise PermissionError("Only AICTE administrators may assign reviewers.")
+    try:
+        case = get_case(case_id)
+        reviewer = _reviewer(assigned_to)
+        old = case.assigned_to
+        changed = db.session.execute(update(RiskCase).where(RiskCase.id == case.id,
+            RiskCase.updated_at == case.updated_at).values(assigned_to=reviewer, updated_at=datetime.now(timezone.utc)).execution_options(synchronize_session=False))
+        if changed.rowcount != 1:
+            raise WorkflowConflict(allowed_actions(case))
+        _workflow_commit(case, "RISK_CASE_ASSIGNED", {"previous_assigned_to": old, "assigned_to": reviewer})
+        return case
+    except Exception:
+        db.session.rollback()
+        raise
