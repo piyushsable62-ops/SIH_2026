@@ -212,6 +212,8 @@ dialog .actions { justify-content: flex-end; }
 .risk-history-note { white-space: pre-wrap; overflow-wrap: anywhere; }
 .risk-list-card .table-wrapper { max-height: 540px; }
 .risk-list-card td:first-child a { white-space: nowrap; }
+.credential-qr { display: block; width: 200px; height: 200px; margin: 16px 0; }
+#credential-screen > .card { margin-top: 16px; }
 #risk-score-table .table-wrapper { max-height: 480px; }
 #risk-score-table tfoot th, #risk-score-table tfoot td { position: sticky; top: auto; bottom: 0; background: var(--surface); border-top: 2px solid var(--border); }
 #risk-score-table tfoot td:nth-child(2) { white-space: nowrap; }

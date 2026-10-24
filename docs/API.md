@@ -1004,3 +1004,39 @@ issuer scope and a non-blank reason; repeated revocation returns CONFLICT.
 
 The service owns its audited commit; commit unrelated work first. See
 `docs/SECURITY.md` for development keys, rotation and production limitations.
+
+## Member B: Credential APIs and passport (B8)
+
+- `POST /api/credentials/issue`: issuer administrators, CSRF; JSON
+  `{student_id,award_year,valid_years?,acknowledge_warnings?}`. Returns 201 safe
+  summary; unacknowledged risk warnings return 409 with `error.details.warnings`.
+- `GET /api/credentials`: scoped AICTE/institution/student/auditor access;
+  institution/status/student/year filters (also `_id`/`award_year` aliases), page
+  and per_page up to 100. Live statuses filter before pagination. No signatures,
+  payload JSON or private keys are returned.
+- `GET /api/credentials/<id>`: scoped summary, computed verification, event count,
+  verification URL and server-generated QR PNG data URI. Detail records a verify
+  event. `GET /api/credentials/<id>/qr.png`: scoped `image/png`, no-store.
+- `POST /api/credentials/<id>/revoke`: official issuer scope, CSRF, `{reason}`.
+- `GET /api/credentials/eligible-students`: issuer-only masked search of VALID,
+  ACTIVE/GRADUATED synthetic students; `q`, `page`; filtering precedes pagination.
+- `GET /api/passport/me`: STUDENT-only masked academic profile and own credentials.
+  No student/verifier login is added to the four-account demo seed.
+- `/credentials` and `/credentials/issue`: administrative issue/search/history
+  page; `/passport`: student passport; `/credentials/<id>`: in-scope read-only
+  credential passport (including auditor access). Shared vanilla JS uses only
+  Nexus.api for mutations and shows explicit warning acknowledgement, native
+  confirmation/reason dialogs, real QR images, current statuses and error messages.
+
+Configure `PUBLIC_BASE_URL` to the externally trusted HTTP(S) application base
+when deployed. Without it, QR URLs use request.host_url. The QR encodes the
+absolute `/verify/<reference>` URL; B9 provides its public rendering. Authenticated
+results and QR responses are no-store. In the SQLite prototype, live-status list
+filtering checks all authorized credentials before slicing; larger deployments
+need a paginated indexed verification/status projection.
+
+Manual B8 check completed in an isolated four-account synthetic fixture: sign in,
+select an eligible student, confirm issue, inspect masked claims and actual QR,
+then revoke with a required reason and verify REVOKED in history. Public links
+are exercised in B9. API tests cover cross-institution/student scope, auditor
+read-only behavior, PNG content/type/URL, CSRF, and response redaction.
