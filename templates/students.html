@@ -259,6 +259,6 @@
 </dialog>
 {% endblock %}
 
-{% block extra_scripts %}
-<script src="{{ url_for('static', filename='js/students.js') }}"></script>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/students.js') }}" defer></script>
 {% endblock %}
