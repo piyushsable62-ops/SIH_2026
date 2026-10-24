@@ -175,10 +175,12 @@
           class: "filter-chip-remove",
           type: "button",
           "aria-label": `Remove ${labels[key] || key} filter`,
-          onclick: () => {
-            const field = filters.elements[key];
-            if (field) field.value = "";
-            void refresh();
+          on: {
+            click: () => {
+              const field = filters.elements[key];
+              if (field) field.value = "";
+              void refresh();
+            }
           }
         }, "×")
       );
@@ -190,10 +192,10 @@
         N.el("span", { class: "dash-active-chips-label" }, "Active filters:"),
         ...chips
       );
-      container.style.display = "flex";
+      container.classList.remove("u-hidden");
     } else {
       container.replaceChildren();
-      container.style.display = "none";
+      container.classList.add("u-hidden");
     }
   }
 
@@ -248,7 +250,7 @@
         <div class="dash-hero-top">
           <span class="dash-hero-institution-badge">${inst.code || "INSTITUTION"} • ${inst.name || "Operations"}</span>
           <span class="dash-status-chip ${chipClass}">
-            <span class="dash-refresh-dot" style="background: currentColor;"></span>
+            <span class="dash-refresh-dot"></span>
             ${chipLabel}
           </span>
         </div>
@@ -463,7 +465,7 @@
       <div class="dash-kpi-group">
         <div class="dash-kpi-group-header">
           <span class="dash-kpi-group-title">${g.title}</span>
-          <span class="badge badge-info" style="font-size: 0.75rem;">${g.badge}</span>
+          <span class="badge badge-info dash-badge-sm">${g.badge}</span>
         </div>
         <div class="${g.rowClass}">
           ${g.cards.map((c, cIdx) => `
@@ -482,7 +484,7 @@
               </div>
               ${c.progressPct != null ? `
                 <div class="dash-mini-progress" role="progressbar" aria-valuenow="${c.progressPct}" aria-valuemin="0" aria-valuemax="100">
-                  <div class="dash-mini-progress-fill ${c.progressClass || ''}" style="width: ${c.progressPct}%;"></div>
+                  <div class="dash-mini-progress-fill ${c.progressClass || ''}" data-pct="${c.progressPct}"></div>
                 </div>
               ` : ""}
             </div>
@@ -490,6 +492,11 @@
         </div>
       </div>
     `).join("");
+
+    // Set progress percentages safely on elements
+    container.querySelectorAll(".dash-mini-progress-fill[data-pct]").forEach(el => {
+      el.style.setProperty("--progress-pct", `${el.dataset.pct}%`);
+    });
 
     // Trigger count-ups
     groups.forEach((g, gIdx) => {
@@ -516,17 +523,26 @@
       { name: "3. Credential Issued", count: credCount, pct: Math.round((credCount / base) * 100), color: colors.green }
     ];
 
-    container.innerHTML = steps.map(step => `
-      <div class="dash-funnel-step">
-        <div class="dash-funnel-step-header">
-          <span class="dash-funnel-step-name">${step.name}</span>
-          <span class="dash-funnel-step-number">${step.count} <small class="muted">(${step.pct}%)</small></span>
-        </div>
-        <div class="dash-funnel-bar-track">
-          <div class="dash-funnel-bar-fill" style="width: ${Math.min(100, step.pct)}%; background: ${step.color};"></div>
-        </div>
-      </div>
-    `).join("");
+    container.replaceChildren(...steps.map(step => {
+      const stepEl = N.el("div", { class: "dash-funnel-step" },
+        N.el("div", { class: "dash-funnel-step-header" },
+          N.el("span", { class: "dash-funnel-step-name" }, step.name),
+          N.el("span", { class: "dash-funnel-step-number" },
+            `${step.count} `,
+            N.el("small", { class: "muted" }, `(${step.pct}%)`)
+          )
+        ),
+        N.el("div", { class: "dash-funnel-bar-track" },
+          N.el("div", { class: "dash-funnel-bar-fill" })
+        )
+      );
+      const fill = stepEl.querySelector(".dash-funnel-bar-fill");
+      if (fill) {
+        fill.style.setProperty("--funnel-pct", `${Math.min(100, step.pct)}%`);
+        fill.style.setProperty("--funnel-bg", step.color);
+      }
+      return stepEl;
+    }));
   }
 
   /** 5. CHARTS: Category, Donut, Programmes, Risk */
@@ -538,7 +554,25 @@
     // a. Category-wise Capacity Chart
     const catLabels = categories.map(row => row.category);
     const catAdmitted = categories.map(row => row.admitted);
+    const catRows = categories.map(row => {
+      const intake = row.capacity != null ? row.capacity : (data.capacity_by_category ? data.capacity_by_category[row.category] : null);
+      const admitted = row.admitted != null ? row.admitted : 0;
+      const remaining = intake != null ? Math.max(0, intake - admitted) : "—";
+      return {
+        category: row.category,
+        intake: intake != null ? intake : "Open",
+        admitted,
+        remaining
+      };
+    });
+
     chart("chart-category", "bar", catLabels, [
+      {
+        label: "Approved Intake",
+        data: catRows.map(r => typeof r.intake === "number" ? r.intake : 0),
+        backgroundColor: colors.grey,
+        borderRadius: 4
+      },
       {
         label: "Admitted Students",
         data: catAdmitted,
@@ -547,15 +581,15 @@
       }
     ], {
       xTitle: "Admission quota / category",
-      yTitle: "Enrolled students"
+      yTitle: "Students"
     });
 
     table("category-capacity", [
       { key: "category", label: "Category" },
+      { key: "intake", label: "Intake" },
       { key: "admitted", label: "Admitted" },
-      { key: "capacity", label: "Quota Limit", render: value => value ?? "Open quota" },
-      { key: "utilisation_pct", label: "Utilisation", render: value => value == null ? "—" : `${value}%` }
-    ], categories, "No capacity categories.");
+      { key: "remaining", label: "Remaining" }
+    ], catRows, "No category capacity records.");
 
     // b. Regular Intake Utilisation Donut
     const regularRemaining = Math.max(0, s.regular_remaining);
@@ -580,9 +614,9 @@
     progress.firstElementChild.style.setProperty("--value", `${Math.max(0, Math.min(100, s.regular_utilisation_pct))}%`);
 
     get("institution-utilisation").replaceChildren(
-      N.el("p", { style: "font-weight: 600; margin-bottom: 4px;" }, `${s.regular_admitted} of ${s.approved_regular_intake} regular seats filled`),
+      N.el("p", { class: "dash-utilisation-lead" }, `${s.regular_admitted} of ${s.approved_regular_intake} regular seats filled`),
       progress,
-      N.el("p", { class: "muted", style: "font-size: 0.82rem; margin-top: 6px;" },
+      N.el("p", { class: "muted dash-utilisation-sub" },
         `${s.regular_utilisation_pct}% regular utilisation • ${s.supernumerary_admitted}/${s.supernumerary_capacity} supernumerary enrolled`)
     );
 
@@ -694,14 +728,27 @@
     // 4. Charts, Donut, Programmes, Risk, and Funnel
     renderCharts(data, seatsData);
 
-    // 5. Recent Activity Lists
+    // 5. Recent Activity & Validation Lists (all previous tables preserved)
     table("submission-list", [
-      { key: "reference", label: "Submission Ref", render: (value, row) => cell(value, `/upload`) },
-      { key: "filename", label: "File Name" },
+      { key: "reference", label: "Submission", render: (value, row) => cell(value, `/upload`) },
+      { key: "filename", label: "File" },
       { key: "status", label: "Status", render: N.statusBadge },
       { key: "valid_rows", label: "Valid" },
       { key: "error_rows", label: "Errors" }
     ], data.submission_history, "No submissions match this institution.");
+
+    table("validation-errors", [
+      { key: "code", label: "Error" },
+      { key: "count", label: "Occurrences" }
+    ], Object.entries(data.validation_error_counts || {}).map(([code, count]) => ({ code, count })), "No validation errors.");
+
+    table("identity-checks", [
+      { key: "status", label: "Status" },
+      { key: "count", label: "Records" }
+    ], [
+      { status: "PENDING", count: pending.pending },
+      { status: "FLAGGED", count: pending.flagged }
+    ], "No identity checks.");
 
     table("credential-history", [
       { key: "reference", label: "Credential", render: (value, row) => cell(value, `/credentials/${encodeURIComponent(row.id)}`) },

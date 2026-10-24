@@ -804,6 +804,7 @@ dialog .actions { justify-content: flex-end; }
 .dash-mini-progress-fill {
   height: 100%;
   background: var(--ok);
+  width: var(--progress-pct, 0%);
   transition: width 0.8s var(--dash-ease);
 }
 .dash-mini-progress-fill.warn { background: var(--warn); }
@@ -842,6 +843,7 @@ dialog .actions { justify-content: flex-end; }
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding-top: 10px;
 }
 .dash-funnel-step {
   display: flex;
@@ -875,7 +877,141 @@ dialog .actions { justify-content: flex-end; }
 .dash-funnel-bar-fill {
   height: 100%;
   border-radius: 5px;
+  background: var(--funnel-bg, var(--navy));
+  width: var(--funnel-pct, 0%);
   transition: width 0.8s var(--dash-ease);
+}
+
+/* Dashboard Utility Classes - No Inline Styles */
+.dash-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.dash-page-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin: 0;
+}
+.dash-page-subtitle {
+  margin-top: 4px;
+}
+.dash-filter-form {
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  background: transparent;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+.dash-filter-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.dash-mb-lg {
+  margin-bottom: 24px;
+}
+.dash-mt-lg {
+  margin-top: 24px;
+}
+.u-hidden {
+  display: none !important;
+}
+.dash-row-3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.dash-chart-frame-category {
+  height: 280px;
+}
+.dash-panel-subtable {
+  margin-top: 14px;
+}
+.dash-donut-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0;
+}
+.dash-donut-pad-sm {
+  padding: 6px 0;
+}
+.dash-donut-relative {
+  position: relative;
+}
+.dash-donut-size-lg {
+  width: 200px;
+  height: 200px;
+}
+.dash-donut-size-md {
+  width: 170px;
+  height: 170px;
+}
+.dash-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.dash-donut-val {
+  font-size: 1.85rem;
+  line-height: 1;
+}
+.dash-donut-lbl {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+.dash-donut-val-sm {
+  font-size: 1.7rem;
+  line-height: 1;
+}
+.dash-donut-lbl-sm {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.dash-row-4 {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr) minmax(0, 0.9fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.dash-chart-frame-programme {
+  height: 240px;
+}
+.dash-header-btn {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+}
+.dash-utilisation-lead {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.dash-utilisation-sub {
+  font-size: 0.82rem;
+  margin-top: 6px;
+}
+.dash-badge-sm {
+  font-size: 0.75rem;
+}
+.dash-status-chip .dash-refresh-dot {
+  background: currentColor;
 }
 
 /* Skeleton Loading Shimmer */
