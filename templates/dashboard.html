@@ -4,20 +4,35 @@
 {% block content %}
 {% if current_user.role in ['AICTE_ADMIN', 'AUDITOR', 'INSTITUTION_ADMIN'] %}
 <section id="governance-screen" data-mode="{{ 'governance' if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] else 'institution' }}" data-institution="{{ current_user.institution_id or '' }}">
-  <h1>{{ 'National governance overview' if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] else 'Institution operations' }}</h1>
-  <p class="muted">Current synthetic academic records and capacity indicators. Select filters to update the view.</p>
-  <form id="governance-filters" class="card filter-bar">
-    <div class="form-row"><label for="dash-year">Academic year</label><select id="dash-year" name="academic_year" class="select"><option value="">All years</option></select></div>
-    {% if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] %}<div class="form-row"><label for="dash-institution">Institution</label><select id="dash-institution" name="institution_id" class="select"><option value="">All institutions</option></select></div>{% endif %}
-    <div class="form-row"><label for="dash-programme">Programme</label><select id="dash-programme" name="programme_id" class="select"><option value="">All programmes</option></select></div>
-    <div class="form-row"><label for="dash-category">Category</label><select id="dash-category" name="category" class="select"><option value="">All categories</option>{% for value in ['OPEN','OBC','SC','ST','EWS','NRI','OCI','FN'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></div>
-    <div class="form-row"><label for="dash-validation">Validation</label><select id="dash-validation" name="validation_status" class="select"><option value="">All statuses</option>{% for value in ['PENDING','VALID','INVALID','FLAGGED'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></div>
-    <div class="form-row"><label for="dash-risk">Risk level</label><select id="dash-risk" name="risk_level" class="select"><option value="">All levels</option>{% for value in ['LOW','MEDIUM','HIGH','CRITICAL'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></div>
-    <button class="btn" type="submit">Apply filters</button><button class="btn btn-secondary" id="dash-reset" type="button">Clear</button>
-  </form>
-  <p id="governance-status" role="status"></p>
-  <div id="governance-stats" class="grid grid-4"></div>
+  <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 8px;">
+    <div>
+      <h1 style="font-size: 1.6rem; font-weight: 700; color: var(--navy); margin: 0;">{{ 'National governance overview' if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] else 'Institution operations' }}</h1>
+      <p class="muted" style="margin-top: 4px;">{{ 'National aggregated metrics and capacity surveillance.' if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] else 'Live operational intelligence, intake surveillance, and compliance telemetry.' }}</p>
+    </div>
+  </div>
+
+  <div class="dash-sticky-filters">
+    <form id="governance-filters" class="filter-bar" style="border:none; box-shadow:none; padding:0; background:transparent; margin:0; display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px;">
+      <div class="form-row"><label for="dash-year">Academic year</label><select id="dash-year" name="academic_year" class="select"><option value="">All years</option></select></div>
+      {% if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] %}<div class="form-row"><label for="dash-institution">Institution</label><select id="dash-institution" name="institution_id" class="select"><option value="">All institutions</option></select></div>{% endif %}
+      <div class="form-row"><label for="dash-programme">Programme</label><select id="dash-programme" name="programme_id" class="select"><option value="">All programmes</option></select></div>
+      <div class="form-row"><label for="dash-category">Category</label><select id="dash-category" name="category" class="select"><option value="">All categories</option>{% for value in ['OPEN','OBC','SC','ST','EWS','NRI','OCI','FN'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></div>
+      <div class="form-row"><label for="dash-validation">Validation</label><select id="dash-validation" name="validation_status" class="select"><option value="">All statuses</option>{% for value in ['PENDING','VALID','INVALID','FLAGGED'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></div>
+      <div class="form-row"><label for="dash-risk">Risk level</label><select id="dash-risk" name="risk_level" class="select"><option value="">All levels</option>{% for value in ['LOW','MEDIUM','HIGH','CRITICAL'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></div>
+      <div style="display:flex; align-items:flex-end; gap:8px;">
+        <button class="btn" type="submit">Apply filters</button>
+        <button class="btn btn-secondary" id="dash-reset" type="button">Clear</button>
+      </div>
+      <div class="dash-refresh-indicator">
+        <span class="dash-refresh-dot" id="dash-refresh-dot"></span>
+        <span id="governance-status" role="status">Updated just now</span>
+      </div>
+    </form>
+    <div id="dash-active-chips" class="dash-active-chips"></div>
+  </div>
+
   {% if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] %}
+  <div id="governance-stats" class="grid grid-4" style="margin-bottom: 24px;"></div>
   <div class="grid grid-2 governance-charts">
     <section class="card"><h2>Risk cases by severity</h2><p class="muted">Case count by review priority. Select a bar to open cases.</p><div class="chart-frame"><canvas id="chart-risk" aria-label="Risk cases by severity"></canvas></div></section>
     <section class="card"><h2>Category-wise enrolment</h2><p class="muted">Active and graduated student records by category.</p><div class="chart-frame"><canvas id="chart-category" aria-label="Enrolment by category"></canvas></div></section>
@@ -25,14 +40,137 @@
     <section class="card"><h2>Capacity utilisation</h2><p class="muted">Regular intake by institution. Reference levels: 80% caution, 90% warning, 100% full.</p><div class="chart-frame"><canvas id="chart-capacity" aria-label="Capacity utilisation by institution"></canvas></div></section>
     <section class="card"><h2>Credential verification activity</h2><p class="muted">Verification results per day over the last 14 days.</p><div class="chart-frame"><canvas id="chart-verification" aria-label="Verification activity"></canvas></div></section>
   </div>
-  <div class="grid grid-2 governance-lists">
+  <div class="grid grid-2 governance-lists" style="margin-top: 24px;">
     <section class="card"><h2>Institutions approaching capacity</h2><div id="capacity-list"></div></section>
     <section class="card"><h2>Recent high and critical cases</h2><div id="high-cases"></div></section>
     <section class="card"><h2>Recent audit events</h2><div id="recent-audit"></div></section>
   </div>
   {% else %}
-  <div class="grid grid-2 governance-charts"><section class="card"><h2>Category-wise capacity</h2><div class="chart-frame"><canvas id="chart-category" aria-label="Admitted students by category"></canvas></div><div id="category-capacity"></div></section><section class="card"><h2>Regular intake utilisation</h2><div id="institution-utilisation"></div></section></div>
-  <div class="grid grid-2 governance-lists"><section class="card"><h2>Submission history</h2><div id="submission-list"></div></section><section class="card"><h2>Validation errors</h2><div id="validation-errors"></div></section><section class="card"><h2>Pending identity checks</h2><div id="identity-checks"></div></section><section class="card"><h2>Institutional risk cases</h2><div id="institution-risk"></div></section><section class="card"><h2>Credential issuance history</h2><div id="credential-history"></div></section></div>
+  <!-- Row 1: Hero Summary Strip (8 cols) + Attention Needed Card (4 cols) -->
+  <div class="dash-hero-container">
+    <section class="dash-hero-card" id="dash-hero-card" aria-label="Utilisation summary">
+      <!-- Injected by GaugeHero -->
+    </section>
+    <section class="dash-attention-card" id="dash-attention-card" aria-label="Action items and alerts">
+      <!-- Injected by AttentionCard -->
+    </section>
+  </div>
+
+  <!-- Row 2: Grouped KPI Metrics (Admissions, Verification, Risk) -->
+  <div id="dash-kpi-groups" class="dash-kpi-groups">
+    <!-- Injected by KpiCard Group Renderer -->
+  </div>
+  <div id="governance-stats" style="display: none;"></div>
+
+  <!-- Row 3: Category-wise Capacity (7 cols) + Regular Intake Utilisation Donut (5 cols) -->
+  <div class="grid dash-row-3" style="display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; margin-bottom: 24px;">
+    <section class="card dash-panel">
+      <div class="dash-panel-header">
+        <div>
+          <h2>Category-wise capacity &amp; intake</h2>
+          <p class="muted">Sanctioned regular capacity vs enrolled admissions per quota</p>
+        </div>
+      </div>
+      <div class="chart-frame" style="height: 280px;">
+        <canvas id="chart-category" aria-label="Admitted students by category"></canvas>
+      </div>
+      <div id="category-capacity" style="margin-top: 14px;"></div>
+    </section>
+
+    <section class="card dash-panel">
+      <div class="dash-panel-header">
+        <div>
+          <h2>Regular intake utilisation</h2>
+          <p class="muted">Filled vs remaining seats under sanctioned quota</p>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 0;">
+        <div style="position: relative; width: 200px; height: 200px;">
+          <canvas id="chart-utilisation-donut" aria-label="Regular intake utilisation doughnut"></canvas>
+          <div class="dash-donut-center" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
+            <span class="dash-kpi-number" id="donut-center-pct" style="font-size: 1.85rem; line-height: 1;">--%</span>
+            <span class="muted" style="font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; margin-top: 2px;">FILLED</span>
+          </div>
+        </div>
+      </div>
+      <div id="institution-utilisation" style="margin-top: 12px;"></div>
+    </section>
+  </div>
+
+  <!-- Row 4: Programme-wise Admissions (6 cols) + Risk Level Breakdown (3 cols) + Pipeline Funnel (3 cols) -->
+  <div class="grid dash-row-4" style="display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr) minmax(0, 0.9fr); gap: 24px; margin-bottom: 24px;">
+    <section class="card dash-panel">
+      <div class="dash-panel-header">
+        <div>
+          <h2>Programme-wise admissions</h2>
+          <p class="muted">Admissions density across sanctioned degree courses</p>
+        </div>
+      </div>
+      <div class="chart-frame" style="height: 240px;">
+        <canvas id="chart-programmes" aria-label="Admissions per programme"></canvas>
+      </div>
+    </section>
+
+    <section class="card dash-panel">
+      <div class="dash-panel-header">
+        <div>
+          <h2>Risk level breakdown</h2>
+          <p class="muted">Active identity &amp; admission anomaly review cases</p>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 0;">
+        <div style="position: relative; width: 170px; height: 170px;">
+          <canvas id="chart-risk-donut" aria-label="Risk cases by severity doughnut"></canvas>
+          <div class="dash-donut-center" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
+            <span class="dash-kpi-number" id="donut-risk-total" style="font-size: 1.7rem; line-height: 1;">0</span>
+            <span class="muted" style="font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em;">CASES</span>
+          </div>
+        </div>
+      </div>
+      <div id="institution-risk" style="margin-top: 12px;"></div>
+    </section>
+
+    <section class="card dash-panel">
+      <div class="dash-panel-header">
+        <div>
+          <h2>Verification &amp; credentials funnel</h2>
+          <p class="muted">Pipeline progression from admission to issued passport</p>
+        </div>
+      </div>
+      <div id="dash-funnel-container" class="dash-funnel-container" style="padding-top: 10px;">
+        <!-- Injected by Funnel -->
+      </div>
+    </section>
+  </div>
+
+  <!-- Row 5: Recent CSV Submissions (6 cols) & Credential Issuance History (6 cols) -->
+  <div class="grid grid-2 governance-lists">
+    <section class="card dash-panel">
+      <div class="dash-panel-header">
+        <div>
+          <h2>Recent CSV submissions</h2>
+          <p class="muted">Batch student data uploads &amp; validation results</p>
+        </div>
+        <a href="/upload" class="btn btn-secondary btn-sm" style="font-size: 0.8rem; padding: 4px 10px;">Upload CSV</a>
+      </div>
+      <div id="submission-list"></div>
+    </section>
+
+    <section class="card dash-panel">
+      <div class="dash-panel-header">
+        <div>
+          <h2>Recent credentials issued</h2>
+          <p class="muted">Ed25519-signed academic credentials ready for QR verification</p>
+        </div>
+        <a href="/credentials/issue" class="btn btn-secondary btn-sm" style="font-size: 0.8rem; padding: 4px 10px;">Issue credential</a>
+      </div>
+      <div id="credential-history"></div>
+    </section>
+  </div>
+
+  <!-- Hidden backward-compatibility anchors -->
+  <div id="validation-errors" hidden></div>
+  <div id="identity-checks" hidden></div>
   {% endif %}
 </section>
 {% else %}<section class="card"><h1>Welcome to APAARSetu</h1><p>Choose a page from the menu to continue.</p></section>{% endif %}
