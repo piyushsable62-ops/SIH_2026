@@ -15,6 +15,11 @@ PREVIEW_ROLES = (
 @ui_kit_bp.app_context_processor
 def shell_routes() -> dict:
     """Expose registered GET paths and endpoints without guessing blueprint names."""
+    if request and request.path == "/ui-kit":
+        return {
+            "ui_paths": {"/ui-kit"},
+            "ui_endpoints": set(current_app.view_functions),
+        }
     return {
         "ui_paths": {rule.rule for rule in current_app.url_map.iter_rules() if "GET" in rule.methods},
         "ui_endpoints": set(current_app.view_functions),
