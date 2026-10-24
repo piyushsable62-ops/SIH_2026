@@ -71,6 +71,8 @@ a.nav-link:hover { background: var(--navy-dark); }
 .public-shell .shell-main { margin-left: 0; }
 .topbar { min-height: 76px; background: var(--navy); color: #ffffff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .topbar-title { font-size: 1.1rem; font-weight: 600; }
+.public-shell .topbar-title > span:first-child { color: #ffffff !important; }
+.public-shell .topbar-title > span:first-child + span { color: #b7e5c7 !important; }
 .topbar-user { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
 .topbar .btn-secondary { border-color: #d9e4f2; color: #ffffff; }
 .topbar .btn-secondary:hover:not(:disabled) { background: var(--navy-dark); }

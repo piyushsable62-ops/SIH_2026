@@ -348,8 +348,8 @@ Primary keys are UUID strings. APAAR is stored as an external identifier column 
 ## Quick start (Windows 11, PowerShell)
 
 ```powershell
-git clone https://github.com/<your-username>/apaar-nexus.git
-cd apaar-nexus
+git clone https://github.com/codingyash9-bit/SIH_2026.git
+cd SIH_2026
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -455,6 +455,12 @@ A click-by-click script is in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 
 ## How the Risk Engine works
 
+The [Identity Graph](docs/screenshots/graph.png) links synthetic student,
+institution and masked APAAR nodes. Solid links carry identity evidence;
+shared contact and fee-payer links are investigation signals. Each edge has
+an explanation in the inspector and in the text evidence view. A name match
+alone never opens an identity case: the engine requires corroboration.
+
 Prototype rules, not official AICTE policy. Weights are stored in system policies and can be changed.
 
 | Rule | Points |
@@ -491,6 +497,15 @@ Shared contacts and fee-payer references are investigation signals, not proof of
 - Full APAAR IDs, dates of birth, addresses, and contact details are never shared.
 - This prototype does not implement zero-knowledge proofs or decentralised identity.
 
+The four seeded references make each backend result reproducible:
+`CRED-DEMO01` verified, `CRED-DEMO02` revoked, `CRED-DEMO03` expired and
+`CRED-DEMO04` invalid because its stored payload was altered after signing.
+Open `/verify-console` or `/verify/<reference>` to show them. The seed also
+prints a demo-only 72-hour link with just degree authenticity and award year.
+The four seeded login accounts do not include a student; the `/sharing` page
+is available when an authenticated student account is provisioned outside the
+fixed demo seed. The full token is returned once and only its hash is stored.
+
 ---
 
 ## CSV format
@@ -506,7 +521,7 @@ Download the template from the Upload page or use [sample_data/students.csv](sam
 ## Project structure
 
 ```text
-apaar-nexus/
+SIH_2026/
 ├── app.py
 ├── config.py
 ├── extensions.py
@@ -575,13 +590,15 @@ Authorised APAAR/ABC and institutional data integrations, proper identity assura
 
 ## Screenshots
 
-| Dashboard | Seat Ledger (blocked admission) | Identity Graph |
-|:---:|:---:|:---:|
-| `docs/screenshots/dashboard.png` | `docs/screenshots/seat-ledger.png` | `docs/screenshots/graph.png` |
+These are captures of the running local app with synthetic data:
 
-| Risk Case | QR Verification | Sharing |
+| Dashboard | Seat Ledger block | Identity Graph |
 |:---:|:---:|:---:|
-| `docs/screenshots/case.png` | `docs/screenshots/verify.png` | `docs/screenshots/sharing.png` |
+| ![Governance dashboard](docs/screenshots/dashboard.png) | ![Capacity block](docs/screenshots/seat-ledger.png) | ![Focused identity graph](docs/screenshots/graph.png) |
+
+| Risk Case | Public verification |
+|:---:|:---:|
+| ![Risk case detail](docs/screenshots/case.png) | ![Verified credential](docs/screenshots/verify.png) |
 
 ---
 
