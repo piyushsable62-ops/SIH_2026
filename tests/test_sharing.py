@@ -66,7 +66,7 @@ def test_selected_personal_claims_and_scope(client, shared):
         explicit_authorisation={"STUDENT_NAME": True, "APAAR_MASKED": True})
     assert response.status_code == 201
     token = response.json["data"]["token"]
-    assert client.get("/public/verify/" + token).json["data"]["claims"] == {"STUDENT_NAME": shared[3].full_name, "APAAR_MASKED": "XXXXXXXX0001"}
+    assert client.get("/public/verify/" + token + "?format=json").json["data"]["claims"] == {"STUDENT_NAME": shared[3].full_name, "APAAR_MASKED": "XXXXXXXX0001"}
     assert create(client, shared, credential_id=shared[1].id).status_code == 404
     api_login(client, shared[2][2])
     assert client.get("/api/sharing-sessions").json["data"] == []
@@ -94,18 +94,18 @@ def test_expiry_revocation_and_credential_recheck(client, shared, app):
     created = create(client, shared).json["data"]
     row = db.session.get(SharingSession, created["id"])
     app.config["SHARING_CLOCK"] = lambda: credentials.aware(row.expires_at) + timedelta(seconds=1)
-    expired = client.get("/public/verify/" + created["token"]).json["data"]
+    expired = client.get("/public/verify/" + created["token"] + "?format=json").json["data"]
     assert expired["result"] == "EXPIRED" and expired["claims"] == {}
     assert client.get("/api/sharing-sessions").json["data"][0]["status"] == "EXPIRED"
     app.config.pop("SHARING_CLOCK")
     assert client.post("/api/sharing-sessions/" + row.id + "/revoke", json={}).status_code == 200
     assert client.post("/api/sharing-sessions/" + row.id + "/revoke", json={}).status_code == 409
-    revoked = client.get("/public/verify/" + created["token"]).json["data"]
+    revoked = client.get("/public/verify/" + created["token"] + "?format=json").json["data"]
     assert revoked["result"] == "REVOKED" and revoked["claims"] == {}
     fresh = create(client, shared).json["data"]
     api_login(client, shared[2][0])
     assert client.post("/api/credentials/" + shared[0].id + "/revoke", json={"reason": "Internal private support note"}).status_code == 200
-    dead = client.get("/public/verify/" + fresh["token"]).json["data"]
+    dead = client.get("/public/verify/" + fresh["token"] + "?format=json").json["data"]
     assert dead["result"] == "REVOKED" and dead["claims"] == {} and "Internal private" not in str(dead)
     api_login(client, shared[2][1])
     assert create(client, shared).status_code == 409
@@ -114,7 +114,7 @@ def test_expiry_revocation_and_credential_recheck(client, shared, app):
 def test_unknown_malformed_tokens_are_uniform_and_logged_safely(client, shared, caplog):
     created = create(client, shared).json["data"]
     altered = ("A" if created["token"][0] != "A" else "B") + created["token"][1:]
-    paths = [altered, "x", "bad!token", "A" * 500, "-" * 43]
+    paths = [altered, "x", "bad!token", "A" * 500, "-" * 43, "bad/token"]
     results = [client.get("/public/verify/" + token + "?format=json") for token in paths]
     assert all(result.status_code == 404 and result.json == results[0].json for result in results)
     assert VerificationEvent.query.filter_by(credential_id=None).count() == len(paths)

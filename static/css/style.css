@@ -223,6 +223,13 @@ dialog .actions { justify-content: flex-end; }
 .verification-INVALID h1, .verification-REVOKED h1 { color: var(--danger); }
 .verification-EXPIRED h1 { color: var(--warn-ink); }
 #credential-screen > .card { margin-top: 16px; }
+#sharing-screen > .card, #sharing-form { margin-top: 16px; }
+.sharing-options { border: 1px solid var(--border); padding: 16px; margin: 16px 0; }
+.sharing-options legend { font-weight: 600; padding: 0 8px; }
+.sharing-options label { display: block; margin: 12px 0; }
+.sharing-options input { margin-right: 8px; }
+.sharing-personal { background: var(--warn-bg); }
+.sharing-caution { color: var(--warn-ink); font-weight: 600; }
 #risk-score-table .table-wrapper { max-height: 480px; }
 #risk-score-table tfoot th, #risk-score-table tfoot td { position: sticky; top: auto; bottom: 0; background: var(--surface); border-top: 2px solid var(--border); }
 #risk-score-table tfoot td:nth-child(2) { white-space: nowrap; }

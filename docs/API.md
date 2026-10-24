@@ -1099,3 +1099,30 @@ not assert a student name. This implements consent-based selective disclosure,
 not zero-knowledge proofs. Session creation, access counters and revocation are
 committed together with their audit entry; an active access records one linked
 credential verification event. No academic records are changed.
+
+## B11 — Student sharing and public view
+
+`GET /sharing` requires STUDENT and a linked student profile. It lists own
+credentials with current verification results; only VERIFIED credentials are
+selectable. Personal-claim checkboxes explicitly authorise each selected claim.
+The confirmation lists the credential, claims and expiry before creating a link.
+The result shows the URL and QR once; a Clipboard API failure selects the input
+and explains Ctrl+C. No token goes to localStorage, sessionStorage or the app page
+URL. The result is cleared on page departure. Session metadata and revocation
+remain available after reload, but the link cannot be recovered.
+
+`GET /public/verify/<token>` now renders a standalone public HTML view; append
+`?format=json` for the documented API envelope. Only authorised claims are
+rendered, with a backend Valid/Expired/Revoked/Invalid state. Unknown and malformed
+secrets render the same generic Invalid page with HTTP 404. No hidden profile,
+unselected claim, student internal identifier, account header or flash messages
+are embedded. A logged-in VERIFIER sees an additional “Verification recorded”
+line; the same minimal disclosure and verification-event rules still apply.
+
+Manual checklist: issue and verify; select degree authenticity plus award year;
+confirm/create/copy; open without a login; inspect source for unselected name,
+masked APAAR and institution; revoke and refresh (no claims); change one token
+character (generic Invalid). Repeat with personal claims explicitly selected and
+with expired/revoked credentials. Student and verifier roles use isolated test
+fixtures because the required production/demo seed retains exactly four official
+administrator accounts; this task does not add a student or verifier login.

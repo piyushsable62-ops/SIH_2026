@@ -2,7 +2,7 @@
 import logging
 import re
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, render_template, request
 from flask_login import current_user, login_required
 from sqlalchemy import select
 
@@ -80,8 +80,31 @@ def revoke(id_):
     return jsonify(ok=True, data=service.metadata(service.revoke_session(id_, current_user)))
 
 
-@sharing_bp.get("/public/verify/<token>")
+@sharing_bp.get("/public/verify", defaults={"token": ""})
+@sharing_bp.get("/public/verify/", defaults={"token": ""})
+@sharing_bp.get("/public/verify/<path:token>")
 def public_verify(token):
     """Public GET discloses only selected fields; unknown secrets share one 404."""
     public_limit("sharing")
-    return jsonify(ok=True, data=service.resolve_token(token))
+    status = 200
+    try:
+        outcome = service.resolve_token(token)
+    except service.Error as error:
+        if error.status != 404 or request.args.get("format") == "json":
+            raise
+        status = 404
+        outcome = {"result": "INVALID", "message": service.INVALID_MESSAGE, "claims": {}, "expires_at": None}
+    if request.args.get("format") == "json":
+        return jsonify(ok=True, data=outcome)
+    return render_template("public_verify.html", outcome=outcome,
+        recorded=current_user.is_authenticated and current_user.role == "VERIFIER"), status
+
+
+@sharing_bp.get("/sharing")
+@login_required
+@roles_required("STUDENT")
+def sharing_page():
+    """Render controls only; never pre-embed secrets or profile data in the HTML."""
+    if not current_user.student_id or db.session.get(StudentRecord, current_user.student_id) is None:
+        raise service.Error("Student profile not found.", "NOT_FOUND", 404)
+    return render_template("sharing.html", expiry_hours=service.allowed_expiry_hours())
