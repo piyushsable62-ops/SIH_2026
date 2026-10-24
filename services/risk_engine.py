@@ -438,6 +438,7 @@ def public_record(row: StudentRecord) -> dict:
     from services.identity_resolution import _mask
     return {"id": row.id, "full_name": _clean(row.full_name), "institution_id": row.institution_id,
         "institution_student_id": row.institution_student_id, "programme_id": row.programme_id,
+        "programme_name": _clean(row.programme.name),
         "academic_year": row.academic_year, "enrolment_status": row.enrolment_status,
         "validation_status": row.validation_status, "apaar_masked": _mask(row.apaar_ref)}
 

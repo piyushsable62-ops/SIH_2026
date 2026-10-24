@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Identity Graph — APAAR Nexus{% endblock %}
+{% block page_title %}Identity Graph{% endblock %}
+{% block content %}
+<section id="identity-explorer" data-case-id="{{ focused_case.id if focused_case else '' }}">
+  <h1>Identity graph explorer</h1>
+  <p class="muted">Explore synthetic academic records and the evidence behind possible identity links. Human review is required.</p>
+  {% if focused_case %}<p class="identity-notice">Case cluster: <strong>{{ focused_case.reference }}</strong>. The graph is limited to this case. <a href="{{ url_for('identity.explorer') }}">View all records</a></p>{% endif %}
+  <div class="card identity-filters">
+    <form id="graph-filters" class="filter-bar" aria-label="Graph filters">
+      <div class="form-row"><label for="graph-year">Academic year</label><select id="graph-year" class="select" name="academic_year"><option value="">All years</option>{% for year in academic_years %}<option value="{{ year }}">{{ year }}</option>{% endfor %}</select></div>
+      {% if current_user.role == 'AICTE_ADMIN' %}<div class="form-row"><label for="graph-institution">Institution</label><select id="graph-institution" class="select" name="institution_id"><option value="">All institutions</option>{% for institution in institutions %}<option value="{{ institution.id }}">{{ institution.code }}</option>{% endfor %}</select></div>{% endif %}
+      <div class="form-row"><label for="graph-severity">Minimum severity</label><select id="graph-severity" class="select" name="min_severity"><option value="">All records</option><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="CRITICAL">Critical</option></select></div>
+      <div class="form-row identity-search"><label for="graph-search">Masked APAAR / student name</label><input id="graph-search" class="input" type="search" maxlength="150" placeholder="XXXXXXXX1234 or student name" aria-describedby="graph-search-hint"><small id="graph-search-hint" class="muted">Use a masked reference; never enter a full APAAR reference.</small></div>
+      <label class="identity-check"><input id="graph-signals" type="checkbox" checked> Include shared-contact / fee-payer signals</label>
+      <button class="btn btn-secondary" type="submit">Apply filters</button>
+    </form>
+    <div class="actions">{% if can_scan %}<button id="graph-scan" class="btn" type="button">Run identity scan</button>{% endif %}<button id="graph-reset" class="btn btn-secondary" type="button">Reset view</button></div>
+  </div>
+  <p id="graph-status" role="status" aria-live="polite"></p>
+  <p id="graph-warning" class="identity-notice" role="status" hidden>Graph truncated: only part of the matching data is shown. Narrow the institution, year, severity or case filters.</p>
+  <div class="identity-layout">
+    <section class="card identity-graph-card" aria-labelledby="graph-heading">
+      <div class="card-header"><h2 id="graph-heading">Record relationships</h2></div>
+      <div class="identity-toolbar">
+        <div class="form-row"><label for="graph-layout">Layout</label><select id="graph-layout" class="select"><option value="cose">Cose</option><option value="circle">Circle</option><option value="breadthfirst">Breadthfirst</option></select></div>
+        <div class="actions"><button id="graph-zoom-in" class="btn btn-secondary" type="button" aria-label="Zoom in">+</button><button id="graph-zoom-out" class="btn btn-secondary" type="button" aria-label="Zoom out">−</button><button id="graph-fit" class="btn btn-secondary" type="button">Fit</button></div>
+      </div>
+      <div id="graph-canvas" class="identity-canvas" role="img" aria-label="Identity relationship graph. Use the Records and evidence text view below to inspect any node or edge." tabindex="0"></div>
+      <div id="graph-empty" class="empty-state" hidden><strong>No records match the filters</strong><p>Adjust the filters. Run an identity scan to build relationship evidence from the synthetic records.</p></div>
+      <p id="graph-edge-hint" class="identity-edge-hint">Select a node or edge to inspect its evidence.</p>
+      <div class="identity-legend" aria-label="Graph legend">
+        <h3>Legend</h3>
+        <ul><li><span class="legend-circle" aria-hidden="true"></span> Student: navy circle; green / amber / red border = Low / Medium / High risk. A thick red border = Critical.</li><li><span class="legend-square" aria-hidden="true"></span> Institution: grey-blue square.</li><li><span class="legend-diamond" aria-hidden="true"></span> APAAR: diamond with a saffron outline; masked label only.</li><li><span class="legend-hexagon" aria-hidden="true"></span> Contact / fee payer: muted hexagon or tag.</li><li>Solid lines: identity-level evidence. Dashed lines: investigation signals.</li></ul>
+        <p><strong>Shared contact or fee-payer links are investigation signals, not proof of duplicate identity.</strong></p>
+      </div>
+      <details class="identity-text-view" open><summary>Records and evidence — text view</summary><h3>Nodes</h3><div id="graph-node-list"></div><h3>Relationships</h3><div id="graph-edge-list"></div></details>
+    </section>
+    <aside class="card identity-inspector" aria-labelledby="inspector-heading"><div class="card-header"><h2 id="inspector-heading">Inspector</h2></div><div id="graph-inspector" aria-busy="false"><p>Select a node or an edge, or use an Inspect button in the text view.</p></div></aside>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/cytoscape.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/identity-graph.js') }}" defer></script>
+{% endblock %}

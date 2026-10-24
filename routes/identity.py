@@ -2,17 +2,17 @@
 
 import re
 from uuid import UUID
-from flask import Blueprint, jsonify, request
-from flask_login import login_required
+from flask import Blueprint, jsonify, request, render_template
+from flask_login import login_required, current_user
 from sqlalchemy import select
 
 from extensions import db
-from models import RiskCase
+from models import RiskCase, StudentRecord, Institution
 from routes.risk import api_errors, institution_scope, integer, json_body
 from services import identity_resolution, risk_engine
-from services.authz import roles_required
+from services.authz import roles_required, scope_query
 
-identity_bp = Blueprint("identity", __name__, url_prefix="/api/identity")
+identity_bp = Blueprint("identity", __name__)
 
 
 def year(value):
@@ -33,13 +33,16 @@ def graph_options():
     masked = request.args.get("apaar_masked")
     if masked is not None and re.fullmatch(r"XXXXXXXX\d{4}", masked) is None:
         raise ValueError("apaar_masked must contain XXXXXXXX followed by four digits.")
+    search = request.args.get("q")
+    if search is not None and (not identity_resolution.normalize_name(search) or len(search) > 150 or re.search(r"\d{12}", search)):
+        raise ValueError("Search by student name or use a masked APAAR reference, never a full reference.")
     return {"institution_id": institution_scope(request.args.get("institution_id")),
         "academic_year": year(request.args.get("academic_year")), "case_id": request.args.get("case_id"),
         "apaar_masked": masked, "min_severity": severity, "include_signals": signal in {"true", "1"},
-        "limit": integer(request.args.get("limit"), "limit", 300, 1000)}
+        "limit": integer(request.args.get("limit"), "limit", 300, 1000), "q": search}
 
 
-@identity_bp.post("/scan")
+@identity_bp.post("/api/identity/scan")
 @login_required
 @roles_required("AICTE_ADMIN", "INSTITUTION_ADMIN")
 @api_errors
@@ -56,7 +59,7 @@ def scan():
         "cases_created": created, "cases_updated": len(cases) - created, "case_count": len(cases)})
 
 
-@identity_bp.get("/graph")
+@identity_bp.get("/api/identity/graph")
 @login_required
 @roles_required("AICTE_ADMIN", "INSTITUTION_ADMIN", "AUDITOR")
 @api_errors
@@ -65,7 +68,7 @@ def graph():
     return jsonify(ok=True, data=identity_resolution.read_graph(**graph_options()))
 
 
-@identity_bp.get("/node/<node_id>")
+@identity_bp.get("/api/identity/node/<node_id>")
 @login_required
 @roles_required("AICTE_ADMIN", "INSTITUTION_ADMIN", "AUDITOR")
 @api_errors
@@ -92,3 +95,17 @@ def node(node_id):
     return jsonify(ok=True, data={"node": selected, "linked_records": [risk_engine.public_record(row) for row in records],
         "institutions": [item for item in view["nodes"] if item["type"] == "INSTITUTION"],
         "edges": view["edges"], "linked_cases": [risk_engine._clean(row.to_dict()) for row in cases], "truncated": view["truncated"]})
+
+
+@identity_bp.get("/identity-graph")
+@login_required
+@roles_required("AICTE_ADMIN", "INSTITUTION_ADMIN", "AUDITOR")
+@api_errors
+def explorer():
+    """Render the accessible synthetic graph explorer; GET never starts a scan."""
+    case_id = request.args.get("case_id")
+    case = risk_engine.get_case(case_id) if case_id else None
+    years = db.session.execute(scope_query(select(StudentRecord.academic_year), StudentRecord).distinct().order_by(StudentRecord.academic_year.desc())).scalars().all()
+    institutions = db.session.execute(scope_query(select(Institution), Institution).order_by(Institution.code)).scalars().all() if current_user.role == "AICTE_ADMIN" else []
+    return render_template("identity_graph.html", academic_years=years, institutions=institutions,
+        focused_case=case, can_scan=current_user.role in {"AICTE_ADMIN", "INSTITUTION_ADMIN"})

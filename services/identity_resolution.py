@@ -543,7 +543,7 @@ def _reference_node_id(kind: str, value: str) -> str:
 def read_graph(institution_id: str | None = None, academic_year: str | None = None,
                case_id: str | None = None, apaar_masked: str | None = None,
                min_severity: str | None = None, include_signals: bool = True,
-               limit: int = 300, focus: str | None = None) -> dict:
+               limit: int = 300, focus: str | None = None, q: str | None = None) -> dict:
     """Read a bounded, scoped graph without scanning, scoring or changing any record.
 
     Only stored scan edges are shown; overlapping scan projections are deduped.
@@ -559,6 +559,8 @@ def read_graph(institution_id: str | None = None, academic_year: str | None = No
         query = query.where(StudentRecord.institution_id == institution_id)
     if academic_year:
         query = query.where(StudentRecord.academic_year == academic_year)
+    if q:
+        query = query.where(StudentRecord.normalized_name.contains(normalize_name(q), autoescape=True))
     case = risk_engine.get_case(case_id) if case_id else None
     cases = {row.id: row for row in db.session.execute(risk_engine.visible_cases()).scalars()}
     evidence = db.session.execute(select(RiskEvidence).where(RiskEvidence.case_id.in_(cases))).scalars().all()
@@ -590,6 +592,8 @@ def read_graph(institution_id: str | None = None, academic_year: str | None = No
             query = query.where(StudentRecord.id.in_(adjacent))
     # No node response may exceed limit; at most limit+1 student rows are loaded.
     ordering = [StudentRecord.id]
+    if severities:
+        ordering.insert(0, sql_case({id_: -ranks[value] for id_, value in severities.items()}, value=StudentRecord.id, else_=1))
     if focus and focus.startswith("student:"):
         ordering.insert(0, sql_case((StudentRecord.id == focus.split(":", 1)[1], 0), else_=1))
     rows = list(db.session.execute(query.order_by(*ordering).limit(limit + 1)).scalars())
@@ -639,16 +643,37 @@ def read_graph(institution_id: str | None = None, academic_year: str | None = No
         else:
             continue
         key = _key(source, target, edge.edge_type, (edge.evidence or {}).get("event_key"))
+        details = {name: value for name, value in (edge.evidence or {}).items() if name != "identity_scope"}
         facts.setdefault(key, {"id": key, "source": source, "target": target,
-            "type": edge.edge_type, "explanation": risk_engine._clean(edge.explanation)})
+            "type": edge.edge_type, "explanation": risk_engine._clean(edge.explanation),
+            "evidence": risk_engine._clean(details)})
     counts = Counter(edge["target"] for edge in facts.values() if nodes[edge["target"]]["type"] in {"CONTACT", "FEE_PAYER"})
     for edge in facts.values():
         if edge["target"] in counts:
             edge["explanation"] = f"Same normalized reference (shared by {counts[edge['target']]} visible records — investigation signal, not proof)."
-    ordered = sorted(nodes.values(), key=lambda item: (item["id"] != focus if focus else False,
-        item["type"] != "STUDENT", item["id"]))
-    truncated = truncated or len(ordered) > limit
-    kept = ordered[:limit]
+            edge["evidence"] = {"is_signal": True, "not_proof": True, "shared_count": counts[edge["target"]]}
+    # Budget relationship bundles, not all student nodes first: otherwise a full
+    # 300-record result would consume the entire limit and hide every entity/link.
+    neighbors = defaultdict(set)
+    for edge in facts.values():
+        neighbors[edge["source"]].add(edge["target"])
+        neighbors[edge["target"]].add(edge["source"])
+    priority = sorted(nodes, key=lambda id_: (id_ != focus if focus else False,
+        -ranks.get(nodes[id_].get("severity"), -1), nodes[id_]["type"] != "STUDENT", id_))
+    chosen = {}
+    if focus in nodes:
+        chosen[focus] = nodes[focus]
+    for id_ in priority:
+        bundle = [id_, *sorted(neighbors[id_])] if nodes[id_]["type"] == "STUDENT" or id_ == focus else [id_]
+        missing = [key for key in bundle if key not in chosen]
+        if len(chosen) + len(missing) <= limit:
+            chosen.update((key, nodes[key]) for key in missing)
+    for id_ in priority:  # Fill small residual budgets, including limit=1 panels.
+        if len(chosen) >= limit:
+            break
+        chosen.setdefault(id_, nodes[id_])
+    truncated = truncated or len(nodes) > limit
+    kept = list(chosen.values())
     keys = {item["id"] for item in kept}
     return {"nodes": kept, "edges": sorted((edge for edge in facts.values() if edge["source"] in keys and edge["target"] in keys), key=lambda item: item["id"]),
             "truncated": truncated}

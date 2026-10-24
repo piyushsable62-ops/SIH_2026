@@ -240,7 +240,7 @@ the caller's ingestion work, with no unrelated pending/flushed writes.
 
 Integration notes for Member A:
 
-- A6 is currently absent; authz is available and used. The service imports A6 normalization, masking,
+- A6 and authz are available and used. The service imports A6 normalization, masking,
   format validation and `authz.scope_query` when available. Until then it uses
   documented Unicode/contact normalization, masked labels, the `apaar_regex`
   policy (12 digits by default), and explicit institution predicates. Adapter
@@ -253,7 +253,7 @@ Integration notes for Member A:
   and whose action is `DUPLICATE_SUBMISSION`/`SUBMISSION_DUPLICATE`,
   `details.rule_key` is `DUPLICATE_SUBMISSION`, or `details.duplicate_submission`
   is true. Hash equality alone is not inferred as an ingestion flag.
-- A3 reference seed data is available; A4 student scenarios are absent. Tests use isolated synthetic fixtures without adding
+- A3 reference data and A4 student scenarios are available. Tests use isolated synthetic fixtures without adding
   seed accounts or changing Member A's files. No model changes are required for
   sequential scope-idempotent scans. Concurrent scans of the same scope require
   caller serialization/retry; this service does not implement a distributed lock.
@@ -261,7 +261,7 @@ Integration notes for Member A:
 Manual verification: run `python -m pytest tests/test_identity.py -q`, inspect
 `result.to_dict()` from a committed synthetic app-context dataset, rerun with the
 same scope and compare match/edge IDs. Contact-only/payer-only pairs must produce
-signals and zero identity matches. Graph browser click-testing becomes available in B5.
+signals and zero identity matches. Graph browser click-testing is documented in B5 below.
 
 ## Member B: Explainable risk service (B3)
 
@@ -334,10 +334,14 @@ authorization, idempotency, cluster merging, policy changes and non-punitive
 behavior. The five-scenario fixture creates LOW (malformed reference/shared
 contact), MEDIUM (rejected excess intake), HIGH (40+35) and CRITICAL (40+35+15)
 cases from real scan/admission engine output. This is not a seed verification:
-`seed.py` now supplies A3 reference data, but A4's student generation hook is not
-implemented. Member A must provide those isolated scenarios in A4 before a real
-`seed + scan` check is possible. B6 will provide browser case pages; B4 supplies
-the APIs documented below.
+`seed.py` now supplies A3/A4 data. The B5 isolated seed + scan check produced 365
+students, 14 identity events and 11 cases after recording seeded rejected capacity
+attempts. Bands present were LOW, MEDIUM and CRITICAL; HIGH is missing. Member A
+should add a separate pair with one valid shared synthetic APAAR, ACTIVE at two
+institutions in the same year, matching programme code/admission date, different
+names and no additional corroborating signals. This scores 40+35=75 (HIGH).
+The existing simultaneous-enrolment pair has a programme conflict, adding 15 and
+making it CRITICAL. B6 will provide the dedicated browser case pages.
 
 ## Member B: Investigation APIs and human workflow (B4)
 
@@ -433,5 +437,64 @@ Invoke-RestMethod "$base/api/risk/cases/$caseId/actions" -Method Post -WebSessio
 
 Verify repeated scans update cases, an invalid OPEN-to-RESOLVED transition returns
 409, required notes return 422 when absent, and institution login hides foreign
-cases/nodes. Case/graph browser screens are B5/B6; these B4 endpoints can be
+cases/nodes. The graph screen is available in B5; the case screen is B6. These endpoints can be
 exercised through PowerShell or the browser's developer console using `Nexus.api`.
+
+## Member B: Identity graph explorer (B5)
+
+- `GET /identity-graph` — HTML page for `AICTE_ADMIN`, `INSTITUTION_ADMIN`, and
+  `AUDITOR`. Anonymous users go to login; unsupported roles receive 403.
+- `GET /identity-graph?case_id=<case UUID>` — authorizes the case before rendering,
+  requests only its cluster, highlights it and fits the view. Foreign case IDs
+  remain indistinguishable from missing cases (404).
+- The page uses local `static/vendor/cytoscape.min.js`, shared `Nexus` helpers and
+  `static/js/identity-graph.js`. No CDN or extension layout is required. Native
+  controls select cose/circle/breadthfirst, zoom, fit and reset the current layout.
+  The 65/35 graph/Inspector layout stacks below 1050px.
+- Institution options are rendered only for AICTE; year options are scoped on the
+  server. Auditors have no scan button. Scan confirmation uses the native dialog
+  and CSRF-protected `Nexus.api`; only the selected institution/year define scan
+  scope. Severity, search and signal filters affect the view, not the scan scope.
+- The graph API now also accepts `q` (normalized student-name substring, max 150
+  characters). The single search field routes `XXXXXXXX1234` to `apaar_masked`
+  and names to `q`. Full 12-digit input is rejected before making a request;
+  the server rejects full identifiers in `q` as well. Name filtering happens before
+  applying the node limit. B4 endpoint URLs and envelopes remain unchanged.
+- Graph edges add a redacted `evidence` object alongside their existing fields.
+  Internal scan-scope keys are omitted, and shared-reference counts reflect only
+  visible records. Record summaries add `programme_name` for the Inspector table.
+  Truncation prioritizes scored records and budgets relationship bundles so the
+  default 300-node view retains entity/edge context instead of showing 300 isolated
+  student nodes. Both endpoints of every returned edge remain in the response.
+- Canvas selection and text-view Inspect buttons load the same node panel or
+  explain an edge in readable key/value form. All visible nodes/edges have a text
+  alternative. Keyboard users can tab to every native control and Inspect button;
+  a focused canvas also accepts `+`, `-`, and `0` (fit). Loading text appears only
+  while its request is active. Stale responses cannot replace a newer selection.
+- Related case anchors use `/risk-cases/<id>`. Until B6 registers that page,
+  ordinary clicks show an authorized read-only API-backed case preview in the
+  Inspector with a Back to node button. Once the route exists, the links navigate
+  normally. Direct/new-tab case URLs still require the B6 page.
+
+Manual browser checklist (performed against an isolated in-memory A3/A4 seed,
+with exactly the four official logins and three institutions):
+
+1. Sign in as `AICTE_Admin`, open `/identity-graph`, and verify a truncation warning
+   on the default view. The final preview returned 300 nodes and 308 relationships.
+2. Search `XXXXXXXX0010` and turn signals off: two Devansh Verma student nodes,
+   two institutions, one masked APAAR node and seven explained relationships.
+3. Click a canvas student or its text Inspect button. Verify COEP/VESIT programme
+   names, academic year, ACTIVE status, masked reference and related cases. Select
+   simultaneous enrolment and verify its full explanation/evidence fields.
+4. Switch all three layouts; use zoom, Fit and Reset view. Turn signals on and
+   verify the additional contact/fee-payer shapes and dashed relationships.
+5. Confirm Run identity scan; verify the success toast and refreshed graph. Search
+   a nonexistent name and verify “No records match the filters”.
+6. Open a returned case's graph deep link and verify the cluster-only banner and
+   highlight. Test a related-case preview and Back to node.
+7. Check institutional scope, hidden institution selector, auditor read-only
+   controls and unauthorized deep links (also covered in pytest). The small
+   browser viewport stacks panels; the desktop viewport shows two columns.
+
+Seed follow-up: HIGH severity is missing from A4's current dataset; the exact
+scenario to add is documented in B3 above. No Member A files were changed.
