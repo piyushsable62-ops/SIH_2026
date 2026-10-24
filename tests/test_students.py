@@ -376,3 +376,47 @@ def test_html_pages_render(client, a7_fixture):
     assert b"Aarav Sharma" in res_detail.data
     assert b"Change History Audit Trail" in res_detail.data
     assert b"Linked Risk Cases" in res_detail.data
+
+
+def test_duplicate_student_id_and_apaar_rejected_within_same_institution(client, a7_fixture):
+    """Verify duplicate institutional student ID and duplicate APAAR within the same institution are rejected."""
+    login(client, "VESIT")
+
+    # 1. Attempt duplicate institution_student_id (V-2026-001 already exists in VESIT)
+    dup_id_payload = {
+        "institution_student_id": "V-2026-001",
+        "full_name": "Different Name",
+        "apaar_ref": "987654329999",
+        "academic_year": "2026-27",
+        "institution_id": a7_fixture["vesit_id"],
+        "programme_id": a7_fixture["vesit_it_id"],
+        "admission_category": "OPEN",
+        "classification": "REGULAR",
+        "admission_date": "2026-07-05",
+    }
+    res1 = client.post("/api/students", json=dup_id_payload)
+    assert res1.status_code == 422
+    body1 = res1.get_json()
+    assert body1["ok"] is False
+    codes1 = [e["code"] for e in body1["error"]["details"]["errors"]]
+    assert "DUPLICATE_STUDENT_ID" in codes1
+
+    # 2. Attempt duplicate APAAR in the same institution (987654321012 already exists in VESIT)
+    dup_apaar_payload = {
+        "institution_student_id": "V-2026-999",
+        "full_name": "Another Student",
+        "apaar_ref": "987654321012",
+        "academic_year": "2026-27",
+        "institution_id": a7_fixture["vesit_id"],
+        "programme_id": a7_fixture["vesit_it_id"],
+        "admission_category": "OPEN",
+        "classification": "REGULAR",
+        "admission_date": "2026-07-05",
+    }
+    res2 = client.post("/api/students", json=dup_apaar_payload)
+    assert res2.status_code == 422
+    body2 = res2.get_json()
+    assert body2["ok"] is False
+    codes2 = [e["code"] for e in body2["error"]["details"]["errors"]]
+    assert "DUPLICATE_APAAR_IN_INSTITUTE" in codes2
+
