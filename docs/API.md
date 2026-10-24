@@ -105,6 +105,83 @@ Fetches current authenticated user profile attributes. Password hash is never re
 - `GET /`: Automatic role-based redirect (`AICTE_ADMIN`/`INSTITUTION_ADMIN` -> `/dashboard`, `STUDENT` -> `/passport`, `VERIFIER` -> `/verify-console`, `AUDITOR` -> `/reports`, unauthenticated -> `/login`).
 
 
+## Institutions, Programmes, Capacities & Policies (Task A5)
+
+### `GET /api/institutions`
+Lists institutions with query filtering and pagination.
+- **Access:** `AICTE_ADMIN` and `AUDITOR` see all institutions; `INSTITUTION_ADMIN` sees only their assigned institution.
+- **Query Parameters:** `q` (search code/name/city), `state`, `status` (`ACTIVE`/`INACTIVE`), `page` (default 1), `per_page` (default 25, max 100).
+- **Success Response (200):**
+  ```json
+  {
+    "ok": true,
+    "data": [
+      {
+        "id": "inst-uuid",
+        "code": "VESIT",
+        "name": "VESIT Mumbai",
+        "state": "Maharashtra",
+        "city": "Mumbai",
+        "status": "ACTIVE",
+        "programmes_count": 2,
+        "total_regular_capacity": 240,
+        "total_supernumerary_capacity": 20
+      }
+    ],
+    "meta": { "page": 1, "per_page": 25, "total": 3 }
+  }
+  ```
+
+### `POST /api/institutions`
+Creates a new participating institution.
+- **Access:** `AICTE_ADMIN` only.
+- **Request Body:**
+  ```json
+  {
+    "code": "IITB",
+    "name": "Indian Institute of Technology Bombay",
+    "state": "Maharashtra",
+    "city": "Mumbai",
+    "status": "ACTIVE"
+  }
+  ```
+- **Success Response (201):** Returns created institution object.
+
+### `GET /api/institutions/<id>`
+Retrieves single institution details, degree programmes, and intake summary.
+- **Access:** `AICTE_ADMIN` / `AUDITOR` any; `INSTITUTION_ADMIN` own institution only (403 for other institutions).
+
+### `PATCH /api/institutions/<id>`
+Updates institution metadata.
+- **Access:** `AICTE_ADMIN` can update all fields; `INSTITUTION_ADMIN` can only update location/contact fields (`city`, `state`) on their own institution (403 if modifying code/name/status or modifying another institution).
+
+### `GET /api/institutions/<id>/programmes` and `POST /api/institutions/<id>/programmes`
+Lists or adds academic degree programmes. `POST` requires `AICTE_ADMIN` and validates unique `(institution_id, code)`.
+
+### `GET /api/institutions/<id>/capacities` and `POST /api/institutions/<id>/capacities`
+Lists or creates annual intake capacity for a programme. `POST` requires `AICTE_ADMIN`, validates non-negative intakes, and enforces unique `(institution_id, programme_id, academic_year)`.
+
+### `PATCH /api/institutions/<id>/capacities/<capacity_id>`
+Modifies approved regular intake, supernumerary quota, or category rules.
+- **Access:** `AICTE_ADMIN` only.
+- **Capacity Guard:** Rejects with `409 CONFLICT` if `approved_regular_intake` is set lower than current active regular student admissions in that programme and academic year.
+
+### `GET /api/policies` and `PATCH /api/policies/<key>`
+Retrieves or updates system-wide governance configuration.
+- **Access:** `AICTE_ADMIN` only.
+- **Shape Validation:**
+  - `capacity_warning_thresholds`: Strictly ascending list of integers &le; 100.
+  - `risk_weights`: Dictionary mapping rule keys to non-negative integers.
+  - `sharing_allowed_expiry_hours`: List of integers that must be a subset of `{24, 72, 168}`.
+  - `apaar_regex`: Non-empty string that compiles as a valid regular expression.
+- **Audit:** Every change is recorded in `AuditLog` with old and new values.
+
+### HTML Routes
+- `GET /institutions`: Searchable institution directory table and interactive programme/capacity drawer.
+- `GET /policies`: System policy cards with inline validation (AICTE Admin only).
+
+
+
 ## Member B: Development UI preview (B0)
 
 - `GET /ui-kit` — HTML component gallery, registered only when the app factory starts with debug enabled and guarded by `app.debug` on every request. Otherwise returns the normal `404 NOT_FOUND` envelope. A production-configured app never registers it, even if debug is later switched on. No database or login is required for this explicitly development-only page.

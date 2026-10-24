@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}System Policies — {{ app_name }}{% endblock %}
+{% block page_title %}System Governance Policies{% endblock %}
+
+{% block content %}
+<div class="stack">
+  <div class="page-heading">
+    <h1>System Policies &amp; Thresholds</h1>
+    <p class="helper">
+      Configurable validation rules, risk engine weights, seat warning thresholds, and credential parameters.
+      Changes are audited immediately. Only AICTE Administrators can modify policies.
+    </p>
+  </div>
+
+  <div class="grid grid-2" style="align-items: flex-start;">
+    {% for policy in policies %}
+    <div class="card policy-card" data-key="{{ policy.key }}" style="min-width: 0;">
+      <div class="card-header">
+        <div>
+          <h2><code>{{ policy.key }}</code></h2>
+          <p class="helper">
+            {% if policy.key == 'apaar_regex' %}
+              Regular expression pattern used for APAAR identifier format validation.
+            {% elif policy.key == 'capacity_warning_thresholds' %}
+              Seat ledger warning percentages (strictly ascending, &le; 100).
+            {% elif policy.key == 'risk_weights' %}
+              Deduplicated explainable risk engine event scoring weights.
+            {% elif policy.key == 'risk_bands' %}
+              Risk score ranges mapping to severity bands (LOW, MEDIUM, HIGH, CRITICAL).
+            {% elif policy.key == 'sharing_allowed_expiry_hours' %}
+              Allowed validity periods (in hours) for student consent sharing sessions.
+            {% elif policy.key == 'max_upload_mb' %}
+              Maximum permissible size in megabytes for student CSV ingestion.
+            {% elif policy.key == 'max_csv_rows' %}
+              Maximum records processed per single CSV submission.
+            {% else %}
+              {{ policy.description or 'System operational parameter.' }}
+            {% endif %}
+          </p>
+        </div>
+        <span class="badge badge-info">AICTE Governance</span>
+      </div>
+
+      <form class="policy-form stack" style="gap: 12px;">
+        <div class="field-error inline-error" style="display: none;" role="alert"></div>
+
+        <div class="form-row">
+          <label for="input-{{ policy.key }}">Configured Value (JSON / String)</label>
+          {% if policy.key == 'apaar_regex' %}
+            <input
+              type="text"
+              id="input-{{ policy.key }}"
+              name="value"
+              class="input"
+              value="{{ policy.value }}"
+              required
+              style="font-family: monospace;"
+            >
+          {% elif policy.value is mapping or policy.value is iterable and policy.value is not string %}
+            <textarea
+              id="input-{{ policy.key }}"
+              name="value"
+              class="input"
+              rows="{% if policy.key == 'risk_weights' %}10{% else %}4{% endif %}"
+              required
+              style="font-family: monospace; font-size: 0.85rem;"
+            >{{ policy.value | tojson(indent=2) }}</textarea>
+          {% else %}
+            <input
+              type="text"
+              id="input-{{ policy.key }}"
+              name="value"
+              class="input"
+              value="{{ policy.value }}"
+              required
+              style="font-family: monospace;"
+            >
+          {% endif %}
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+          <span class="muted" style="font-size: 0.8rem;">
+            Last updated by: <strong>{{ policy.updated_by }}</strong>
+          </span>
+          <button type="submit" class="btn btn-secondary save-btn">
+            Save Policy
+          </button>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".policy-form").forEach(form => {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const card = form.closest(".policy-card");
+      const key = card?.dataset.key;
+      const errorBox = form.querySelector(".inline-error");
+      const saveBtn = form.querySelector(".save-btn");
+      const inputEl = form.querySelector("[name='value']");
+
+      if (errorBox) {
+        errorBox.style.display = "none";
+        errorBox.textContent = "";
+      }
+
+      let parsedValue = inputEl.value.trim();
+
+      // Attempt JSON parsing if it looks like an object, array, or number
+      if (
+        (parsedValue.startsWith("{") && parsedValue.endsWith("}")) ||
+        (parsedValue.startsWith("[") && parsedValue.endsWith("]")) ||
+        !isNaN(Number(parsedValue))
+      ) {
+        try {
+          parsedValue = JSON.parse(parsedValue);
+        } catch (jsonErr) {
+          if (errorBox) {
+            errorBox.textContent = "Invalid JSON syntax: " + jsonErr.message;
+            errorBox.style.display = "block";
+          }
+          return;
+        }
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving...";
+
+      try {
+        await window.Nexus.api(`/api/policies/${encodeURIComponent(key)}`, {
+          method: "PATCH",
+          body: { value: parsedValue }
+        });
+
+        window.Nexus.toast(`Policy '${key}' updated successfully.`, "ok");
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save Policy";
+      } catch (err) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save Policy";
+
+        if (errorBox) {
+          errorBox.textContent = err.message || "Failed to update policy.";
+          errorBox.style.display = "block";
+        }
+        window.Nexus.toast(err.message, "danger");
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Institutions — {{ app_name }}{% endblock %}
+{% block page_title %}Institutions &amp; Programmes Directory{% endblock %}
+
+{% block content %}
+<div class="stack" id="institutions-container">
+  <div class="page-heading" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <h1>Institutions Directory</h1>
+      <p class="helper">
+        AICTE-approved participating technical institutions, degree programmes, and intake allocations.
+      </p>
+    </div>
+    {% if is_aicte_admin %}
+    <div class="actions">
+      <button type="button" class="btn" id="open-add-institution-btn">
+        + Add Institution
+      </button>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Search & Filter Controls -->
+  <div class="card" style="padding: 16px;">
+    <form id="institutions-filter-form" class="actions" style="gap: 12px; width: 100%;">
+      <div style="flex: 2; min-width: 200px;">
+        <label for="filter-q" class="sr-only">Search</label>
+        <input type="search" id="filter-q" name="q" class="input" placeholder="Search by name, code, or city..." style="width: 100%;">
+      </div>
+      <div style="flex: 1; min-width: 140px;">
+        <label for="filter-state" class="sr-only">State</label>
+        <select id="filter-state" name="state" class="input" style="width: 100%;">
+          <option value="">All States</option>
+          <option value="Maharashtra">Maharashtra</option>
+          <option value="Delhi">Delhi</option>
+          <option value="Karnataka">Karnataka</option>
+          <option value="Tamil Nadu">Tamil Nadu</option>
+          <option value="Gujarat">Gujarat</option>
+        </select>
+      </div>
+      <div style="flex: 1; min-width: 140px;">
+        <label for="filter-status" class="sr-only">Status</label>
+        <select id="filter-status" name="status" class="input" style="width: 100%;">
+          <option value="">All Statuses</option>
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="INACTIVE">INACTIVE</option>
+        </select>
+      </div>
+      <div class="actions">
+        <button type="submit" class="btn btn-secondary">Filter</button>
+        <button type="button" id="reset-filters-btn" class="btn btn-secondary">Reset</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="grid grid-2" id="institutions-layout" style="align-items: flex-start;">
+    <!-- Directory Table Column -->
+    <div class="card" style="min-width: 0;">
+      <div class="card-header">
+        <div>
+          <h2>Approved Institutions</h2>
+          <p class="helper" id="institutions-count-helper">Loading institutions...</p>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="table" id="institutions-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Institution Name</th>
+              <th>State / City</th>
+              <th style="text-align: right;">Programmes</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="institutions-tbody">
+            <tr>
+              <td colspan="6" class="muted" style="text-align: center; padding: 24px;">Loading data...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="institutions-pagination" style="margin-top: 16px;"></div>
+    </div>
+
+    <!-- Details & Programmes Panel (Opens upon selecting an institution) -->
+    <div class="card" id="institution-detail-panel" style="display: none; min-width: 0;">
+      <div class="card-header" style="align-items: flex-start;">
+        <div>
+          <span class="badge badge-info" id="detail-code">CODE</span>
+          <h2 id="detail-name" style="margin-top: 6px;">Institution Details</h2>
+          <p class="helper" id="detail-location">Location</p>
+        </div>
+        <div class="actions">
+          {% if is_aicte_admin %}
+          <button type="button" class="btn btn-secondary" id="detail-edit-inst-btn">Edit</button>
+          {% endif %}
+          <button type="button" class="btn btn-secondary" id="detail-close-btn" aria-label="Close details">&times;</button>
+        </div>
+      </div>
+
+      <!-- Capacity summary stats -->
+      <div class="grid grid-2" style="margin-bottom: 20px;">
+        <div style="background: var(--bg); padding: 12px; border-radius: var(--radius);">
+          <div class="stat-number" style="font-size: 1.5rem;" id="detail-reg-capacity">0</div>
+          <div class="stat-label" style="font-size: 0.85rem;">Total Approved Regular</div>
+        </div>
+        <div style="background: var(--bg); padding: 12px; border-radius: var(--radius);">
+          <div class="stat-number" style="font-size: 1.5rem;" id="detail-super-capacity">0</div>
+          <div class="stat-label" style="font-size: 0.85rem;">Supernumerary Quota</div>
+        </div>
+      </div>
+
+      <!-- Programmes & Capacities section -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3>Academic Programmes &amp; Capacities</h3>
+        {% if is_aicte_admin %}
+        <div class="actions">
+          <button type="button" class="btn btn-secondary" id="detail-add-prog-btn" style="min-height: 28px; padding: 2px 8px; font-size: 0.85rem;">
+            + Programme
+          </button>
+          <button type="button" class="btn btn-secondary" id="detail-add-cap-btn" style="min-height: 28px; padding: 2px 8px; font-size: 0.85rem;">
+            + Capacity
+          </button>
+        </div>
+        {% endif %}
+      </div>
+
+      <div id="detail-programmes-list" class="stack" style="gap: 16px;">
+        <!-- Program items rendered via JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= Dialogs (Native HTML5 <dialog>) ================= -->
+
+{% if is_aicte_admin %}
+<!-- Add Institution Dialog -->
+<dialog id="add-institution-dialog" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; max-width: 500px; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+  <form id="add-institution-form" class="stack" style="gap: 16px;">
+    <h2>Add New Institution</h2>
+    <div id="add-inst-error" class="field-error" style="display: none;" role="alert"></div>
+
+    <div class="form-row">
+      <label for="add-inst-code">Institution Code *</label>
+      <input type="text" id="add-inst-code" name="code" class="input" required placeholder="e.g. IITB or VESIT">
+    </div>
+
+    <div class="form-row">
+      <label for="add-inst-name">Institution Name *</label>
+      <input type="text" id="add-inst-name" name="name" class="input" required placeholder="Full Institution Name">
+    </div>
+
+    <div class="grid grid-2">
+      <div class="form-row">
+        <label for="add-inst-city">City *</label>
+        <input type="text" id="add-inst-city" name="city" class="input" required value="Mumbai">
+      </div>
+      <div class="form-row">
+        <label for="add-inst-state">State *</label>
+        <input type="text" id="add-inst-state" name="state" class="input" required value="Maharashtra">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label for="add-inst-status">Approval Status</label>
+      <select id="add-inst-status" name="status" class="input">
+        <option value="ACTIVE">ACTIVE</option>
+        <option value="INACTIVE">INACTIVE</option>
+      </select>
+    </div>
+
+    <div class="actions" style="justify-content: flex-end; margin-top: 12px;">
+      <button type="button" class="btn btn-secondary dialog-cancel-btn">Cancel</button>
+      <button type="submit" class="btn">Create Institution</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Edit Institution Dialog -->
+<dialog id="edit-institution-dialog" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; max-width: 500px; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+  <form id="edit-institution-form" class="stack" style="gap: 16px;">
+    <h2>Edit Institution</h2>
+    <input type="hidden" id="edit-inst-id" name="id">
+    <div id="edit-inst-error" class="field-error" style="display: none;" role="alert"></div>
+
+    <div class="form-row">
+      <label for="edit-inst-code">Institution Code</label>
+      <input type="text" id="edit-inst-code" name="code" class="input" required>
+    </div>
+
+    <div class="form-row">
+      <label for="edit-inst-name">Institution Name</label>
+      <input type="text" id="edit-inst-name" name="name" class="input" required>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="form-row">
+        <label for="edit-inst-city">City</label>
+        <input type="text" id="edit-inst-city" name="city" class="input" required>
+      </div>
+      <div class="form-row">
+        <label for="edit-inst-state">State</label>
+        <input type="text" id="edit-inst-state" name="state" class="input" required>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label for="edit-inst-status">Status</label>
+      <select id="edit-inst-status" name="status" class="input">
+        <option value="ACTIVE">ACTIVE</option>
+        <option value="INACTIVE">INACTIVE</option>
+      </select>
+    </div>
+
+    <div class="actions" style="justify-content: flex-end; margin-top: 12px;">
+      <button type="button" class="btn btn-secondary dialog-cancel-btn">Cancel</button>
+      <button type="submit" class="btn">Save Changes</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Add Programme Dialog -->
+<dialog id="add-programme-dialog" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; max-width: 480px; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+  <form id="add-programme-form" class="stack" style="gap: 16px;">
+    <h2>Add Degree Programme</h2>
+    <input type="hidden" id="add-prog-inst-id" name="institution_id">
+    <div id="add-prog-error" class="field-error" style="display: none;" role="alert"></div>
+
+    <div class="form-row">
+      <label for="add-prog-code">Programme Code *</label>
+      <input type="text" id="add-prog-code" name="code" class="input" required placeholder="e.g. IT, CS, EXTC">
+    </div>
+
+    <div class="form-row">
+      <label for="add-prog-name">Programme Name *</label>
+      <input type="text" id="add-prog-name" name="name" class="input" required placeholder="e.g. Information Technology">
+    </div>
+
+    <div class="form-row">
+      <label for="add-prog-level">Level</label>
+      <select id="add-prog-level" name="level" class="input">
+        <option value="UG">UG (Undergraduate)</option>
+        <option value="PG">PG (Postgraduate)</option>
+        <option value="DIPLOMA">Diploma</option>
+      </select>
+    </div>
+
+    <div class="actions" style="justify-content: flex-end; margin-top: 12px;">
+      <button type="button" class="btn btn-secondary dialog-cancel-btn">Cancel</button>
+      <button type="submit" class="btn">Create Programme</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Configure / Edit Capacity Dialog -->
+<dialog id="capacity-dialog" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; max-width: 520px; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+  <form id="capacity-form" class="stack" style="gap: 16px;">
+    <h2 id="capacity-dialog-title">Configure Intake Capacity</h2>
+    <input type="hidden" id="cap-inst-id">
+    <input type="hidden" id="cap-id">
+    <div id="cap-error" class="field-error" style="display: none;" role="alert"></div>
+
+    <div class="form-row" id="cap-programme-select-row">
+      <label for="cap-programme-id">Programme *</label>
+      <select id="cap-programme-id" name="programme_id" class="input" required>
+        <!-- Populated via JS -->
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label for="cap-academic-year">Academic Year * (e.g. 2026-27)</label>
+      <input type="text" id="cap-academic-year" name="academic_year" class="input" required placeholder="YYYY-YY" pattern="\d{4}-\d{2}">
+    </div>
+
+    <div class="grid grid-2">
+      <div class="form-row">
+        <label for="cap-reg-intake">Approved Regular Intake *</label>
+        <input type="number" id="cap-reg-intake" name="approved_regular_intake" class="input" required min="0" value="120">
+      </div>
+      <div class="form-row">
+        <label for="cap-super-intake">Supernumerary Quota *</label>
+        <input type="number" id="cap-super-intake" name="supernumerary_capacity" class="input" required min="0" value="10">
+      </div>
+    </div>
+
+    <div class="actions" style="justify-content: flex-end; margin-top: 12px;">
+      <button type="button" class="btn btn-secondary dialog-cancel-btn">Cancel</button>
+      <button type="submit" class="btn" id="capacity-submit-btn">Save Capacity</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/institutions.js') }}"></script>
+{% endblock %}
