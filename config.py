@@ -58,7 +58,7 @@ class Config:
     SHOW_DEMO_ACCOUNTS = os.getenv("SHOW_DEMO_ACCOUNTS", "true").lower() in ("true", "1", "yes")
 
     # App metadata
-    APP_NAME = "APAAR Nexus"
+    APP_NAME = "APAARSetu"
     APP_VERSION = "1.0.0-prototype"
     SYNTHETIC_NOTICE = "Prototype — synthetic data only. Not connected to AICTE, APAAR, UIDAI or DigiLocker."
 

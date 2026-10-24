@@ -1,29 +1,109 @@
 {% extends "base.html" %}
 
-{% block title %}Sign In — {{ app_name }}{% endblock %}
-{% block page_title %}Institutional Portal Sign In{% endblock %}
+{% block title %}Sign In — APAARSetu{% endblock %}
+{% block page_title %}<span style="color: var(--navy);">APAAR</span><span style="color: #17683d;">Setu</span> Institutional Sign In{% endblock %}
 {% block shell %}public-shell{% endblock %}
 
 {% block content %}
-<div style="max-width: 480px; margin: 32px auto;" class="stack">
-  {# Guided Tour & Overview Banner #}
-  <div class="card" style="border-left: 4px solid var(--navy); padding: 16px 20px;">
+<div style="max-width: 540px; margin: 32px auto;" class="stack">
+  
+  {# Link back to Landing Overview #}
+  <div class="card" style="border-left: 4px solid var(--navy); padding: 14px 18px;">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
       <div>
-        <h3 style="color: var(--navy); margin-bottom: 2px;">New to APAARSetu?</h3>
-        <p class="helper" style="margin: 0; font-size: 0.85rem;">Explore the portal overview and how APAARSetu works.</p>
+        <h3 style="margin: 0; font-size: 0.95rem;">
+          <span style="color: var(--navy); font-weight: 750;">APAAR</span><span style="color: #17683d; font-weight: 750;">Setu</span> Portal
+        </h3>
+        <p class="helper" style="margin: 0; font-size: 0.82rem;">Explore system overview and how intake governance works.</p>
       </div>
-      <a href="{{ url_for('auth.landing_page') }}" class="btn btn-secondary" style="font-size: 0.85rem; padding: 4px 10px; white-space: nowrap;">
-        Explore APAARSetu &rarr;
+      <a href="{{ url_for('auth.landing_page') }}" class="btn btn-secondary" style="font-size: 0.82rem; padding: 4px 10px; white-space: nowrap;">
+        &larr; View Landing Page
       </a>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-header">
+  {# Account Selection Options (Requested by User) #}
+  {% if show_demo_accounts %}
+  <div class="card" style="border: 2px solid var(--navy); padding: 22px;">
+    <div class="card-header" style="margin-bottom: 14px; padding-bottom: 10px;">
       <div>
-        <h2>Sign In to {{ app_name }}</h2>
-        <p class="helper">Enter your credentials to access institution records and services.</p>
+        <h2 style="margin: 0 0 4px; font-size: 1.15rem; color: var(--navy);">Select an Account to Sign In</h2>
+        <p class="helper" style="margin: 0; font-size: 0.85rem;">Click any role below for instant 1-click access:</p>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="gap: 12px;">
+      {# AICTE Admin #}
+      <button
+        type="button"
+        class="btn btn-secondary select-account-btn"
+        data-username="AICTE_Admin"
+        data-password="{{ demo_password }}"
+        style="display: flex; flex-direction: column; align-items: flex-start; padding: 12px; text-align: left; height: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);"
+      >
+        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 4px;">
+          <strong style="color: var(--navy); font-size: 0.95rem;">AICTE_Admin</strong>
+          <span class="badge badge-info" style="font-size: 0.7rem;">AICTE</span>
+        </div>
+        <span style="font-size: 0.78rem; color: var(--muted);">National Regulatory Scope</span>
+      </button>
+
+      {# VESIT Admin #}
+      <button
+        type="button"
+        class="btn btn-secondary select-account-btn"
+        data-username="VESIT"
+        data-password="{{ demo_password }}"
+        style="display: flex; flex-direction: column; align-items: flex-start; padding: 12px; text-align: left; height: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);"
+      >
+        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 4px;">
+          <strong style="color: var(--navy); font-size: 0.95rem;">VESIT</strong>
+          <span class="badge badge-info" style="font-size: 0.7rem;">COLLEGE</span>
+        </div>
+        <span style="font-size: 0.78rem; color: var(--muted);">VESIT Mumbai Admin</span>
+      </button>
+
+      {# COEP Admin #}
+      <button
+        type="button"
+        class="btn btn-secondary select-account-btn"
+        data-username="COEP"
+        data-password="{{ demo_password }}"
+        style="display: flex; flex-direction: column; align-items: flex-start; padding: 12px; text-align: left; height: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);"
+      >
+        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 4px;">
+          <strong style="color: var(--navy); font-size: 0.95rem;">COEP</strong>
+          <span class="badge badge-info" style="font-size: 0.7rem;">COLLEGE</span>
+        </div>
+        <span style="font-size: 0.78rem; color: var(--muted);">COEP Pune Admin</span>
+      </button>
+
+      {# VJTI Admin #}
+      <button
+        type="button"
+        class="btn btn-secondary select-account-btn"
+        data-username="VJTI"
+        data-password="{{ demo_password }}"
+        style="display: flex; flex-direction: column; align-items: flex-start; padding: 12px; text-align: left; height: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);"
+      >
+        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 4px;">
+          <strong style="color: var(--navy); font-size: 0.95rem;">VJTI</strong>
+          <span class="badge badge-info" style="font-size: 0.7rem;">COLLEGE</span>
+        </div>
+        <span style="font-size: 0.78rem; color: var(--muted);">VJTI Mumbai Admin</span>
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Credentials Login Form #}
+  <div class="card" style="padding: 24px;">
+    <div class="card-header" style="margin-bottom: 16px; padding-bottom: 12px;">
+      <div>
+        <h3 style="margin: 0; color: var(--navy); font-size: 1.05rem;">
+          Or Sign In with Credentials
+        </h3>
+        <p class="helper" style="margin: 0; font-size: 0.82rem;">Enter your username and password to log in.</p>
       </div>
     </div>
 
@@ -40,7 +120,7 @@
           autocomplete="username"
           required
           autofocus
-          placeholder="e.g. AICTE_Admin or VESIT"
+          placeholder="e.g. AICTE_Admin, VESIT, COEP, or VJTI"
         >
       </div>
 
@@ -65,95 +145,6 @@
     </form>
   </div>
 
-  {% if show_demo_accounts %}
-  <div class="card">
-    <div class="card-header">
-      <div>
-        <h3>Demo Accounts (Development Only)</h3>
-        <p class="helper">Click any row below to auto-fill credentials. Default password: <code>{{ demo_password }}</code></p>
-      </div>
-    </div>
-
-    <div class="table-wrapper" style="max-height: none;">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Username</th>
-            <th>Role</th>
-            <th>Institution Scope</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>AICTE_Admin</strong></td>
-            <td><span class="badge badge-info">AICTE_ADMIN</span></td>
-            <td>All Institutions</td>
-            <td>
-              <button
-                type="button"
-                class="btn btn-secondary fill-demo-btn"
-                data-username="AICTE_Admin"
-                data-password="{{ demo_password }}"
-                style="min-height: 28px; padding: 2px 8px; font-size: 0.85rem;"
-              >
-                Use
-              </button>
-            </td>
-          </tr>
-          <tr>
-            <td><strong>VESIT</strong></td>
-            <td><span class="badge badge-info">INSTITUTION_ADMIN</span></td>
-            <td>VESIT Only</td>
-            <td>
-              <button
-                type="button"
-                class="btn btn-secondary fill-demo-btn"
-                data-username="VESIT"
-                data-password="{{ demo_password }}"
-                style="min-height: 28px; padding: 2px 8px; font-size: 0.85rem;"
-              >
-                Use
-              </button>
-            </td>
-          </tr>
-          <tr>
-            <td><strong>COEP</strong></td>
-            <td><span class="badge badge-info">INSTITUTION_ADMIN</span></td>
-            <td>COEP Only</td>
-            <td>
-              <button
-                type="button"
-                class="btn btn-secondary fill-demo-btn"
-                data-username="COEP"
-                data-password="{{ demo_password }}"
-                style="min-height: 28px; padding: 2px 8px; font-size: 0.85rem;"
-              >
-                Use
-              </button>
-            </td>
-          </tr>
-          <tr>
-            <td><strong>VJTI</strong></td>
-            <td><span class="badge badge-info">INSTITUTION_ADMIN</span></td>
-            <td>VJTI Only</td>
-            <td>
-              <button
-                type="button"
-                class="btn btn-secondary fill-demo-btn"
-                data-username="VJTI"
-                data-password="{{ demo_password }}"
-                style="min-height: 28px; padding: 2px 8px; font-size: 0.85rem;"
-              >
-                Use
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% endif %}
 </div>
 {% endblock %}
 
@@ -166,14 +157,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const submitBtn = document.getElementById("login-submit-btn");
   const errorBanner = document.getElementById("login-error");
 
-  // Support fill demo credentials buttons
-  document.querySelectorAll(".fill-demo-btn").forEach(btn => {
+  // Handle 1-click select account buttons
+  document.querySelectorAll(".select-account-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      usernameInput.value = btn.dataset.username || "";
-      passwordInput.value = btn.dataset.password || "";
+      const u = btn.dataset.username || "";
+      const p = btn.dataset.password || "";
+      usernameInput.value = u;
+      passwordInput.value = p;
       errorBanner.style.display = "none";
       errorBanner.textContent = "";
-      passwordInput.focus();
+
+      // Auto submit for instant login
+      if (typeof form.requestSubmit === "function") {
+        form.requestSubmit();
+      } else {
+        form.dispatchEvent(new Event("submit", { cancelable: true }));
+      }
     });
   });
 

@@ -37,10 +37,10 @@ def get_role_home_url(role: str) -> str:
 
 @auth_bp.route("/", methods=["GET"])
 def root_redirect():
-    """Redirect root access to appropriate dashboard or login screen."""
+    """Render public landing page for visitors, or redirect authenticated users to their dashboard."""
     if current_user.is_authenticated:
         return redirect(get_role_home_url(current_user.role))
-    return redirect(url_for("auth.login_page"))
+    return landing_page()
 
 
 @auth_bp.route("/login", methods=["GET"])

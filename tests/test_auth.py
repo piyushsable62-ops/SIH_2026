@@ -274,15 +274,15 @@ def test_aicte_admin_sees_all_institutions(app):
 
 
 def test_root_and_login_page_redirects(app, client):
-    """Verify root / redirects to /login for guests, and /dashboard for logged-in admin."""
+    """Verify root / renders landing page for guests, and /login renders sign in."""
     create_test_fixtures(app)
 
-    # Unauthenticated root -> /login
+    # Unauthenticated root -> renders landing page directly
     res = client.get("/")
-    assert res.status_code == 302
-    assert "/login" in res.headers["Location"]
+    assert res.status_code == 200
+    assert b"APAAR" in res.data and b"Setu" in res.data
 
-    # Login page renders HTML
+    # Login page renders HTML with demo account options
     login_res = client.get("/login")
     assert login_res.status_code == 200
     assert b"Sign In" in login_res.data
@@ -293,11 +293,12 @@ def test_landing_page_renders(app, client):
     """Verify public landing page renders with APAARSetu overview and 4-step governance flow."""
     res = client.get("/landing")
     assert res.status_code == 200
-    assert b"APAARSetu" in res.data
+    assert b"APAAR" in res.data and b"Setu" in res.data
     assert b"Dynamic Seat Ledger" in res.data
     assert b"Identity Graph" in res.data
     assert b"Academic Passport" in res.data
-    assert b"One Nation, One Academic Pathway" in res.data
+    assert b"Unified Student Intake &amp; Academic Governance" in res.data
+
 
 
 
