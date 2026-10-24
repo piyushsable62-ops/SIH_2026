@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Dashboard — APAAR Nexus{% endblock %}
+{% block title %}Dashboard — APAARSetu{% endblock %}
 {% block page_title %}{{ 'AICTE Governance' if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] else 'Institution Dashboard' }}{% endblock %}
 {% block content %}
 {% if current_user.role in ['AICTE_ADMIN', 'AUDITOR', 'INSTITUTION_ADMIN'] %}
@@ -35,6 +35,6 @@
   <div class="grid grid-2 governance-lists"><section class="card"><h2>Submission history</h2><div id="submission-list"></div></section><section class="card"><h2>Validation errors</h2><div id="validation-errors"></div></section><section class="card"><h2>Pending identity checks</h2><div id="identity-checks"></div></section><section class="card"><h2>Institutional risk cases</h2><div id="institution-risk"></div></section><section class="card"><h2>Credential issuance history</h2><div id="credential-history"></div></section></div>
   {% endif %}
 </section>
-{% else %}<section class="card"><h1>Welcome to APAAR Nexus</h1><p>Choose a page from the menu to continue.</p></section>{% endif %}
+{% else %}<section class="card"><h1>Welcome to APAARSetu</h1><p>Choose a page from the menu to continue.</p></section>{% endif %}
 {% endblock %}
 {% block scripts %}{% if current_user.role in ['AICTE_ADMIN', 'AUDITOR', 'INSTITUTION_ADMIN'] %}<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}" defer></script><script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>{% endif %}{% endblock %}

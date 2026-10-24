@@ -1,5 +1,75 @@
 # Credential and sharing security
 
+## Scope and trust model
+
+APAAR Nexus is a **local, synthetic-data prototype**. It runs on Flask's
+development server and SQLite for demonstration. Institution administrators
+are trusted to submit their own institutional data; AICTE administrators may
+review across institutions. Public visitors can verify a signed credential or
+open a student-issued sharing link. Neither public route can edit a student or
+credential. A signature proves that this prototype's development issuer signed
+the payload; it does not prove a government registry approved the person or
+degree.
+
+## Authentication, authorisation and sessions
+
+Flask-Login holds the authenticated user in a server-signed session cookie.
+Passwords are checked against Werkzeug password hashes; plain passwords are
+never stored in the user table. The development seed creates exactly four
+logins: `AICTE_Admin`, `VESIT`, `COEP`, and `VJTI`. No student, verifier or
+auditor login is seeded. Login failures are rate-limited. The session cookie is
+`HttpOnly` and `SameSite=Lax`; `Secure` is enabled in production configuration
+and can be configured for HTTPS development. Set a unique `SECRET_KEY` and
+`DEMO_PASSWORD` outside source control for any nonlocal deployment.
+
+Every private API must enforce login and a role check on the server. The five
+supported roles are `AICTE_ADMIN`, `INSTITUTION_ADMIN`, `STUDENT`, `VERIFIER`,
+and `AUDITOR`. Institution-scoped queries use `services/authz.py` so an
+institution admin cannot inspect a peer institution; AICTE admins may see the
+national view. Auditor access is read-only. UI menu hiding is convenience, not
+an authorisation boundary. Tests cover cross-institution denial and read-only
+roles. The `/api/students?reveal=true` administrative exception can return a
+full external identifier to an authorised admin and is audit-logged; default
+views and exports mask it.
+
+## Request, upload and browser protections
+
+Flask-WTF CSRF protection applies to POST/PATCH/DELETE requests. Private pages
+put the CSRF value in a meta tag and `static/js/app.js` sends `X-CSRFToken` for
+JSON mutations. Public verification is GET-only. Jinja autoescaping remains on;
+renderers put untrusted values in text nodes. CSV import accepts only `.csv`,
+uses the configured 2 MB default size limit and 5,000-row default limit,
+validates UTF-8 and headers, and previews row errors before commit. Downloaded
+CSVs neutralise spreadsheet-formula prefixes. Production needs malware
+scanning, hardened reverse-proxy limits, shared rate limiting and penetration
+testing.
+
+## Privacy and audit defaults
+
+APAAR is an external reference, not a database primary key or a global unique
+constraint. Public, report, risk, graph and passport views show only the masked
+reference (`XXXXXXXX1234` style). Name similarity requires corroborating
+evidence; shared contact or fee-payer links are investigation signals, never
+proof of duplicate identity. Risk scores do not alter student records, find
+fraud, or revoke credentials automatically. Human case actions, scan runs,
+issuance, revocation, sharing, verification and exports create audit entries.
+The append-only audit interface retains actor, action, time and scope; the
+prototype has no tamper-proof external log store or retention policy. Keep
+request paths containing bearer sharing tokens out of production access logs.
+
+## What is outside this prototype
+
+There are **no zero-knowledge proofs, blockchain, decentralised identity,
+live APAAR/UIDAI/DigiLocker/AICTE connections, production HSM/KMS, external
+revocation service or trusted time-stamping**. APAAR validation checks the
+prototype format rule and a labelled mock adapter only. The Flask server,
+SQLite database, local development keys and per-process public rate limiter
+are unsuitable for a national deployment. Production would require authorised
+registry contracts, formal identity assurance, a managed database and WSGI
+deployment, HSM/KMS signing, verified public-key distribution, key recovery,
+shared rate limits, monitoring, disaster recovery, privacy review and security
+audit.
+
 This prototype uses **Ed25519 signatures with development keys**. It does not
 implement zero-knowledge proofs, blockchain or decentralised identity. All data
 is synthetic; there is no AICTE, APAAR, UIDAI or DigiLocker integration.
