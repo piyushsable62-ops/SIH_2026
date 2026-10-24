@@ -317,7 +317,7 @@ def validate_student_row(
             StudentRecord.academic_year == clean_year,
             StudentRecord.institution_student_id == student_id
         )
-        current_rec_id = context.get("current_student_id")
+        current_rec_id = context.get("current_student_id") or context.get("exclude_student_id")
         if current_rec_id:
             query_dup_id = query_dup_id.filter(StudentRecord.id != current_rec_id)
 

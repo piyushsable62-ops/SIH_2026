@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block title %}Students — {{ app_name }}{% endblock %}
+{% block page_title %}Students Repository{% endblock %}
+
+{% block content %}
+<div class="stack" id="students-container">
+  <div class="page-heading" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <h1>Central Student Repository</h1>
+      <p class="helper">
+        Academic records, external APAAR identifiers, admission categories, and change audits.
+      </p>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn btn-secondary" id="export-csv-btn">
+        Export CSV
+      </button>
+      <button type="button" class="btn" id="open-add-student-btn">
+        + Add Student
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter & Search Bar -->
+  <div class="card" style="padding: 16px;">
+    <form id="students-filter-form" class="actions" style="gap: 12px; width: 100%; flex-wrap: wrap;">
+      <div style="flex: 2; min-width: 180px;">
+        <label for="filter-q" class="sr-only">Search</label>
+        <input type="search" id="filter-q" name="q" class="input" placeholder="Search by name, ID, or APAAR..." style="width: 100%;">
+      </div>
+
+      <div style="flex: 1; min-width: 120px;">
+        <label for="filter-year" class="sr-only">Academic Year</label>
+        <select id="filter-year" name="academic_year" class="input" style="width: 100%;">
+          <option value="">All Years</option>
+          <option value="2026-27">2026-27</option>
+          <option value="2025-26">2025-26</option>
+          <option value="2024-25">2024-25</option>
+        </select>
+      </div>
+
+      {% if is_aicte_admin %}
+      <div style="flex: 1; min-width: 140px;">
+        <label for="filter-institution" class="sr-only">Institution</label>
+        <select id="filter-institution" name="institution_id" class="input" style="width: 100%;">
+          <option value="">All Institutions</option>
+          {% for inst in institutions %}
+          <option value="{{ inst.id }}">{{ inst.code }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <div style="flex: 1; min-width: 140px;">
+        <label for="filter-programme" class="sr-only">Programme</label>
+        <select id="filter-programme" name="programme_id" class="input" style="width: 100%;">
+          <option value="">All Programmes</option>
+          {% for prog in programmes %}
+          <option value="{{ prog.id }}">{{ prog.code }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="flex: 1; min-width: 120px;">
+        <label for="filter-category" class="sr-only">Category</label>
+        <select id="filter-category" name="category" class="input" style="width: 100%;">
+          <option value="">All Categories</option>
+          {% for cat in categories %}
+          <option value="{{ cat }}">{{ cat }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="flex: 1; min-width: 130px;">
+        <label for="filter-val-status" class="sr-only">Validation Status</label>
+        <select id="filter-val-status" name="validation_status" class="input" style="width: 100%;">
+          <option value="">All Statuses</option>
+          <option value="VALID">VALID</option>
+          <option value="FLAGGED">FLAGGED</option>
+          <option value="INVALID">INVALID</option>
+          <option value="PENDING">PENDING</option>
+        </select>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn btn-secondary">Filter</button>
+        <button type="button" id="reset-filters-btn" class="btn btn-secondary">Reset</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Student Records Table -->
+  <div class="card" style="padding: 0;">
+    <div style="overflow-x: auto;">
+      <table class="table" id="students-table" style="width: 100%;">
+        <thead>
+          <tr>
+            <th>Student ID</th>
+            <th>Full Name</th>
+            <th>APAAR (Masked)</th>
+            <th>Institution</th>
+            <th>Programme</th>
+            <th>Year</th>
+            <th>Category</th>
+            <th>Validation</th>
+            <th>Enrolment</th>
+            <th style="text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="students-table-body">
+          <tr>
+            <td colspan="10" style="text-align: center; color: var(--muted); padding: 24px;">
+              Loading student records...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination footer -->
+    <div id="students-pagination" style="padding: 12px 16px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div id="pagination-info" style="color: var(--muted); font-size: 13px;">
+        Showing 0 records
+      </div>
+      <div class="actions" id="pagination-controls"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Student Dialog -->
+<dialog id="add-student-dialog" class="card" style="max-width: 640px; width: 95%; padding: 24px; border: 1px solid var(--border);">
+  <form id="add-student-form" class="stack" style="gap: 16px;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h2 style="margin: 0; font-size: 18px;">Add Student Record</h2>
+      <button type="button" class="btn btn-secondary dialog-cancel-btn" style="padding: 4px 8px;">✕</button>
+    </div>
+    <p class="helper" style="margin: 0;">
+      Manual academic registration with central validation. APAAR format check and intake constraints are enforced.
+    </p>
+
+    <!-- Inline Validation Error Box -->
+    <div id="add-student-error" class="card" style="display: none; background: #fff5f5; border-color: #feb2b2; padding: 12px; color: var(--danger);">
+      <div id="add-student-error-msg" style="font-weight: 600; margin-bottom: 4px;"></div>
+      <ul id="add-student-error-list" style="margin: 0; padding-left: 20px; font-size: 13px;"></ul>
+    </div>
+
+    <div class="grid grid-2" style="gap: 12px;">
+      <div>
+        <label for="add-student-id">Institutional Student ID *</label>
+        <input type="text" id="add-student-id" name="institution_student_id" class="input" placeholder="e.g. 2026-IT-042" required style="width: 100%;">
+      </div>
+      <div>
+        <label for="add-student-name">Full Name *</label>
+        <input type="text" id="add-student-name" name="full_name" class="input" placeholder="e.g. Aarav Sharma" required style="width: 100%;">
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="gap: 12px;">
+      <div>
+        <label for="add-student-apaar">APAAR Reference (12 digits) *</label>
+        <input type="text" id="add-student-apaar" name="apaar_ref" class="input" placeholder="e.g. 987654321012" maxlength="12" required style="width: 100%;">
+      </div>
+      <div>
+        <label for="add-student-academic-year">Academic Year (YYYY-YY) *</label>
+        <input type="text" id="add-student-academic-year" name="academic_year" class="input" value="2026-27" required style="width: 100%;">
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="gap: 12px;">
+      <div>
+        <label for="add-student-institution">Institution *</label>
+        {% if is_aicte_admin %}
+        <select id="add-student-institution" name="institution_id" class="input" required style="width: 100%;">
+          <option value="">Select Institution</option>
+          {% for inst in institutions %}
+          <option value="{{ inst.id }}">{{ inst.name }} ({{ inst.code }})</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        <input type="hidden" id="add-student-institution" name="institution_id" value="{{ current_institution_id }}">
+        <input type="text" class="input" value="Your Institution (Scoped)" disabled style="width: 100%; background: #f5f7fa;">
+        {% endif %}
+      </div>
+      <div>
+        <label for="add-student-programme">Degree Programme *</label>
+        <select id="add-student-programme" name="programme_id" class="input" required style="width: 100%;">
+          <option value="">Select Programme</option>
+          {% for prog in programmes %}
+          <option value="{{ prog.id }}" data-institution="{{ prog.institution_id }}">{{ prog.name }} ({{ prog.code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="gap: 12px;">
+      <div>
+        <label for="add-student-category">Admission Category *</label>
+        <select id="add-student-category" name="admission_category" class="input" required style="width: 100%;">
+          {% for cat in categories %}
+          <option value="{{ cat }}" {% if cat == 'OPEN' %}selected{% endif %}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="add-student-classification">Seat Classification *</label>
+        <select id="add-student-classification" name="classification" class="input" required style="width: 100%;">
+          {% for cls in classifications %}
+          <option value="{{ cls }}" {% if cls == 'REGULAR' %}selected{% endif %}>{{ cls }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="gap: 12px;">
+      <div>
+        <label for="add-student-admission-date">Admission Date *</label>
+        <input type="date" id="add-student-admission-date" name="admission_date" class="input" required style="width: 100%;">
+      </div>
+      <div>
+        <label for="add-student-enrolment-status">Enrolment Status</label>
+        <select id="add-student-enrolment-status" name="enrolment_status" class="input" style="width: 100%;">
+          {% for s in statuses %}
+          <option value="{{ s }}" {% if s == 'ACTIVE' %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Demographic flags -->
+    <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+      <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; font-size: 13px;">
+        <input type="checkbox" id="add-student-nri" name="is_nri"> NRI Candidate
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; font-size: 13px;">
+        <input type="checkbox" id="add-student-oci" name="is_oci"> OCI Candidate
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; font-size: 13px;">
+        <input type="checkbox" id="add-student-fn" name="is_foreign_national"> Foreign National
+      </label>
+    </div>
+
+    <div class="grid grid-2" style="gap: 12px;">
+      <div>
+        <label for="add-student-contact">Contact Reference (Phone/Email - Signal)</label>
+        <input type="text" id="add-student-contact" name="contact_ref" class="input" placeholder="e.g. +91 9876543210" style="width: 100%;">
+      </div>
+      <div>
+        <label for="add-student-fee-payer">Fee Payer Reference (Signal)</label>
+        <input type="text" id="add-student-fee-payer" name="fee_payer_ref" class="input" placeholder="e.g. FP-TXN-2026-09" style="width: 100%;">
+      </div>
+    </div>
+
+    <div class="actions" style="justify-content: flex-end; margin-top: 12px; gap: 8px;">
+      <button type="button" class="btn btn-secondary dialog-cancel-btn">Cancel</button>
+      <button type="submit" class="btn" id="submit-add-student-btn">Save Student Record</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/students.js') }}"></script>
+{% endblock %}

@@ -80,6 +80,20 @@ class RiskEvidence(db.Model):
         return f"<RiskEvidence {self.rule_key} +{self.points}>"
 
 
+_last_case_action_timestamp = 0.0
+
+
+def _monotonic_utcnow():
+    """Ensure strictly monotonic UTC timestamps even in sub-millisecond test loops."""
+    global _last_case_action_timestamp
+    import time
+    now = time.time()
+    if now <= _last_case_action_timestamp:
+        now = _last_case_action_timestamp + 0.001
+    _last_case_action_timestamp = now
+    return datetime.utcfromtimestamp(now)
+
+
 class CaseAction(db.Model):
     """Human-in-the-loop action log for a risk case."""
     __tablename__ = "case_actions"
@@ -91,7 +105,7 @@ class CaseAction(db.Model):
     from_status = db.Column(db.String(30), nullable=False)
     to_status = db.Column(db.String(30), nullable=False)
     note = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=_monotonic_utcnow, nullable=False, index=True)
 
     def to_dict(self) -> dict:
         return {

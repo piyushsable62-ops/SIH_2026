@@ -1,0 +1,462 @@
+{% extends "base.html" %}
+
+{% block title %}{{ student.full_name }} — Students — {{ app_name }}{% endblock %}
+{% block page_title %}Student Profile{% endblock %}
+
+{% block content %}
+<div class="stack" id="student-detail-container" style="gap: 20px;">
+  <!-- Breadcrumb & Actions -->
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <div>
+      <a href="/students" class="btn btn-secondary" style="padding: 4px 10px; font-size: 13px;">
+        ← Back to Students
+      </a>
+    </div>
+    <div class="actions">
+      {% if can_reveal %}
+      <button type="button" class="btn btn-secondary" id="reveal-apaar-btn">
+        Reveal Full APAAR
+      </button>
+      {% endif %}
+      {% if can_edit %}
+      <button type="button" class="btn" id="open-edit-dialog-btn">
+        Edit Student Record
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Heading -->
+  <div class="card" style="padding: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+      <div>
+        <h1 style="margin: 0 0 6px 0; font-size: 22px;">{{ student.full_name }}</h1>
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted);">
+          <span>Student ID: <strong style="color: var(--text);">{{ student.institution_student_id }}</strong></span>
+          <span>•</span>
+          <span>Institution: <strong>{{ student.institution.name }} ({{ student.institution.code }})</strong></span>
+          <span>•</span>
+          <span>Programme: <strong>{{ student.programme.name }} ({{ student.programme.code }})</strong></span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        {% set val_badge = 'ok' if student.validation_status == 'VALID' else ('warn' if student.validation_status == 'FLAGGED' else 'danger') %}
+        <span class="badge badge-{{ val_badge }}">Validation: {{ student.validation_status }}</span>
+        {% set enrol_badge = 'ok' if student.enrolment_status == 'ACTIVE' else ('info' if student.enrolment_status == 'GRADUATED' else 'warn') %}
+        <span class="badge badge-{{ enrol_badge }}">{{ student.enrolment_status }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-2" style="align-items: flex-start; gap: 20px;">
+    <!-- Profile Card -->
+    <div class="card" style="padding: 20px;">
+      <h2 style="font-size: 16px; margin: 0 0 16px 0; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+        Academic &amp; Identity Profile
+      </h2>
+      <table class="table" style="width: 100%;">
+        <tbody>
+          <tr>
+            <td style="color: var(--muted); width: 40%;">APAAR Identifier</td>
+            <td>
+              <code id="apaar-display" style="font-size: 13px; font-weight: bold; background: #edf2f7; padding: 2px 6px; border-radius: 4px;">
+                {{ student.to_dict(mask_apaar=True).apaar_ref or '—' }}
+              </code>
+              <span id="apaar-reveal-notice" style="display: none; font-size: 11px; color: var(--warn); margin-left: 8px;">
+                (Audit logged)
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td style="color: var(--muted);">Normalized Name</td>
+            <td><code>{{ student.normalized_name }}</code></td>
+          </tr>
+          <tr>
+            <td style="color: var(--muted);">Academic Year</td>
+            <td><strong>{{ student.academic_year }}</strong></td>
+          </tr>
+          <tr>
+            <td style="color: var(--muted);">Admission Date</td>
+            <td>{{ student.admission_date.strftime('%d %b %Y') if student.admission_date else '—' }}</td>
+          </tr>
+          <tr>
+            <td style="color: var(--muted);">Admission Category</td>
+            <td>{{ student.admission_category }}</td>
+          </tr>
+          <tr>
+            <td style="color: var(--muted);">Classification</td>
+            <td>{{ student.classification }}</td>
+          </tr>
+          <tr>
+            <td style="color: var(--muted);">Demographic Flags</td>
+            <td>
+              {% if student.is_nri %}<span class="badge badge-info">NRI</span>{% endif %}
+              {% if student.is_oci %}<span class="badge badge-info">OCI</span>{% endif %}
+              {% if student.is_foreign_national %}<span class="badge badge-info">Foreign National</span>{% endif %}
+              {% if not student.is_nri and not student.is_oci and not student.is_foreign_national %}
+              <span style="color: var(--muted);">Domestic / Standard</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td style="color: var(--muted);">Contact Reference (Signal)</td>
+            <td>{{ student.contact_ref or '—' }}</td>
+          </tr>
+          <tr>
+            <td style="color: var(--muted);">Fee Payer Reference (Signal)</td>
+            <td>{{ student.fee_payer_ref or '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Right Column: Validation Notes & Linked Risk Cases -->
+    <div class="stack" style="gap: 20px;">
+      <!-- Validation Notes Card -->
+      <div class="card" style="padding: 20px;">
+        <h2 style="font-size: 16px; margin: 0 0 12px 0; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+          Validation Status &amp; Notes
+        </h2>
+        {% if student.validation_notes %}
+        <div style="background: #fffaf0; border: 1px solid #feebc8; border-radius: 4px; padding: 12px; color: #7b341e; font-size: 13px;">
+          <strong>Flagged Note:</strong> {{ student.validation_notes }}
+        </div>
+        {% else %}
+        <p style="color: var(--muted); margin: 0; font-size: 13px;">
+          ✓ Record passed all central format and intake validation checks without warnings.
+        </p>
+        {% endif %}
+      </div>
+
+      <!-- Linked Risk Cases Card -->
+      <div class="card" style="padding: 20px;">
+        <h2 style="font-size: 16px; margin: 0 0 12px 0; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+          Linked Risk Cases
+        </h2>
+        <div id="linked-risk-cases-list">
+          <p style="color: var(--muted); margin: 0; font-size: 13px;">Loading risk references...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change History Card -->
+  <div class="card" style="padding: 20px;">
+    <h2 style="font-size: 16px; margin: 0 0 16px 0; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+      Change History Audit Trail
+    </h2>
+    <div id="change-history-container">
+      <p style="color: var(--muted); font-size: 13px;">Loading change history...</p>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Student Dialog -->
+{% if can_edit %}
+<dialog id="edit-student-dialog" class="card" style="max-width: 640px; width: 95%; padding: 24px; border: 1px solid var(--border);">
+  <form id="edit-student-form" class="stack" style="gap: 16px;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h2 style="margin: 0; font-size: 18px;">Edit Student Record</h2>
+      <button type="button" class="btn btn-secondary dialog-cancel-btn" style="padding: 4px 8px;">✕</button>
+    </div>
+    <p class="helper" style="margin: 0;">
+      All modifications require an explicit audit reason and are logged to change history.
+    </p>
+
+    <!-- Error box -->
+    <div id="edit-student-error" class="card" style="display: none; background: #fff5f5; border-color: #feb2b2; padding: 12px; color: var(--danger);">
+      <div id="edit-student-error-msg" style="font-weight: 600; margin-bottom: 4px;"></div>
+      <ul id="edit-student-error-list" style="margin: 0; padding-left: 20px; font-size: 13px;"></ul>
+    </div>
+
+    <!-- Reason (Mandatory) -->
+    <div>
+      <label for="edit-student-reason"><strong>Reason for Modification (Required for Audit Trail) *</strong></label>
+      <input type="text" id="edit-student-reason" name="reason" class="input" placeholder="e.g. Correcting typo in name / Category verified by committee" required style="width: 100%;">
+    </div>
+
+    <div class="grid grid-2" style="gap: 12px;">
+      <div>
+        <label for="edit-student-name">Full Name *</label>
+        <input type="text" id="edit-student-name" name="full_name" class="input" value="{{ student.full_name }}" required style="width: 100%;">
+      </div>
+      <div>
+        <label for="edit-student-apaar">APAAR Reference</label>
+        <input type="text" id="edit-student-apaar" name="apaar_ref" class="input" value="{{ student.apaar_ref }}" maxlength="12" style="width: 100%;">
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="gap: 12px;">
+      <div>
+        <label for="edit-student-programme">Degree Programme *</label>
+        <select id="edit-student-programme" name="programme_id" class="input" required style="width: 100%;">
+          {% for prog in programmes %}
+          <option value="{{ prog.id }}" {% if prog.id == student.programme_id %}selected{% endif %}>{{ prog.name }} ({{ prog.code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="edit-student-year">Academic Year *</label>
+        <input type="text" id="edit-student-year" name="academic_year" class="input" value="{{ student.academic_year }}" required style="width: 100%;">
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="gap: 12px;">
+      <div>
+        <label for="edit-student-category">Admission Category *</label>
+        <select id="edit-student-category" name="admission_category" class="input" required style="width: 100%;">
+          {% for cat in categories %}
+          <option value="{{ cat }}" {% if cat == student.admission_category %}selected{% endif %}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="edit-student-classification">Seat Classification *</label>
+        <select id="edit-student-classification" name="classification" class="input" required style="width: 100%;">
+          {% for cls in classifications %}
+          <option value="{{ cls }}" {% if cls == student.classification %}selected{% endif %}>{{ cls }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="gap: 12px;">
+      <div>
+        <label for="edit-student-enrolment">Enrolment Status *</label>
+        <select id="edit-student-enrolment" name="enrolment_status" class="input" required style="width: 100%;">
+          {% for s in statuses %}
+          <option value="{{ s }}" {% if s == student.enrolment_status %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="edit-student-contact">Contact Reference (Phone/Email)</label>
+        <input type="text" id="edit-student-contact" name="contact_ref" class="input" value="{{ student.contact_ref or '' }}" style="width: 100%;">
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+      <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; font-size: 13px;">
+        <input type="checkbox" id="edit-student-nri" name="is_nri" {% if student.is_nri %}checked{% endif %}> NRI Candidate
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; font-size: 13px;">
+        <input type="checkbox" id="edit-student-oci" name="is_oci" {% if student.is_oci %}checked{% endif %}> OCI Candidate
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-weight: normal; font-size: 13px;">
+        <input type="checkbox" id="edit-student-fn" name="is_foreign_national" {% if student.is_foreign_national %}checked{% endif %}> Foreign National
+      </label>
+    </div>
+
+    <div class="actions" style="justify-content: flex-end; margin-top: 12px; gap: 8px;">
+      <button type="button" class="btn btn-secondary dialog-cancel-btn">Cancel</button>
+      <button type="submit" class="btn" id="submit-edit-student-btn">Save Changes</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(() => {
+  "use strict";
+
+  const studentId = "{{ student.id }}";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const editBtn = document.getElementById("open-edit-dialog-btn");
+    const editDialog = document.getElementById("edit-student-dialog");
+    const editForm = document.getElementById("edit-student-form");
+    const revealBtn = document.getElementById("reveal-apaar-btn");
+
+    // Close buttons on dialogs
+    document.querySelectorAll(".dialog-cancel-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const dialog = e.target.closest("dialog");
+        if (dialog) dialog.close();
+      });
+    });
+
+    // Reveal Full APAAR
+    if (revealBtn) {
+      revealBtn.addEventListener("click", async () => {
+        try {
+          const res = await window.Nexus.api(`/api/students/${studentId}?reveal=true`);
+          if (res && res.ok && res.data) {
+            const apaarEl = document.getElementById("apaar-display");
+            const noticeEl = document.getElementById("apaar-reveal-notice");
+            if (apaarEl) apaarEl.textContent = res.data.apaar_ref || "—";
+            if (noticeEl) noticeEl.style.display = "inline";
+            revealBtn.disabled = true;
+            revealBtn.textContent = "APAAR Revealed";
+            window.Nexus.toast("Full APAAR revealed. Action recorded in audit log.", "info");
+          }
+        } catch (err) {
+          window.Nexus.toast(err.message || "Failed to reveal APAAR.", "danger");
+        }
+      });
+    }
+
+    // Open Edit Dialog
+    if (editBtn && editDialog) {
+      editBtn.addEventListener("click", () => {
+        const errBox = document.getElementById("edit-student-error");
+        if (errBox) errBox.style.display = "none";
+        const reasonInput = document.getElementById("edit-student-reason");
+        if (reasonInput) reasonInput.value = "";
+        editDialog.showModal();
+      });
+    }
+
+    // Submit Edit Form
+    if (editForm) {
+      editForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const errBox = document.getElementById("edit-student-error");
+        const errMsg = document.getElementById("edit-student-error-msg");
+        const errList = document.getElementById("edit-student-error-list");
+        if (errBox) errBox.style.display = "none";
+        if (errList) errList.innerHTML = "";
+
+        const submitBtn = document.getElementById("submit-edit-student-btn");
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Updating...";
+
+        const payload = {
+          reason: document.getElementById("edit-student-reason").value.trim(),
+          full_name: document.getElementById("edit-student-name").value.trim(),
+          apaar_ref: document.getElementById("edit-student-apaar").value.trim(),
+          programme_id: document.getElementById("edit-student-programme").value,
+          academic_year: document.getElementById("edit-student-year").value.trim(),
+          admission_category: document.getElementById("edit-student-category").value,
+          classification: document.getElementById("edit-student-classification").value,
+          enrolment_status: document.getElementById("edit-student-enrolment").value,
+          contact_ref: document.getElementById("edit-student-contact").value.trim() || null,
+          is_nri: document.getElementById("edit-student-nri").checked,
+          is_oci: document.getElementById("edit-student-oci").checked,
+          is_foreign_national: document.getElementById("edit-student-fn").checked,
+        };
+
+        try {
+          const res = await window.Nexus.api(`/api/students/${studentId}`, {
+            method: "PATCH",
+            body: payload
+          });
+
+          if (res && res.ok) {
+            window.Nexus.toast("Student record updated successfully.", "ok");
+            if (editDialog) editDialog.close();
+            // Reload page to refresh timeline and data
+            window.location.reload();
+          } else {
+            throw new Error(res?.error?.message || "Failed to update record.");
+          }
+        } catch (err) {
+          if (errBox) {
+            errBox.style.display = "block";
+            errMsg.textContent = err.message || "Update failed.";
+            if (err.details && err.details.errors && Array.isArray(err.details.errors)) {
+              err.details.errors.forEach(item => {
+                const li = document.createElement("li");
+                li.textContent = `${item.field || 'Field'}: ${item.message} (${item.code})`;
+                errList.appendChild(li);
+              });
+            }
+          }
+          window.Nexus.toast(err.message || "Failed to update student.", "danger");
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Save Changes";
+        }
+      });
+    }
+
+    // Load dynamic data (history and linked risk cases)
+    loadDetails();
+  });
+
+  async function loadDetails() {
+    try {
+      const res = await window.Nexus.api(`/api/students/${studentId}`);
+      if (!res || !res.ok || !res.data) return;
+
+      const data = res.data;
+
+      // Render Linked Risk Cases
+      const riskContainer = document.getElementById("linked-risk-cases-list");
+      if (riskContainer) {
+        const cases = data.linked_risk_cases || [];
+        if (!cases.length) {
+          riskContainer.innerHTML = `<p style="color: var(--muted); margin: 0; font-size: 13px;">No active risk cases linked to this student record.</p>`;
+        } else {
+          riskContainer.innerHTML = "";
+          cases.forEach(c => {
+            const sevBadge = c.severity === 'CRITICAL' ? 'danger' : (c.severity === 'HIGH' ? 'warn' : 'info');
+            const item = document.createElement("div");
+            item.style.padding = "8px 0";
+            item.style.borderBottom = "1px solid var(--border)";
+            item.innerHTML = `
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <a href="/risk-cases" style="color: var(--navy); font-weight: bold; font-size: 13px;">${window.Nexus.escapeHTML(c.reference)}</a>
+                <span class="badge badge-${sevBadge}">${window.Nexus.escapeHTML(c.severity)} (${c.score} pts)</span>
+              </div>
+              <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">
+                Status: <strong>${window.Nexus.escapeHTML(c.status)}</strong> — ${window.Nexus.escapeHTML(c.summary || 'Under investigation')}
+              </div>
+            `;
+            riskContainer.appendChild(item);
+          });
+        }
+      }
+
+      // Render Change History Timeline
+      const histContainer = document.getElementById("change-history-container");
+      if (histContainer) {
+        const history = data.history || [];
+        if (!history.length) {
+          histContainer.innerHTML = `<p style="color: var(--muted); margin: 0; font-size: 13px;">No changes recorded since creation.</p>`;
+        } else {
+          histContainer.innerHTML = "";
+          const list = document.createElement("div");
+          list.style.display = "flex";
+          list.style.flexDirection = "column";
+          list.style.gap = "12px";
+
+          history.forEach(h => {
+            const entry = document.createElement("div");
+            entry.style.padding = "10px 14px";
+            entry.style.background = "#f8fafc";
+            entry.style.borderLeft = "3px solid var(--navy)";
+            entry.style.borderRadius = "4px";
+
+            const dt = h.changed_at ? new Date(h.changed_at).toLocaleString('en-IN') : '—';
+            entry.innerHTML = `
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); margin-bottom: 4px;">
+                <span>Modified by <strong>${window.Nexus.escapeHTML(h.changed_by)}</strong></span>
+                <span>${window.Nexus.escapeHTML(dt)}</span>
+              </div>
+              <div style="font-size: 13px; font-weight: 600; color: var(--text);">
+                Field: <code>${window.Nexus.escapeHTML(h.field)}</code>
+              </div>
+              <div style="font-size: 13px; margin: 4px 0; color: var(--text);">
+                <span style="color: var(--danger); text-decoration: line-through;">${window.Nexus.escapeHTML(h.old_value || '(empty)')}</span>
+                <span style="color: var(--muted); margin: 0 6px;">→</span>
+                <span style="color: var(--ok); font-weight: 500;">${window.Nexus.escapeHTML(h.new_value || '(empty)')}</span>
+              </div>
+              <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+                Reason: <em>"${window.Nexus.escapeHTML(h.reason || 'Not specified')}"</em>
+              </div>
+            `;
+            list.appendChild(entry);
+          });
+          histContainer.appendChild(list);
+        }
+      }
+
+    } catch (err) {
+      console.warn("Failed loading detail dynamic data:", err);
+    }
+  }
+})();
+</script>
+{% endblock %}
