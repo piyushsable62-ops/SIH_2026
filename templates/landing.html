@@ -1,0 +1,551 @@
+{% extends "base_public.html" %}
+
+{% block title %}System Overview & Guided Tour — {{ app_name }}{% endblock %}
+{% block page_title %}APAAR Nexus — National Academic Identifier &amp; Intake Governance{% endblock %}
+
+{% block content %}
+<div class="stack" style="gap: 32px; max-width: 1200px; margin: 0 auto;">
+
+  {# Top National Prototype Bar #}
+  <div class="card" style="padding: 16px 24px; border-left: 4px solid var(--navy); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <span class="badge badge-info" style="margin-right: 8px;">SIH PS 26263</span>
+      <strong>National Academic Intake &amp; Credential Compliance Architecture</strong>
+      <span class="muted" style="margin-left: 8px; font-size: 0.85rem;">Synthetic Prototype Environment</span>
+    </div>
+    <div class="actions">
+      <a href="#system-tour" class="btn btn-secondary" style="font-size: 0.9rem;">Interactive Tour</a>
+      <a href="#verification-sandbox" class="btn btn-secondary" style="font-size: 0.9rem;">Verify Sandbox</a>
+      <a href="{{ url_for('auth.login_page') }}" class="btn" style="font-size: 0.9rem;">Sign In to Portal</a>
+    </div>
+  </div>
+
+  {# Hero Card #}
+  <div class="card" style="padding: 32px;">
+    <div class="stack" style="gap: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+        <div style="max-width: 800px;">
+          <h1 style="font-size: 1.85rem; color: var(--navy); margin-bottom: 8px;">
+            Prevent Ghost Enrolments. Detect Duplicate Identities. Prove Academic Records.
+          </h1>
+          <p style="font-size: 1.05rem; color: var(--muted); line-height: 1.6;">
+            APAAR Nexus is a high-integrity governance platform for AICTE-approved institutions to submit, validate, monitor, and cryptographically verify student admissions and academic credentials using the Automated Permanent Academic Account Registry (APAAR) identifier.
+          </p>
+        </div>
+        <div style="text-align: right;">
+          <a href="#system-tour" id="hero-start-tour-btn" class="btn" style="min-height: 42px; padding: 10px 20px; font-size: 0.95rem;">
+            Take 60-Second System Tour &rarr;
+          </a>
+        </div>
+      </div>
+
+      {# Live Telemetry Metrics Ticker #}
+      <div class="grid grid-4" style="margin-top: 16px; padding-top: 24px; border-top: 1px solid var(--border);">
+        <div class="stat">
+          <div class="stat-number">3</div>
+          <div class="stat-label">Institutions Monitored</div>
+          <div class="stat-trend">VESIT, COEP, VJTI</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">100%</div>
+          <div class="stat-label">Intake Cap Enforcement</div>
+          <div class="stat-trend">Zero over-admissions permitted</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">12-Digit</div>
+          <div class="stat-label">Deterministic Format Rule</div>
+          <div class="stat-trend">Standardized regex validation</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">Ed25519</div>
+          <div class="stat-label">Cryptographic Integrity</div>
+          <div class="stat-trend">Asymmetric QR-verifiable proofs</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Interactive Guided Tour Section #}
+  <div class="card" id="system-tour" style="padding: 28px; scroll-margin-top: 80px;">
+    <div class="card-header" style="align-items: flex-start;">
+      <div>
+        <h2 style="color: var(--navy); margin-bottom: 4px;">Guided Interactive Tour: Academic Record Lifecycle</h2>
+        <p class="helper">
+          Walk through the four automated governance stages applied to every institutional admission.
+        </p>
+      </div>
+      <div class="actions" style="margin-top: 4px;">
+        <span class="badge badge-info" id="tour-indicator-badge">Stage 1 of 4</span>
+        <button type="button" class="btn btn-secondary" id="tour-prev-btn" style="min-height: 32px; padding: 4px 12px;" disabled>
+          &larr; Previous
+        </button>
+        <button type="button" class="btn" id="tour-next-btn" style="min-height: 32px; padding: 4px 12px;">
+          Next Stage &rarr;
+        </button>
+        <button type="button" class="btn btn-secondary" id="tour-autoplay-btn" style="min-height: 32px; padding: 4px 12px;">
+          Auto Play
+        </button>
+      </div>
+    </div>
+
+    {# Stage Progress Tabs #}
+    <div style="display: flex; gap: 8px; margin-bottom: 24px; overflow-x: auto; padding-bottom: 4px;" role="tablist">
+      <button type="button" class="btn tour-tab-btn" data-step="1" role="tab" aria-selected="true" style="flex: 1; min-height: 36px; font-size: 0.85rem; border-radius: var(--radius);">
+        1. Ingestion &amp; Format
+      </button>
+      <button type="button" class="btn btn-secondary tour-tab-btn" data-step="2" role="tab" aria-selected="false" style="flex: 1; min-height: 36px; font-size: 0.85rem; border-radius: var(--radius);">
+        2. Dynamic Ledger (PREVENT)
+      </button>
+      <button type="button" class="btn btn-secondary tour-tab-btn" data-step="3" role="tab" aria-selected="false" style="flex: 1; min-height: 36px; font-size: 0.85rem; border-radius: var(--radius);">
+        3. Identity Graph (DETECT)
+      </button>
+      <button type="button" class="btn btn-secondary tour-tab-btn" data-step="4" role="tab" aria-selected="false" style="flex: 1; min-height: 36px; font-size: 0.85rem; border-radius: var(--radius);">
+        4. Academic Passport (PROVE)
+      </button>
+    </div>
+
+    {# Tour Stage 1: Ingestion & Format #}
+    <div class="tour-stage-panel" id="tour-stage-1" style="display: block;">
+      <div class="grid grid-2" style="align-items: stretch; gap: 24px;">
+        <div style="display: flex; flex-direction: column; justify-content: space-between;">
+          <div class="stack" style="gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge badge-info">STAGE 1</span>
+              <h3 style="color: var(--navy); font-size: 1.15rem;">Automated Ingestion &amp; 12-Digit APAAR Format Check</h3>
+            </div>
+            <p style="color: var(--text); line-height: 1.6;">
+              Institutions onboard student batches via bulk CSV or manual registration. Every record undergoes strict server-side validation against the national identifier standard: exactly 12 numeric digits (<code>^\d{12}$</code>).
+            </p>
+            <ul style="padding-left: 20px; line-height: 1.7; color: var(--muted); margin: 0;">
+              <li><strong>Zero PII Leakage:</strong> APAAR references are automatically masked (e.g. <code>XXXXXXXX9012</code>).</li>
+              <li><strong>Duplicate Detection:</strong> Pre-checks verify that the identifier does not collide with existing active student records.</li>
+              <li><strong>Idempotent Processing:</strong> Re-uploading identical student rows updates existing records without duplicating ledger slots.</li>
+            </ul>
+          </div>
+          <div style="margin-top: 16px; padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.85rem;">
+            <strong>Deterministic Mock Adapter:</strong> Validation strictly adheres to format verification. Not connected to live UIDAI or government systems.
+          </div>
+        </div>
+
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;">
+          <h4 style="margin-bottom: 12px; color: var(--navy);">Interactive Simulator: APAAR Format Validator</h4>
+          <div class="stack" style="gap: 12px;">
+            <div class="form-row">
+              <label for="sim-apaar-input" style="font-weight: 600; font-size: 0.85rem;">Enter APAAR Identifier to Validate:</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="sim-apaar-input" class="input" value="987654321098" maxlength="16" style="flex: 1;" placeholder="e.g. 987654321098">
+                <button type="button" class="btn btn-secondary" id="sim-apaar-check-btn">Validate</button>
+              </div>
+            </div>
+            <div class="actions">
+              <button type="button" class="btn btn-secondary" style="font-size: 0.75rem; padding: 2px 8px; min-height: 24px;" onclick="document.getElementById('sim-apaar-input').value='987654321098'; document.getElementById('sim-apaar-check-btn').click();">Load Valid (12 Digits)</button>
+              <button type="button" class="btn btn-secondary" style="font-size: 0.75rem; padding: 2px 8px; min-height: 24px;" onclick="document.getElementById('sim-apaar-input').value='98765'; document.getElementById('sim-apaar-check-btn').click();">Load Too Short (5 Digits)</button>
+              <button type="button" class="btn btn-secondary" style="font-size: 0.75rem; padding: 2px 8px; min-height: 24px;" onclick="document.getElementById('sim-apaar-input').value='9876543210AB'; document.getElementById('sim-apaar-check-btn').click();">Load Alphanumeric (Invalid)</button>
+            </div>
+            <div id="sim-apaar-result" style="padding: 12px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); font-size: 0.9rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span class="stat-label">Validation Status:</span>
+                <span class="badge badge-ok" id="sim-apaar-badge">VALID FORMAT</span>
+              </div>
+              <div style="font-size: 0.85rem; color: var(--muted);" id="sim-apaar-details">
+                Format Check: Passed (12 Digits) &bull; Masked Display: <code>XXXXXXXX1098</code>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Tour Stage 2: Dynamic Seat Ledger (PREVENT) #}
+    <div class="tour-stage-panel" id="tour-stage-2" style="display: none;">
+      <div class="grid grid-2" style="align-items: stretch; gap: 24px;">
+        <div style="display: flex; flex-direction: column; justify-content: space-between;">
+          <div class="stack" style="gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge badge-warn">STAGE 2 &bull; PREVENT</span>
+              <h3 style="color: var(--navy); font-size: 1.15rem;">Dynamic Seat Ledger: Intake Cap Enforcement</h3>
+            </div>
+            <p style="color: var(--text); line-height: 1.6;">
+              Prevents ghost enrolments and unauthorized intake expansion in real time. The Dynamic Seat Ledger guarantees that approved intake caps (e.g. 120 regular seats) are strictly enforced at the database layer with atomic locking.
+            </p>
+            <ul style="padding-left: 20px; line-height: 1.7; color: var(--muted); margin: 0;">
+              <li><strong>Quota Segregation:</strong> Regular seats and Supernumerary quotas (EWS/TFWS/FN) are strictly separated. Supernumerary slots cannot be used to absorb excess regular admissions.</li>
+              <li><strong>Atomic Concurrency:</strong> Race conditions on the 120th seat are resolved atomically.</li>
+              <li><strong>Zero Over-Admission:</strong> The 121st regular admission attempt is immediately blocked with error code <code>CAPACITY_EXCEEDED</code>.</li>
+            </ul>
+          </div>
+          <div style="margin-top: 16px; padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.85rem;">
+            <strong>Immediate Regulatory Feedback:</strong> Rejections are logged directly into the audit trail and flagged as excess-intake violations.
+          </div>
+        </div>
+
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;">
+          <h4 style="margin-bottom: 8px; color: var(--navy);">Interactive Simulator: VESIT Computer Engineering</h4>
+          <p class="helper" style="margin-top: 0; margin-bottom: 12px;">Approved Intake: 120 Regular Seats &bull; 12 Supernumerary Quota</p>
+          
+          <div class="stack" style="gap: 14px;">
+            <div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;">
+                <span>Regular Admissions Enrolled</span>
+                <span id="sim-ledger-count-label">119 / 120</span>
+              </div>
+              <div style="height: 16px; background: #dde3ea; border-radius: var(--radius); overflow: hidden; position: relative;">
+                <div id="sim-ledger-progress" style="width: 99.1%; height: 100%; background: var(--navy); transition: width 0.3s ease, background 0.3s ease;"></div>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button type="button" class="btn" id="sim-ledger-btn-120" style="font-size: 0.85rem;">
+                Admit Student #120 (Regular)
+              </button>
+              <button type="button" class="btn btn-secondary" id="sim-ledger-btn-121" style="font-size: 0.85rem;">
+                Attempt Student #121 (Excess)
+              </button>
+              <button type="button" class="btn btn-secondary" id="sim-ledger-reset-btn" style="font-size: 0.85rem;">
+                Reset
+              </button>
+            </div>
+
+            <div id="sim-ledger-feedback" style="padding: 12px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); font-size: 0.85rem; line-height: 1.5;">
+              <span class="badge badge-info" style="margin-bottom: 4px;">STATUS: STANDBY</span>
+              <div>Current status: 119 admitted, 1 regular seat remaining. Try admitting student #120 or testing excess student #121.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Tour Stage 3: Identity Graph (DETECT) #}
+    <div class="tour-stage-panel" id="tour-stage-3" style="display: none;">
+      <div class="grid grid-2" style="align-items: stretch; gap: 24px;">
+        <div style="display: flex; flex-direction: column; justify-content: space-between;">
+          <div class="stack" style="gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge badge-danger">STAGE 3 &bull; DETECT</span>
+              <h3 style="color: var(--navy); font-size: 1.15rem;">Identity Graph &amp; Explainable Risk Engine</h3>
+            </div>
+            <p style="color: var(--text); line-height: 1.6;">
+              When academic records are submitted across multiple colleges, the Identity Graph correlates APAAR references, normalized names, contact records, and fee-payer references to detect conflicts and fraudulent double-enrolments.
+            </p>
+            <ul style="padding-left: 20px; line-height: 1.7; color: var(--muted); margin: 0;">
+              <li><strong>Deterministic Rules:</strong> Scores are calculated with transparent point weights (e.g. +40 for Duplicate APAAR, +35 for Simultaneous Enrolment, capped at 100).</li>
+              <li><strong>Zero "Black Box" AI:</strong> Every score includes full explainability so regulators can review the exact evidence chain.</li>
+              <li><strong>Human-in-the-Loop:</strong> High-risk cases are escalated for manual review. No student is ever automatically penalized or cancelled without human adjudication.</li>
+            </ul>
+          </div>
+          <div style="margin-top: 16px; padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.85rem;">
+            <strong>Investigation Signals:</strong> Shared phone numbers or fee references are treated as investigative corroboration, never as automatic rejection proof.
+          </div>
+        </div>
+
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;">
+          <h4 style="margin-bottom: 12px; color: var(--navy);">Interactive Conflict Evaluation</h4>
+          
+          <div class="stack" style="gap: 12px;">
+            <div style="padding: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.85rem;">
+              <strong>Detected Entity Conflict:</strong>
+              <div style="color: var(--muted); margin-top: 2px;">
+                Student <code>Aarav S.</code> (APAAR: <code>XXXXXXXX9012</code>) enrolled at <strong>VESIT (Mumbai)</strong> and simultaneously claimed at <strong>COEP (Pune)</strong>.
+              </div>
+            </div>
+
+            <div style="font-size: 0.85rem;">
+              <strong>Active Rule Triggers &amp; Weight Breakdown:</strong>
+              <div style="margin-top: 6px; display: grid; gap: 4px;">
+                <label style="display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);">
+                  <span><input type="checkbox" id="risk-rule-1" checked disabled> DUPLICATE_APAAR (Same identifier across institutes)</span>
+                  <span class="badge badge-danger">+40 pts</span>
+                </label>
+                <label style="display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);">
+                  <span><input type="checkbox" id="risk-rule-2" checked onchange="window.updateTourRiskScore()"> SIMULTANEOUS_ENROLMENT (Two active UG programmes)</span>
+                  <span class="badge badge-warn">+35 pts</span>
+                </label>
+                <label style="display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);">
+                  <span><input type="checkbox" id="risk-rule-3" onchange="window.updateTourRiskScore()"> SHARED_CONTACT (Phone number linked to 3+ records)</span>
+                  <span class="badge badge-info">+10 pts</span>
+                </label>
+              </div>
+            </div>
+
+            <div style="padding: 12px; background: var(--danger-bg); border: 1px solid var(--danger); border-radius: var(--radius); display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="color: var(--danger);">Computed Composite Risk Score:</strong>
+                <div style="font-size: 0.85rem; color: var(--danger);" id="tour-risk-label">75 / 100 &bull; HIGH SEVERITY</div>
+              </div>
+              <span class="badge badge-danger" id="tour-risk-badge">ACTION: ESCALATE TO AICTE</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Tour Stage 4: Academic Passport (PROVE) #}
+    <div class="tour-stage-panel" id="tour-stage-4" style="display: none;">
+      <div class="grid grid-2" style="align-items: stretch; gap: 24px;">
+        <div style="display: flex; flex-direction: column; justify-content: space-between;">
+          <div class="stack" style="gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge badge-ok">STAGE 4 &bull; PROVE</span>
+              <h3 style="color: var(--navy); font-size: 1.15rem;">Academic Passport: Cryptographic Credential Governance</h3>
+            </div>
+            <p style="color: var(--text); line-height: 1.6;">
+              Upon completion or milestone achievement, institutions issue tamper-proof academic credentials signed with Ed25519 asymmetric cryptography. Students hold their Academic Passport and can selectively share credentials with employers.
+            </p>
+            <ul style="padding-left: 20px; line-height: 1.7; color: var(--muted); margin: 0;">
+              <li><strong>Offline QR Verification:</strong> Third-party verifiers can authenticate degree authenticity instantly via QR without needing API access or database lookups.</li>
+              <li><strong>Time-Bounded Sharing:</strong> Students generate consent-governed sharing tokens with expiring windows (24h, 72h, or 168h).</li>
+              <li><strong>Selective Disclosure:</strong> Verifiers only see agreed-upon claims (e.g. Degree Authenticity and Institution), keeping full APAAR and sensitive personal data private.</li>
+            </ul>
+          </div>
+          <div style="margin-top: 16px; padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.85rem;">
+            <strong>Zero Heavy Chains:</strong> Uses standard, lightweight Ed25519 public-key signatures. Completely offline-capable, green, and verifiable anywhere.
+          </div>
+        </div>
+
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;">
+          <div style="background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 16px; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 12px;">
+              <div>
+                <span class="badge badge-ok" style="font-size: 0.75rem;">VERIFIED CREDENTIAL</span>
+                <h4 style="margin: 4px 0 0; color: var(--navy);">VESIT Mumbai &bull; AICTE-1-109</h4>
+              </div>
+              <div style="text-align: right; font-size: 0.75rem; color: var(--muted);">
+                Ref: <code>CRED-VESIT-2026-001</code>
+              </div>
+            </div>
+
+            <div class="grid grid-2" style="font-size: 0.85rem; gap: 8px; margin-bottom: 12px;">
+              <div><strong>Student Name:</strong> Tanmay Shelar</div>
+              <div><strong>APAAR ID:</strong> <code>XXXXXXXX9012</code></div>
+              <div><strong>Programme:</strong> B.Tech (Computer Engineering)</div>
+              <div><strong>Award Year:</strong> 2026 &bull; First Class Distinction</div>
+            </div>
+
+            <div style="border-top: 1px dashed var(--border); padding-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div style="font-size: 0.75rem; color: var(--muted);">
+                <div>Signature: <code>Ed25519: 9f8a2...3b1c</code></div>
+                <div>Digest Status: <strong>Cryptographically Intact</strong></div>
+              </div>
+              <div style="width: 52px; height: 52px; background: #dde3ea; border: 1px solid #cbd5e1; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold; color: var(--navy);">
+                [ QR ]
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 12px; text-align: center;">
+            <a href="#verification-sandbox" class="btn btn-secondary" style="font-size: 0.85rem; width: 100%;">
+              Try Live Cryptographic Verification Sandbox Below &darr;
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# The Three Pillars Showcase #}
+  <div>
+    <div style="margin-bottom: 16px;">
+      <h2 style="color: var(--navy);">The Three Architecture Pillars</h2>
+      <p class="helper">Core mechanisms engineered to solve the SIH PS 26263 requirements without buzzwords or black boxes.</p>
+    </div>
+
+    <div class="grid grid-3">
+      <div class="card" style="border-top: 4px solid var(--navy);">
+        <div class="card-header" style="border-bottom: none; margin-bottom: 8px; padding-bottom: 0;">
+          <div>
+            <span class="badge badge-info">PILLAR 1</span>
+            <h3 style="color: var(--navy); margin-top: 6px;">Dynamic Seat Ledger</h3>
+          </div>
+        </div>
+        <p style="color: var(--muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 12px;">
+          Guarantees that admission numbers can never exceed AICTE sanctioned capacity limits for any programme or academic session.
+        </p>
+        <ul style="font-size: 0.85rem; padding-left: 18px; color: var(--text); line-height: 1.6; margin: 0;">
+          <li>Maintains strict isolation between Regular and Supernumerary intakes.</li>
+          <li>Database-level row locking resolves concurrency on the final seat.</li>
+          <li>Every attempted excess admission generates a regulatory audit signal.</li>
+        </ul>
+      </div>
+
+      <div class="card" style="border-top: 4px solid var(--warn);">
+        <div class="card-header" style="border-bottom: none; margin-bottom: 8px; padding-bottom: 0;">
+          <div>
+            <span class="badge badge-warn">PILLAR 2</span>
+            <h3 style="color: var(--navy); margin-top: 6px;">Identity Graph &amp; Risk</h3>
+          </div>
+        </div>
+        <p style="color: var(--muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 12px;">
+          A multi-factor identity correlation engine detecting ghost students, duplicate APAARs, and cross-state simultaneous admissions.
+        </p>
+        <ul style="font-size: 0.85rem; padding-left: 18px; color: var(--text); line-height: 1.6; margin: 0;">
+          <li>Deterministic rule weighting capped at 100 with full auditability.</li>
+          <li>Shared contact numbers and fee references tracked as investigative signals.</li>
+          <li>Human-in-the-loop: Flags for review; never auto-penalizes.</li>
+        </ul>
+      </div>
+
+      <div class="card" style="border-top: 4px solid var(--ok);">
+        <div class="card-header" style="border-bottom: none; margin-bottom: 8px; padding-bottom: 0;">
+          <div>
+            <span class="badge badge-ok">PILLAR 3</span>
+            <h3 style="color: var(--navy); margin-top: 6px;">Academic Passport</h3>
+          </div>
+        </div>
+        <p style="color: var(--muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 12px;">
+          Cryptographic credential issuance providing tamper-evident degree verification for students, institutions, and employers.
+        </p>
+        <ul style="font-size: 0.85rem; padding-left: 18px; color: var(--text); line-height: 1.6; margin: 0;">
+          <li>Ed25519 digital signatures signed by the issuing institution.</li>
+          <li>Server-generated QR verification without client-side key exposure.</li>
+          <li>Consent-governed time-bounded sharing tokens (24h/72h/168h).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  {# Interactive Verification Sandbox #}
+  <div class="card" id="verification-sandbox" style="padding: 28px; scroll-margin-top: 80px;">
+    <div class="card-header">
+      <div>
+        <h2 style="color: var(--navy); margin-bottom: 4px;">Live Verification Sandbox: Test Credential Authenticity</h2>
+        <p class="helper">
+          Experience zero-friction cryptographic degree verification. Select a sample payload to inspect how public-key signatures prove authenticity.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="gap: 24px; align-items: flex-start;">
+      <div class="stack" style="gap: 16px;">
+        <div class="form-row">
+          <label for="sandbox-sample-select" style="font-weight: 600;">Select Verification Scenario:</label>
+          <select id="sandbox-sample-select" class="input">
+            <option value="valid">Scenario 1: Authentic Issued Credential (VESIT B.Tech)</option>
+            <option value="revoked">Scenario 2: Revoked Credential (COEP M.Tech)</option>
+            <option value="tampered">Scenario 3: Tampered Credential (Altered Grade/Year)</option>
+          </select>
+        </div>
+
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; font-family: monospace; font-size: 0.8rem; line-height: 1.4; max-height: 140px; overflow-y: auto;" id="sandbox-payload-preview">
+          {"credential_ref": "CRED-VESIT-2024-001", "institution": "VESIT Mumbai", "degree": "B.Tech Computer Engineering", "student_apaar": "XXXXXXXX9012", "sig_alg": "Ed25519"}
+        </div>
+
+        <button type="button" class="btn" id="sandbox-verify-btn" style="width: 100%;">
+          Verify Cryptographic Signature
+        </button>
+      </div>
+
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;" id="sandbox-result-box">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+          <strong>Verification Outcome:</strong>
+          <span class="badge badge-ok" id="sandbox-status-badge">VERIFIED</span>
+        </div>
+
+        <div class="stack" style="gap: 8px; font-size: 0.85rem;" id="sandbox-details-content">
+          <div><strong>Issuer:</strong> VESIT Mumbai (AICTE ID: 1-1092384)</div>
+          <div><strong>Student:</strong> Synthetic Student (Masked APAAR: <code>XXXXXXXX9012</code>)</div>
+          <div><strong>Award:</strong> Bachelor of Technology (Computer Engineering)</div>
+          <div><strong>Digital Signature:</strong> <span style="color: var(--ok-ink); font-weight: 600;">Match Valid (Ed25519 keypair #vesit-root)</span></div>
+          <div style="color: var(--muted); font-size: 0.8rem; margin-top: 4px;">Proof valid. Tamper check passed. Status confirmed active.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Role Matrix & One-Click Demo Access #}
+  {% if show_demo_accounts %}
+  <div class="card" id="demo-access" style="padding: 28px;">
+    <div class="card-header">
+      <div>
+        <h2 style="color: var(--navy); margin-bottom: 4px;">Pre-Seeded Demo Access: Explore by Role</h2>
+        <p class="helper">
+          Log in with any of the four official prototype accounts to inspect role-scoped permissions and dashboards.
+        </p>
+      </div>
+      <div>
+        <a href="{{ url_for('auth.login_page') }}" class="btn btn-secondary">Open Standard Sign In Form &rarr;</a>
+      </div>
+    </div>
+
+    <div class="grid grid-4" style="gap: 16px;">
+      {# AICTE Admin #}
+      <div style="border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; background: var(--surface); display: flex; flex-direction: column; justify-content: space-between;">
+        <div class="stack" style="gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="color: var(--navy);">AICTE_Admin</strong>
+            <span class="badge badge-info">AICTE_ADMIN</span>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--muted);">Scope: All Institutions</div>
+          <p style="font-size: 0.8rem; color: var(--text); line-height: 1.4; margin: 4px 0;">
+            National oversight: intake caps, all seat ledgers, cross-institution risk cases, policies, and audit logs.
+          </p>
+        </div>
+        <button type="button" class="btn quick-login-btn" data-username="AICTE_Admin" data-password="{{ demo_password }}" style="width: 100%; margin-top: 12px; font-size: 0.85rem;">
+          Sign In as AICTE Admin
+        </button>
+      </div>
+
+      {# VESIT #}
+      <div style="border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; background: var(--surface); display: flex; flex-direction: column; justify-content: space-between;">
+        <div class="stack" style="gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="color: var(--navy);">VESIT</strong>
+            <span class="badge badge-info">INSTITUTION_ADMIN</span>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--muted);">Scope: VESIT Mumbai</div>
+          <p style="font-size: 0.8rem; color: var(--text); line-height: 1.4; margin: 4px 0;">
+            College admin: CSV student onboarding, dynamic seat ledger, campus-scoped risk reviews, and credential issuance.
+          </p>
+        </div>
+        <button type="button" class="btn quick-login-btn" data-username="VESIT" data-password="{{ demo_password }}" style="width: 100%; margin-top: 12px; font-size: 0.85rem;">
+          Sign In as VESIT Admin
+        </button>
+      </div>
+
+      {# COEP #}
+      <div style="border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; background: var(--surface); display: flex; flex-direction: column; justify-content: space-between;">
+        <div class="stack" style="gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="color: var(--navy);">COEP</strong>
+            <span class="badge badge-info">INSTITUTION_ADMIN</span>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--muted);">Scope: COEP Pune</div>
+          <p style="font-size: 0.8rem; color: var(--text); line-height: 1.4; margin: 4px 0;">
+            College admin: COEP student records, isolated intake tracking, and credential verification.
+          </p>
+        </div>
+        <button type="button" class="btn quick-login-btn" data-username="COEP" data-password="{{ demo_password }}" style="width: 100%; margin-top: 12px; font-size: 0.85rem;">
+          Sign In as COEP Admin
+        </button>
+      </div>
+
+      {# VJTI #}
+      <div style="border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; background: var(--surface); display: flex; flex-direction: column; justify-content: space-between;">
+        <div class="stack" style="gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="color: var(--navy);">VJTI</strong>
+            <span class="badge badge-info">INSTITUTION_ADMIN</span>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--muted);">Scope: VJTI Mumbai</div>
+          <p style="font-size: 0.8rem; color: var(--text); line-height: 1.4; margin: 4px 0;">
+            College admin: VJTI student management, seat ledger reconciliation, and institution reporting.
+          </p>
+        </div>
+        <button type="button" class="btn quick-login-btn" data-username="VJTI" data-password="{{ demo_password }}" style="width: 100%; margin-top: 12px; font-size: 0.85rem;">
+          Sign In as VJTI Admin
+        </button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Footer Prototype Compliance Note #}
+  <div style="text-align: center; color: var(--muted); font-size: 0.85rem; padding: 12px 0;">
+    Smart India Hackathon Prototype &bull; PS 26263 &bull; Built with Flask, SQLite, and Vanilla JS.
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/landing.js') }}" defer></script>
+{% endblock %}

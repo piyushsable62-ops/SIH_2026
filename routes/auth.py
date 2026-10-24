@@ -58,6 +58,18 @@ def login_page():
     )
 
 
+@auth_bp.route("/landing", methods=["GET"])
+def landing_page():
+    """Render public overview and interactive guided tour."""
+    show_demo = current_app.config.get("SHOW_DEMO_ACCOUNTS", True)
+    demo_password = current_app.config.get("DEMO_PASSWORD", "Demo@12345")
+    return render_template(
+        "landing.html",
+        show_demo_accounts=show_demo,
+        demo_password=demo_password,
+    )
+
+
 @auth_bp.route("/api/auth/login", methods=["POST"])
 def login_api():
     """Authenticate user with username and password, enforcing rate limits."""

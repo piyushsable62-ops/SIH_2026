@@ -6,6 +6,19 @@
 
 {% block content %}
 <div style="max-width: 480px; margin: 32px auto;" class="stack">
+  {# Guided Tour & Overview Banner #}
+  <div class="card" style="border-left: 4px solid var(--navy); padding: 16px 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div>
+        <h3 style="color: var(--navy); margin-bottom: 2px;">New to APAAR Nexus?</h3>
+        <p class="helper" style="margin: 0; font-size: 0.85rem;">Explore the 3 Pillars &amp; take the 60-second system tour.</p>
+      </div>
+      <a href="{{ url_for('auth.landing_page') }}" class="btn btn-secondary" style="font-size: 0.85rem; padding: 4px 10px; white-space: nowrap;">
+        Explore Tour &rarr;
+      </a>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-header">
       <div>
