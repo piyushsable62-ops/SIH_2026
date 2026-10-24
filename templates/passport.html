@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Academic Passport — APAAR Nexus{% endblock %}
+{% block page_title %}Academic Passport{% endblock %}
+{% block content %}
+<section id="credential-screen" data-view="passport" data-credential-id="{{ credential_id or '' }}">
+  <h1>Academic Passport</h1><p class="muted">Only masked identifiers and academic claims are shown. Full APAAR, date of birth, address and contact details are not displayed.</p>
+  <p id="passport-status" role="status"></p><div id="passport-profile" class="card"></div><div id="passport-credentials" class="stack"></div>
+  {% if current_user.role == 'STUDENT' and '/sharing' in ui_paths %}<p class="risk-link-row"><a class="btn" href="/sharing">Share selected details</a></p>{% endif %}
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/credentials.js') }}" defer></script>{% endblock %}
