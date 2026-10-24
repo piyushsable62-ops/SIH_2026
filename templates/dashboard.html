@@ -1,16 +1,16 @@
 {% extends 'base.html' %}
-{% block title %}Dashboard — APAAR Nexus{% endblock %}
+{% block title %}Dashboard — APAARSetu{% endblock %}
 {% block page_title %}{{ 'AICTE Governance' if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] else 'Institution Dashboard' }}{% endblock %}
 {% block content %}
 {% if current_user.role in ['AICTE_ADMIN', 'AUDITOR', 'INSTITUTION_ADMIN'] %}
 <section id="governance-screen" data-mode="{{ 'governance' if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] else 'institution' }}" data-institution="{{ current_user.institution_id or '' }}">
-  <h1>{{ 'National governance overview' if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] else 'Institution operations' }}</h1>
-  <p class="muted">Current synthetic academic records and capacity indicators. Select filters to update the view.</p>
+  <h1>{{ 'Academic Governance Overview' if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] else 'Institution Operations Overview' }}</h1>
+  <p class="muted">Real-time academic records, seat utilisation, and risk indicators.</p>
   <form id="governance-filters" class="card filter-bar">
     <div class="form-row"><label for="dash-year">Academic year</label><select id="dash-year" name="academic_year" class="select"><option value="">All years</option></select></div>
     {% if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] %}<div class="form-row"><label for="dash-institution">Institution</label><select id="dash-institution" name="institution_id" class="select"><option value="">All institutions</option></select></div>{% endif %}
     <div class="form-row"><label for="dash-programme">Programme</label><select id="dash-programme" name="programme_id" class="select"><option value="">All programmes</option></select></div>
-    <div class="form-row"><label for="dash-category">Category</label><select id="dash-category" name="category" class="select"><option value="">All categories</option>{% for value in ['OPEN','OBC','SC','ST','EWS','NRI','OCI','FN'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></div>
+    <div class="form-row"><label for="dash-category">Category</label><select id="dash-category" name="category" class="select"><option value="">All categories</option><option value="OPEN">OPEN (Regular)</option><option value="SUPERNUMERARY">SUPERNUMERARY</option></select></div>
     <div class="form-row"><label for="dash-validation">Validation</label><select id="dash-validation" name="validation_status" class="select"><option value="">All statuses</option>{% for value in ['PENDING','VALID','INVALID','FLAGGED'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></div>
     <div class="form-row"><label for="dash-risk">Risk level</label><select id="dash-risk" name="risk_level" class="select"><option value="">All levels</option>{% for value in ['LOW','MEDIUM','HIGH','CRITICAL'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></div>
     <button class="btn" type="submit">Apply filters</button><button class="btn btn-secondary" id="dash-reset" type="button">Clear</button>
@@ -35,6 +35,6 @@
   <div class="grid grid-2 governance-lists"><section class="card"><h2>Submission history</h2><div id="submission-list"></div></section><section class="card"><h2>Validation errors</h2><div id="validation-errors"></div></section><section class="card"><h2>Pending identity checks</h2><div id="identity-checks"></div></section><section class="card"><h2>Institutional risk cases</h2><div id="institution-risk"></div></section><section class="card"><h2>Credential issuance history</h2><div id="credential-history"></div></section></div>
   {% endif %}
 </section>
-{% else %}<section class="card"><h1>Welcome to APAAR Nexus</h1><p>Choose a page from the menu to continue.</p></section>{% endif %}
+{% else %}<section class="card"><h1>Welcome to APAARSetu</h1><p>Choose a page from the menu to continue.</p></section>{% endif %}
 {% endblock %}
 {% block scripts %}{% if current_user.role in ['AICTE_ADMIN', 'AUDITOR', 'INSTITUTION_ADMIN'] %}<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}" defer></script><script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>{% endif %}{% endblock %}
