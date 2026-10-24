@@ -4,7 +4,9 @@ Tokens are bearer secrets returned once. Public resolution never changes academi
 records; session counters, verification events and audit rows are the only writes.
 """
 from datetime import timedelta
+import base64
 import hashlib
+import hmac
 import re
 import secrets
 
@@ -188,3 +190,42 @@ def revoke_session(session_id: str, actor=None) -> SharingSession:
     except Exception:
         db.session.rollback()
         raise
+
+
+def seed_demo_sessions(credential: Credential, actor: User) -> str:
+    """Create three synthetic consent examples without adding a student login.
+
+    Only the development seed hook may call this trusted internal helper. The
+    reproducible active bearer secret is returned to the seed summary once;
+    database rows and audit events retain only its digest and short prefix.
+    """
+    if not current_app.config.get("SHOW_DEMO_ACCOUNTS") or has_request_context():
+        raise RuntimeError("Demo sharing seed is available only to the development seed job.")
+    if actor.role != "AICTE_ADMIN" or not actor.is_active or credentials.check_credential(credential).result != "VERIFIED":
+        raise Error("A valid synthetic credential and administrator are required for demo sharing.", "CONFLICT", 409)
+    secret = current_app.config["SECRET_KEY"]
+    secret_bytes = secret.encode() if isinstance(secret, str) else secret
+    claims = ["DEGREE_AUTHENTICITY", "AWARD_YEAR"]
+    active_token = ""
+    for state in ("ACTIVE", "EXPIRED", "REVOKED"):
+        digest = hmac.new(secret_bytes, f"APAAR-NEXUS-DEMO-SHARE:{credential.reference}:{state}".encode(), hashlib.sha256).digest()
+        token = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        existing = db.session.execute(select(SharingSession).where(SharingSession.token_hash == token_hash)).scalar_one_or_none()
+        if existing:
+            continue
+        if state == "ACTIVE":
+            active_token = token
+        now = utcnow()
+        consent = ConsentRecord(student_id=credential.student_id, claims=claims)
+        db.session.add(consent)
+        db.session.flush()
+        row = SharingSession(student_id=credential.student_id, credential_id=credential.id, consent_id=consent.id,
+            token_hash=token_hash, token_prefix=token[:6], claims=claims, created_at=now,
+            expires_at=now + timedelta(hours=72) if state != "EXPIRED" else now - timedelta(hours=1))
+        db.session.add(row)
+        db.session.flush()
+        audit(actor, "SHARING_CREATED", row, {"claims": claims, "expiry_hours": 72, "synthetic_demo": True})
+        if state == "REVOKED":
+            revoke_session(row.id, actor)
+    return active_token

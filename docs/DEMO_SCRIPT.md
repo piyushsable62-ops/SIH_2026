@@ -1,5 +1,25 @@
 # APAAR Nexus — Demonstration Script & Recipes (PS 26263)
 
+## Detect and Prove synthetic examples
+
+After `python seed.py --reset`, Member B's seed hook runs the identity scan and
+risk evaluation, records the two rejected capacity attempts, and creates four
+fixed credential references. Open `/verify-console` to show `CRED-DEMO01`
+(valid), `CRED-DEMO02` (revoked), `CRED-DEMO03` (expired), and `CRED-DEMO04`
+(deliberately altered after signing). These are development examples only.
+
+The hook also creates active, expired, and revoked sharing sessions. The active
+session shares **only** degree authenticity and award year for 72 hours. Its
+demo-only bearer token is printed once in the seed summary. Copy that token
+then and open `/public/verify/<token>` in a private window. The token is stored
+only as a SHA-256 digest in the database; do not reuse this development secret
+or the development signing key in production.
+
+Current Member A seed scenarios produce 11 cases across LOW, MEDIUM and
+CRITICAL. A distinct HIGH case scenario is needed in `seed.py` for the full
+four-band demonstration; the Member B seed hook reports this gap instead of
+fabricating a case.
+
 This document provides step-by-step instructions and recipes for live demonstrations of the APAAR Nexus prototype.
 
 ---
