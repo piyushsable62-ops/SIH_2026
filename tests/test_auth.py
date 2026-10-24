@@ -290,13 +290,15 @@ def test_root_and_login_page_redirects(app, client):
 
 
 def test_landing_page_renders(app, client):
-    """Verify public landing page renders with overview, interactive tour, and demo options."""
+    """Verify public landing page renders with APAARSetu overview and 4-step governance flow."""
     res = client.get("/landing")
     assert res.status_code == 200
-    assert b"Academic Record Lifecycle" in res.data
+    assert b"APAARSetu" in res.data
     assert b"Dynamic Seat Ledger" in res.data
     assert b"Identity Graph" in res.data
     assert b"Academic Passport" in res.data
-    assert b"Live Verification Sandbox" in res.data
+    assert b"One Nation, One Academic Pathway" in res.data
+
+
 
 
