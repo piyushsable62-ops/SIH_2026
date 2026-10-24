@@ -142,8 +142,9 @@ def login(client, username, password="Demo@12345"):
 # Tests
 # ---------------------------------------------------------------------------
 
-def test_template_download(client):
+def test_template_download(client, a8_fixture):
     """Template download returns canonical headers and 2 sample rows."""
+    login(client, "VESIT")
     res = client.get("/api/students/import/template")
     assert res.status_code == 200
     assert "text/csv" in res.headers["Content-Type"]

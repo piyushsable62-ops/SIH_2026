@@ -367,16 +367,17 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 
 Edit `.env` before running if you want a different `SECRET_KEY` or demo password.
 
-**Run the tests:**
+**Run the automated test suite:**
 ```powershell
 pytest -q
 ```
 
-**Reset the demo data:**
+**Seed / Reset the database:**
 ```powershell
+# Reset SQLite database and seed 3 institutions + 4 demo users + synthetic dataset
 python seed.py --reset
 ```
-*(Admins can also reset from the Policies page when `ALLOW_DEMO_RESET=true`.)*
+*(When `ALLOW_DEMO_RESET=true`, authorized administrators can also reset via `POST /api/admin/demo-reset` or the System Policies view.)*
 
 ---
 
@@ -403,16 +404,16 @@ pytest tests/test_envelope.py -q
 
 ## Demo accounts (Development only)
 
-Password for every demo account: the value of `DEMO_PASSWORD` in `.env` (default `Demo@12345`). Demo accounts and the login-page hint are disabled in production configuration.
+Password for all four demo users comes from `DEMO_PASSWORD` in `.env` (default `Demo@12345`). In production configuration (`ProductionConfig`), demo credentials and login hints are completely disabled.
 
-| Username | Role | What they can do |
-|---|---|---|
-| `aicte_admin` | AICTE Super Administrator | Cross-institution dashboards, policies, risk cases, reports |
-| `vesit_admin` | Institution Administrator | Manage VESIT Demo Institute only: upload CSV, seat ledger, issue credentials |
-| `pune_admin` | Institution Administrator | Pune demo institute only (used to show data isolation) |
-| `student_demo` | Student | View passport, manage sharing sessions |
-| `employer_demo` | Employer / Verifier | Verify credentials and shared links |
-| `auditor_demo` | Regulatory Auditor | Read-only reports, cases, audit logs |
+| Username | Role | Scope | What they can do |
+|---|---|---|---|
+| `AICTE_Admin` | `AICTE_ADMIN` | All three institutions (VESIT, COEP, VJTI) | Cross-institution governance dashboard, national student repository, system policies, risk cases, audit logs |
+| `VESIT` | `INSTITUTION_ADMIN` | VESIT only | VESIT dashboard, upload student CSV, seat ledger, issue credentials, view own risk cases |
+| `COEP` | `INSTITUTION_ADMIN` | COEP only | COEP dashboard, upload student CSV, seat ledger, issue credentials (isolated from VESIT and VJTI) |
+| `VJTI` | `INSTITUTION_ADMIN` | VJTI only | VJTI dashboard, upload student CSV, seat ledger, issue credentials (isolated from VESIT and COEP) |
+
+*Public credential verification (`/verify/<reference>`) is available without logging in. Student records are synthetic data and are not login accounts.*
 
 ---
 
@@ -445,11 +446,26 @@ A click-by-click script is in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 
 ## How the Seat Ledger works
 
-- Capacity is tracked per institution, programme, and academic year.
-- Regular and supernumerary seats are separate pools. Seats are never borrowed between them.
-- Category-eligibility rules (stored in the database, admin-configurable) decide which categories may use which pool. Default prototype rule: `OPEN`, `OBC`, `SC`, `ST`, `EWS` use regular seats; `NRI`, `OCI`, `FN` use supernumerary seats.
-- Admissions go through a pre-check, then a transactional commit that re-checks capacity under a lock, so two simultaneous requests cannot take the final seat.
-- Rejected attempts are stored in the admission history and feed the risk engine (excess-intake rule).
+The Dynamic Seat Ledger operates on deterministic capacity management and strict pool segregation:
+
+1. **Distinct Capacity Pools:**
+   - **Approved Regular Intake:** Government-sanctioned regular seat capacity (e.g. 120 seats).
+   - **Supernumerary Capacity:** Sanctioned extra quota (e.g. 10 seats for NRI, OCI, and Foreign Nationals).
+   - **Strict Segregation:** Seats are never borrowed or transferred between regular and supernumerary pools.
+2. **Category Eligibility Rules:**
+   - By default: `OPEN`, `OBC`, `SC`, `ST`, and `EWS` admissions draw strictly from the regular intake pool.
+   - `NRI`, `OCI`, and `FN` (Foreign National) admissions draw strictly from the supernumerary capacity pool.
+   - Attempts to admit a candidate into an ineligible pool are rejected with `CATEGORY_NOT_ELIGIBLE`.
+3. **Strict Capacity Enforcement:**
+   - If regular intake is 120 and 120 seats are filled, attempting a 121st admission is blocked and rejected with `CAPACITY_EXCEEDED`.
+4. **Concurrency Safety:**
+   - Uses atomic database conditional updates (`UPDATE intake_capacities SET admitted_regular = admitted_regular + 1 WHERE id = :id AND admitted_regular < approved_regular_intake`).
+   - If two requests attempt to claim the final seat simultaneously, exactly one succeeds and the other receives 0 affected rows and is rejected.
+5. **Rejection Logging & Risk Engine Integration:**
+   - Every rejected attempt creates a persisted `AdmissionEvent` with `result="REJECTED"` and `reason_code="CAPACITY_EXCEEDED"`.
+   - The rejection is logged to the append-only audit log and triggers `services.risk_engine.record_excess_intake_event`, adding a 30-point `EXCESS_INTAKE_VIOLATION` risk case for regulator review.
+6. **Pre-Check Simulation:**
+   - `POST /api/admissions/precheck` simulates admission outcome, pool eligibility, and projected capacity utilization without committing database changes.
 
 ---
 
@@ -495,11 +511,32 @@ Shared contacts and fee-payer references are investigation signals, not proof of
 
 ## CSV format
 
-Download the template from the Upload page or use [sample_data/students.csv](sample_data/students.csv).
+Download the official canonical template directly from the portal at `/api/students/import/template` or inspect [`sample_data/students.csv`](sample_data/students.csv).
 
-* **Required columns:** `institutional student ID`, `APAAR reference`, `student name`, `institution`, `programme`, `academic year`, `admission date`, `admission category`, `classification (REGULAR / SUPERNUMERARY)`, `NRI status`, `OCI status`, `Foreign National status`, `enrolment status`.
-* **Optional columns:** `contact reference`, `fee-payer reference`.
-* Re-uploading the same file does not create duplicate records (idempotent hash check).
+### Canonical Columns (14 Columns in Required Order)
+1. `institution_student_id`: Institution-scoped unique student identifier (e.g. `VESIT-26-BTECH-IT-0201`).
+2. `apaar_ref`: 12-digit external APAAR identifier (e.g. `980000000001`). Format validated; not globally unique.
+3. `full_name`: Candidate's full name (e.g. `Manan Joshi`).
+4. `programme_code`: Degree programme code matching the institution's offerings (e.g. `IT`, `CS`, `CMPN`).
+5. `academic_year`: Enrolment academic year (format `YYYY-YY`, e.g. `2026-27`).
+6. `admission_date`: Admission date in ISO format (`YYYY-MM-DD`, e.g. `2026-07-20`).
+7. `admission_category`: Admission quota category (`OPEN`, `OBC`, `SC`, `ST`, `EWS`, `NRI`, `OCI`, `FN`).
+8. `classification`: Seat pool classification (`REGULAR` or `SUPERNUMERARY`).
+9. `is_nri`: NRI candidate flag (`true` / `false`).
+10. `is_oci`: OCI candidate flag (`true` / `false`).
+11. `is_foreign_national`: Foreign national candidate flag (`true` / `false`).
+12. `enrolment_status`: Current status (`ACTIVE`, `WITHDRAWN`, `GRADUATED`).
+13. `contact_ref`: Candidate email or phone number (optional; treated strictly as an investigation signal, never unique).
+14. `fee_payer_ref`: Transaction or fee payer reference (optional; treated strictly as an investigation signal, never unique).
+
+### Ingestion Controls & Hardening
+- **Limits:** Max file size 2 MB (`MAX_CONTENT_LENGTH`), max rows per upload 5,000 (`MAX_CSV_ROWS`), strict UTF-8 encoding.
+- **Formula Injection Defense:** Strips dangerous leading spreadsheet triggers (`=`, `+`, `-`, `@`, `\t`, `\r`) from all input cells. Sanitizes exports with leading single quotes (`'`).
+- **Two-Phase Ingestion:**
+  - **Preview (`mode=preview`):** Validates every row against intake capacity, APAAR regex, date formats, and category rules. Returns row-level validation errors with line numbers.
+  - **Commit (`mode=commit`):** Atomically commits valid rows inside a single database transaction, records rejected rows in `submission_errors`, logs an audit event, and fires the identity resolution scan hook.
+- **Idempotency:** SHA-256 file hashing prevents duplicate uploads; optional `update_existing=true` enables updating existing records with complete audit trail history.
+- **Error Report:** Complete downloadable CSV error report (`/api/students/import/<submission_id>/errors.csv`) with exact row numbers and remediation instructions.
 
 ---
 
@@ -561,12 +598,23 @@ Details: [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Known limitations
 
-1. APAAR checks are format-only plus a deterministic mock; no real identity verification.
-2. SQLite and the Flask development server are for local demonstration only.
-3. Development signing keys are used; production needs HSM/KMS key management, rotation, and a public revocation/status service.
-4. Login rate limiting is in-memory and resets on restart.
-5. Risk rules are prototype heuristics, not official AICTE policy.
-6. All data is synthetic.
+### Member A Modules (Data, Security & Prevent)
+1. **Mock APAAR Validation Adapter:**
+   - Format validation enforces 12-digit numeric structure (`^\d{12}$`).
+   - Mock verification adapter uses deterministic local hash checks; it is **not** connected to live UIDAI, DigiLocker, or government APAAR APIs.
+2. **SQLite Database Concurrency:**
+   - SQLite uses file-level / table-level locking (`BEGIN IMMEDIATE`) during admissions and CSV commits.
+   - Suitable for prototype demonstration, local evaluation, and test suites. Production requires PostgreSQL or MySQL with connection pooling.
+3. **In-Memory Rate Limiting:**
+   - Login brute-force limiter uses an in-memory sliding window (5 failed attempts per 15-minute window).
+   - Rate limit state is memory-resident and resets if the application process restarts. Production requires Redis or Memcached.
+4. **Intake Capacity Pool Strictness:**
+   - Regular and supernumerary pools cannot borrow seats from each other by design. In real-world institutions, converting vacant supernumerary seats to regular quota requires formal regulatory approval.
+
+### Member B Modules (UI Shell, Detect & Prove)
+5. **Prototype Risk Rules:** Risk rules and weights are prototype heuristics for PS 26263 and do not represent official AICTE regulatory policy.
+6. **Development Signing Keys:** Credentials use Ed25519 development keys stored in `instance/keys/`. Production requires HSM/KMS key management, automated key rotation, and public key certificate distribution.
+7. **Synthetic Data Only:** All institutions, students, academic records, and risk cases in this repository are 100% synthetic.
 
 ### What Production Integration Would Need
 Authorised APAAR/ABC and institutional data integrations, proper identity assurance, managed keys and certificate distribution, a production database and WSGI deployment, centralised logging and monitoring, formal privacy and legal review, and accessibility and security audits.

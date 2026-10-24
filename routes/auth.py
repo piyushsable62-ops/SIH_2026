@@ -2,7 +2,7 @@
 Authentication routes and session management for APAAR Nexus.
 Includes API login/logout/me endpoints and HTML login view.
 """
-from flask import Blueprint, request, jsonify, render_template, redirect, url_for, current_app, flash
+from flask import Blueprint, request, jsonify, render_template, redirect, url_for, current_app, flash, session
 from flask_login import login_user, logout_user, current_user, login_required
 
 from models.user import User
@@ -198,6 +198,7 @@ def logout():
     )
 
     logout_user()
+    session.clear()
 
     if request.path.startswith("/api/") or (
         request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html

@@ -19,6 +19,7 @@ from typing import Optional, Dict, Any, List
 from flask import Blueprint, request, jsonify, render_template, Response, abort, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import or_, desc, select
+from sqlalchemy.orm import joinedload
 
 from extensions import db
 from models.student import StudentRecord, StudentRecordHistory
@@ -54,9 +55,25 @@ def _trigger_identity_scan(institution_id: Optional[str] = None):
             from services.risk_engine import evaluate_all
             evaluate_all(scan_res)
         except Exception as risk_exc:
-            current_app.logger.debug("Risk engine hook skipped/failed: %s", risk_exc)
+            current_app.logger.warning("Risk engine hook failed after student change: %s", risk_exc)
+            audit_log(
+                actor=getattr(current_user, "username", "SYSTEM"),
+                action="SCAN_RISK_ERROR",
+                entity_type="SYSTEM",
+                entity_id=institution_id or "all",
+                details={"error": str(risk_exc)},
+                institution_id=institution_id
+            )
     except Exception as exc:
-        current_app.logger.debug("Identity scan hook skipped/failed: %s", exc)
+        current_app.logger.warning("Identity scan hook failed after student change: %s", exc)
+        audit_log(
+            actor=getattr(current_user, "username", "SYSTEM"),
+            action="IDENTITY_SCAN_ERROR",
+            entity_type="SYSTEM",
+            entity_id=institution_id or "all",
+            details={"error": str(exc)},
+            institution_id=institution_id
+        )
 
 
 def _format_student(student: StudentRecord, mask_apaar_flag: bool = True) -> Dict[str, Any]:
@@ -210,7 +227,13 @@ def list_students():
         per_page = 25
 
     total = query.count()
-    records = query.order_by(desc(StudentRecord.created_at), StudentRecord.id).offset((page - 1) * per_page).limit(per_page).all()
+    records = (
+        query.options(joinedload(StudentRecord.institution), joinedload(StudentRecord.programme))
+        .order_by(desc(StudentRecord.created_at), StudentRecord.id)
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
 
     # Determine reveal privilege
     reveal_requested = request.args.get("reveal", "").lower() in ("true", "1", "yes")
@@ -425,6 +448,27 @@ def get_student(id: str):
 
     student_data["linked_risk_cases"] = linked_cases
 
+    # Linked credentials references
+    linked_credentials = []
+    try:
+        from models.credential import Credential
+        creds = Credential.query.filter_by(student_id=student.id).order_by(desc(Credential.created_at)).all()
+        for cr in creds:
+            if user_role == Role.INSTITUTION_ADMIN.value and cr.institution_id != current_user.institution_id:
+                continue
+            linked_credentials.append({
+                "id": cr.id,
+                "reference": cr.reference,
+                "programme_name": cr.programme_name,
+                "award_year": cr.award_year,
+                "status_stored": cr.status_stored,
+                "issue_date": cr.issue_date.isoformat() if cr.issue_date else None
+            })
+    except Exception as exc:
+        current_app.logger.debug("Failed querying credentials for student %s: %s", student.id, exc)
+
+    student_data["linked_credentials"] = linked_credentials
+
     return jsonify({
         "ok": True,
         "data": student_data
@@ -614,7 +658,11 @@ def export_students_csv():
             StudentRecord.apaar_ref.ilike(search_pat)
         ))
 
-    records = query.order_by(StudentRecord.academic_year.desc(), StudentRecord.institution_student_id).all()
+    records = (
+        query.options(joinedload(StudentRecord.institution), joinedload(StudentRecord.programme))
+        .order_by(StudentRecord.academic_year.desc(), StudentRecord.institution_student_id)
+        .all()
+    )
 
     # Generate CSV in-memory
     output = io.StringIO()
@@ -709,6 +757,8 @@ def upload_page():
 
 
 @students_bp.route("/api/students/import/template", methods=["GET"])
+@login_required
+@roles_required(Role.AICTE_ADMIN.value, Role.INSTITUTION_ADMIN.value)
 def download_template():
     """Download the canonical CSV template."""
     from services.csv_service import generate_csv_template
