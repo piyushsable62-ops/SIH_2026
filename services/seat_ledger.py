@@ -578,7 +578,7 @@ def _create_and_persist_rejected_event(
     )
 
     # Hook for Member B Risk Engine on excess intake violations
-    if reason_code == "CAPACITY_EXCEEDED":
+    if reason_code in ("CAPACITY_EXCEEDED", "EXCESS_INTAKE_VIOLATION"):
         try:
             import services.risk_engine as risk_engine
             if hasattr(risk_engine, "record_excess_intake_event"):

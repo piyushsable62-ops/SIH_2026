@@ -16,6 +16,8 @@ class StudentRecord(TimestampMixin, db.Model):
         db.Index("ix_student_normalized_name", "normalized_name"),
         db.Index("ix_student_contact_ref", "contact_ref"),
         db.Index("ix_student_fee_payer_ref", "fee_payer_ref"),
+        db.Index("ix_student_inst_year_created", "institution_id", "academic_year", "created_at"),
+        db.Index("ix_student_inst_prog_year", "institution_id", "programme_id", "academic_year"),
     )
 
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)

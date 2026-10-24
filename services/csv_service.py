@@ -109,14 +109,16 @@ def sanitize_csv_cell_for_export(val: Any) -> str:
 
 def check_csv_injection(val: Any) -> Tuple[bool, str]:
     """Detect and neutralize CSV formula injection on input cells."""
-    if not val:
+    if val is None:
         return False, ""
-    s = str(val).strip()
+    s = str(val)
+    if not s:
+        return False, ""
     if s.startswith(DANGEROUS_FORMULA_PREFIXES):
         # Neutralize by stripping leading trigger
-        clean = s.lstrip("=+-@\t\r ")
+        clean = s.lstrip("=+-@\t\r ").strip()
         return True, clean
-    return False, s
+    return False, s.strip()
 
 
 def generate_csv_template() -> str:
@@ -168,9 +170,25 @@ def _trigger_identity_scan(institution_id: Optional[str] = None, submission_id: 
             from services.risk_engine import evaluate_all
             evaluate_all(scan_res)
         except Exception as risk_exc:
-            current_app.logger.debug("Risk engine hook skipped/failed: %s", risk_exc)
+            current_app.logger.warning("Risk engine hook failed after CSV commit: %s", risk_exc)
+            audit_log(
+                actor="SYSTEM",
+                action="SCAN_RISK_ERROR",
+                entity_type="SYSTEM",
+                entity_id=submission_id or institution_id or "all",
+                details={"error": str(risk_exc)},
+                institution_id=institution_id
+            )
     except Exception as exc:
-        current_app.logger.debug("Identity scan hook skipped/failed: %s", exc)
+        current_app.logger.warning("Identity scan hook failed after CSV commit: %s", exc)
+        audit_log(
+            actor="SYSTEM",
+            action="IDENTITY_SCAN_ERROR",
+            entity_type="SYSTEM",
+            entity_id=submission_id or institution_id or "all",
+            details={"error": str(exc)},
+            institution_id=institution_id
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -160,40 +160,20 @@
         </div>
       </div>
 
-      <div class="grid grid-3" style="gap: 16px;">
+      <div class="grid grid-2" style="gap: 16px;">
         <div class="form-row">
-          <label for="adm-category">Admission Category *</label>
+          <label for="adm-category">Seat Category *</label>
           <select id="adm-category" name="admission_category" class="input" required>
-            <option value="OPEN">OPEN (General)</option>
-            <option value="OBC">OBC (Other Backward Class)</option>
-            <option value="SC">SC (Scheduled Caste)</option>
-            <option value="ST">ST (Scheduled Tribe)</option>
-            <option value="EWS">EWS (Economically Weaker Section)</option>
-            <option value="NRI">NRI (Non-Resident Indian)</option>
-            <option value="OCI">OCI (Overseas Citizen of India)</option>
-            <option value="FN">FN (Foreign National)</option>
+            <option value="OPEN" selected>Open (Regular Seat)</option>
+            <option value="SUPERNUMERARY">Supernumerary Seat</option>
           </select>
         </div>
         <div class="form-row">
-          <label for="adm-classification">Classification *</label>
+          <label for="adm-classification">Seat Classification *</label>
           <select id="adm-classification" name="classification" class="input" required>
-            <option value="REGULAR">REGULAR Intake</option>
+            <option value="REGULAR" selected>REGULAR Intake</option>
             <option value="SUPERNUMERARY">SUPERNUMERARY Quota</option>
           </select>
-        </div>
-        <div class="form-row" style="justify-content: flex-end;">
-          <label>Demographic Flags</label>
-          <div class="actions" style="margin-top: 6px; gap: 12px;">
-            <label style="font-weight: normal; font-size: .9rem; display: flex; align-items: center; gap: 4px;">
-              <input type="checkbox" id="flag-is-nri" name="is_nri"> NRI
-            </label>
-            <label style="font-weight: normal; font-size: .9rem; display: flex; align-items: center; gap: 4px;">
-              <input type="checkbox" id="flag-is-oci" name="is_oci"> OCI
-            </label>
-            <label style="font-weight: normal; font-size: .9rem; display: flex; align-items: center; gap: 4px;">
-              <input type="checkbox" id="flag-is-fn" name="is_foreign_national"> FN
-            </label>
-          </div>
         </div>
       </div>
 

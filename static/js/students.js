@@ -97,6 +97,10 @@
         submitBtn.disabled = true;
         submitBtn.textContent = "Saving...";
 
+        const categoryVal = document.getElementById("add-student-category")?.value || "OPEN";
+        const classificationVal = (categoryVal === "SUPERNUMERARY") ? "SUPERNUMERARY" : "REGULAR";
+        const todayStr = new Date().toISOString().split("T")[0];
+
         const payload = {
           institution_student_id: document.getElementById("add-student-id").value.trim(),
           full_name: document.getElementById("add-student-name").value.trim(),
@@ -104,15 +108,15 @@
           academic_year: document.getElementById("add-student-academic-year").value.trim(),
           institution_id: document.getElementById("add-student-institution").value,
           programme_id: document.getElementById("add-student-programme").value,
-          admission_category: document.getElementById("add-student-category").value,
-          classification: document.getElementById("add-student-classification").value,
-          admission_date: document.getElementById("add-student-admission-date").value,
-          enrolment_status: document.getElementById("add-student-enrolment-status").value,
-          is_nri: document.getElementById("add-student-nri").checked,
-          is_oci: document.getElementById("add-student-oci").checked,
-          is_foreign_national: document.getElementById("add-student-fn").checked,
-          contact_ref: document.getElementById("add-student-contact").value.trim() || null,
-          fee_payer_ref: document.getElementById("add-student-fee-payer").value.trim() || null
+          admission_category: categoryVal,
+          classification: classificationVal,
+          admission_date: todayStr,
+          enrolment_status: "ACTIVE",
+          is_nri: (categoryVal === "SUPERNUMERARY"),
+          is_oci: false,
+          is_foreign_national: false,
+          contact_ref: null,
+          fee_payer_ref: null
         };
 
         try {

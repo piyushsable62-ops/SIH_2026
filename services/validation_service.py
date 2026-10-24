@@ -246,6 +246,11 @@ def validate_student_row(
         add_error("admission_category", "BAD_CATEGORY", f"Invalid category '{category_str}'. Must be one of {sorted(list(valid_categories))}.")
 
     classification_str = str(student.classification or "").strip().upper()
+    if not classification_str:
+        classification_str = Classification.SUPERNUMERARY.value if category_str in ("SUPERNUMERARY", "NRI", "OCI", "FN") else Classification.REGULAR.value
+    elif category_str == "SUPERNUMERARY":
+        classification_str = Classification.SUPERNUMERARY.value
+
     valid_classifications = {c.value for c in Classification}
     if not classification_str or classification_str not in valid_classifications:
         add_error("classification", "BAD_CATEGORY", f"Invalid classification '{classification_str}'. Must be REGULAR or SUPERNUMERARY.")

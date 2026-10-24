@@ -226,19 +226,30 @@
         loadProgrammeLedger();
       }
 
-      // Generate next student ID above 116
-      const nextRoll = 117;
+      // Generate next student ID above 32
+      const nextRoll = 33;
       inputStudentId.value = `VESIT-26-BTECH-IT-${String(nextRoll).padStart(4, "0")}`;
-      inputFullName.value = "Karan Sharma";
+      inputFullName.value = "Kavya Deshmukh";
       inputApaar.value = "912345678999";
       selectCategory.value = "OPEN";
       selectClassification.value = "REGULAR";
-      checkNri.checked = false;
-      checkOci.checked = false;
-      checkFn.checked = false;
+      if (checkNri) checkNri.checked = false;
+      if (checkOci) checkOci.checked = false;
+      if (checkFn) checkFn.checked = false;
 
-      toast("Demo values loaded for VESIT B.Tech IT (2026-27). Remaining regular seats: 4.", "info");
+      toast("Demo values loaded for VESIT B.Tech IT (2026-27). Remaining regular seats: 30.", "info");
       resetPrecheckState();
+    });
+  }
+
+  // Category and classification sync
+  if (selectCategory && selectClassification) {
+    selectCategory.addEventListener("change", () => {
+      if (selectCategory.value === "SUPERNUMERARY") {
+        selectClassification.value = "SUPERNUMERARY";
+      } else {
+        selectClassification.value = "REGULAR";
+      }
     });
   }
 
@@ -246,6 +257,8 @@
   function getFormData() {
     const prog = currentProgrammes.find(p => p.programme_id === selectProg.value);
     const instId = prog?.institution_id || selectInst.value;
+    const cat = selectCategory?.value || "OPEN";
+    const classificationVal = selectClassification?.value || (cat === "SUPERNUMERARY" ? "SUPERNUMERARY" : "REGULAR");
 
     return {
       institution_id: instId,
@@ -254,11 +267,11 @@
       institution_student_id: inputStudentId.value.trim(),
       full_name: inputFullName.value.trim(),
       apaar_ref: inputApaar.value.trim() || null,
-      admission_category: selectCategory.value,
-      classification: selectClassification.value,
-      is_nri: checkNri.checked,
-      is_oci: checkOci.checked,
-      is_foreign_national: checkFn.checked
+      admission_category: cat,
+      classification: classificationVal,
+      is_nri: (cat === "SUPERNUMERARY" || Boolean(checkNri?.checked)),
+      is_oci: Boolean(checkOci?.checked),
+      is_foreign_national: Boolean(checkFn?.checked)
     };
   }
 
