@@ -1,0 +1,23 @@
+{% extends 'base_public.html' %}
+{% block title %}{{ 'Verify a credential' if console else 'Academic Credential Verification' }} — APAAR Nexus{% endblock %}
+{% block page_title %}Academic Credential Verification{% endblock %}
+{% block topbar_identity %}<span>Backend signature verification</span>{% endblock %}
+{% block csrf_meta %}{% endblock %}
+{% block toast_messages %}{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+{% if console %}
+<section class="card verification-panel"><h1>Verify a credential</h1><form class="risk-form" method="get" action="{{ url_for('credentials.verify_console') }}"><div class="form-row"><label for="verify-reference">Credential reference or QR link</label><input id="verify-reference" name="reference" class="input" maxlength="500" required placeholder="CRED-XXXXXX"></div><button class="btn" type="submit">Verify credential</button></form></section>
+{% if config.SHOW_DEMO_ACCOUNTS %}<section class="card verification-panel"><h2>Demo credentials</h2><div class="table-wrapper"><table class="table"><thead><tr><th>Reference</th><th>Current backend result</th></tr></thead><tbody>{% for row in demos %}<tr><td><a href="{{ url_for('credentials.public_verify', reference=row.reference) }}">{{ row.reference }}</a></td><td>{{ row.result }}</td></tr>{% else %}<tr><td colspan="2">No demo credentials have been prepared.</td></tr>{% endfor %}</tbody></table></div></section>{% endif %}
+{% if current_user.role == 'VERIFIER' %}<section class="card verification-panel"><h2>My recent verifications</h2><div class="table-wrapper"><table class="table"><thead><tr><th>Time (UTC)</th><th>Result</th></tr></thead><tbody>{% for event in recent %}<tr><td>{{ event.created_at.isoformat() }}</td><td>{{ event.result }}</td></tr>{% else %}<tr><td colspan="2">No verification events yet.</td></tr>{% endfor %}</tbody></table></div></section>{% endif %}
+{% else %}
+<section class="card verification-panel verification-{{ outcome.result }}" aria-labelledby="verification-title">
+  <h1 id="verification-title">{{ {'VERIFIED':'Credential verified','INVALID':'Credential invalid','REVOKED':'Credential revoked','EXPIRED':'Credential expired'}[outcome.result] }}</h1>
+  <p>{{ outcome.reason }}</p>
+  {% if outcome.result == 'VERIFIED' %}{% set c = outcome.credential %}<dl class="kv"><dt>Credential ID</dt><dd>{{ c.credential_id }}</dd><dt>Institution</dt><dd>{{ c.institution.code }} — {{ c.institution.name }}</dd><dt>Programme</dt><dd>{{ c.programme }}</dd><dt>Award year</dt><dd>{{ c.award_year }}</dd><dt>Issue date</dt><dd>{{ c.issue_date }}</dd><dt>Masked APAAR</dt><dd>{{ c.apaar_masked }}</dd><dt>Signing key ID</dt><dd>{{ outcome.key_id }}</dd></dl><p>Verified by backend signature check at {{ checked_at }}.</p>
+  {% elif outcome.result == 'REVOKED' %}<dl class="kv"><dt>Revoked at</dt><dd>{{ outcome.credential.revoked_at or 'Unavailable' }}</dd><dt>Reason category</dt><dd>Revoked by issuer</dd></dl>
+  {% elif outcome.result == 'EXPIRED' %}<dl class="kv"><dt>Expiry date</dt><dd>{{ outcome.credential.expires_at }}</dd></dl>{% endif %}
+</section>
+{% endif %}
+{% endblock %}
+{% block footer %}Prototype — synthetic data only. Signature scheme: Ed25519 (development keys).{% endblock %}

@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="csrf-token" content="{{ csrf_token() }}">
+  {% block csrf_meta %}<meta name="csrf-token" content="{{ csrf_token() }}">{% endblock %}
   <meta name="nexus-api-routes" content="{{ ui_paths|default([])|list|sort|tojson|forceescape }}">
   <title>{% block title %}APAAR Nexus{% endblock %}</title>
   <link rel="icon" href="data:,">
@@ -38,16 +38,16 @@
             <button class="btn btn-secondary" type="button" disabled title="Authentication is not available in this preview">Logout</button>
           {% endif %}
         </div>
-      {% else %}<span>Student data management &amp; verification</span>{% endif %}
+      {% else %}<span>Student data management &amp; verification</span>{% endif %}{% endblock %}
     </header>
     <main class="content" id="main-content" tabindex="-1">{% block content %}{% endblock %}</main>
-    <footer class="footer">Prototype — synthetic data only. Not connected to AICTE, APAAR, UIDAI or DigiLocker.</footer>
+    <footer class="footer">{% block footer %}Prototype — synthetic data only. Not connected to AICTE, APAAR, UIDAI or DigiLocker.{% endblock %}</footer>
   </div>
   <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="false" aria-relevant="additions text">
-    {% for category, message in get_flashed_messages(with_categories=true) %}
+    {% block toast_messages %}{% for category, message in get_flashed_messages(with_categories=true) %}
       {% set kind = {'success': 'ok', 'error': 'danger', 'warning': 'warn', 'message': 'info'}.get(category, category) %}
       <div class="toast toast-{{ kind if kind in ['ok', 'warn', 'danger', 'info'] else 'info' }}" role="status">{{ message }}</div>
-    {% endfor %}
+    {% endfor %}{% endblock %}
   </div>
   {# Pages opt into local vendor scripts here; the base never downloads them. #}
   <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
