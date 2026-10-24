@@ -396,3 +396,29 @@ Dynamic system rules, risk scoring weights, and validation parameters.
 | `description` | TEXT | NULLABLE | Administrative documentation |
 | `updated_by` | VARCHAR(80) | NOT NULL, DEFAULT 'SYSTEM' | Last updater |
 | `updated_at` | DATETIME | NOT NULL | Last update timestamp |
+
+---
+
+## 4. Student CSV Ingestion File Formats
+
+Both `sample_data/students.csv` (valid baseline template) and `sample_data/students_demo_upload.csv` (demo test cases for validation and identity conflicts) use a standardized, comment-free header format.
+
+### CSV Column Specification
+
+| Column | Type | Required | Format / Allowed Values | Description |
+|---|---|---|---|---|
+| `institution_student_id` | String | Yes | E.g. `VESIT-26-BTECH-IT-0201` | Unique institutional registration roll number within the institution and academic year |
+| `apaar_ref` | String | Conditional | 12-digit string (`^\d{12}$`, e.g. `980000000001`) | Synthetic APAAR identifier. Empty/malformed rows trigger validation errors |
+| `full_name` | String | Yes | Text (e.g. `Aarav Sharma`) | Student's full legal name |
+| `programme_code` | String | Yes | Must match registered programme (e.g. `BTECH-IT`, `BTECH-CE`) | Target academic programme |
+| `academic_year` | String | Yes | Format `YYYY-YY` (e.g. `2026-27`) | Enrolment academic year |
+| `admission_date` | Date | Yes | ISO format `YYYY-MM-DD` (e.g. `2026-07-20`) | Date admission was granted |
+| `admission_category` | String | Yes | `OPEN`, `OBC`, `SC`, `ST`, `EWS`, `NRI`, `OCI`, `FN` | Category under which admission was sought |
+| `classification` | String | Yes | `REGULAR`, `SUPERNUMERARY` | Intake quota stream |
+| `is_nri` | Boolean | Yes | `true` / `false` (or `1` / `0`) | Non-Resident Indian demographic flag |
+| `is_oci` | Boolean | Yes | `true` / `false` | Overseas Citizen of India demographic flag |
+| `is_foreign_national` | Boolean | Yes | `true` / `false` | Foreign National demographic flag |
+| `enrolment_status` | String | Yes | `ACTIVE`, `WITHDRAWN`, `GRADUATED` | Current academic standing |
+| `contact_ref` | String | Optional | Normalized token (e.g. `SYN-C-0501`) | Anonymized phone/email investigation reference |
+| `fee_payer_ref` | String | Optional | Normalized token (e.g. `SYN-F-0501`) | Anonymized transaction/sponsor reference |
+

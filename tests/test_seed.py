@@ -138,3 +138,215 @@ def test_signing_keys_public_in_db_private_in_keystore(app):
         public_key = serialization.load_pem_public_key(db_key.public_key_pem.encode("utf-8"))
         assert isinstance(public_key, Ed25519PublicKey)
         public_key.verify(signature, test_message)  # Raises InvalidSignature if failed
+
+
+def test_seed_students_exact_scenario_counts(app):
+    """
+    Verify Task A4 student seeding requirements:
+    - >= 150 student records (specifically 365)
+    - VESIT / B.Tech IT / 2026-27: 116 regular, 4 supernumerary (remaining 4 reg, 6 sup)
+    - Utilisation spread: ~50%, 80%, 90%, 100% full programme, and 1-seat-left concurrency programme
+    - Two past excess attempts recorded with result=REJECTED and reason_code=CAPACITY_EXCEEDED
+    - At least one eligible synthetic VESIT student record exists for credential demos (no student login)
+    """
+    with app.app_context():
+        from seed import seed_students
+        from models import StudentRecord, AdmissionEvent, Classification, AdmissionCategory
+
+        seed_reference_data(random.Random(42))
+        student_count = seed_students(db, random.Random(42))
+
+        assert student_count >= 150
+        assert student_count == 365
+
+        # All records marked synthetic
+        assert StudentRecord.query.filter_by(is_synthetic=True).count() == 365
+
+        # Scenario 1: VESIT B.Tech IT 2026-27
+        vesit = Institution.query.filter_by(code="VESIT").first()
+        btech_it = Programme.query.filter_by(institution_id=vesit.id, code="BTECH-IT").first()
+
+        vesit_it_students = StudentRecord.query.filter_by(
+            institution_id=vesit.id,
+            programme_id=btech_it.id,
+            academic_year="2026-27"
+        ).all()
+
+        regular_students = [s for s in vesit_it_students if s.classification == Classification.REGULAR.value]
+        supernumerary_students = [s for s in vesit_it_students if s.classification == Classification.SUPERNUMERARY.value]
+
+        assert len(regular_students) == 116
+        assert len(supernumerary_students) == 4
+
+        # Supernumerary mix: NRI, OCI, FN
+        categories = {s.admission_category for s in supernumerary_students}
+        assert categories == {"NRI", "OCI", "FN"}
+
+        cap = IntakeCapacity.query.filter_by(
+            institution_id=vesit.id,
+            programme_id=btech_it.id,
+            academic_year="2026-27"
+        ).first()
+        assert cap.approved_regular_intake == 120
+        assert cap.supernumerary_capacity == 10
+        assert cap.approved_regular_intake - len(regular_students) == 4
+        assert cap.supernumerary_capacity - len(supernumerary_students) == 6
+
+        # Scenario 2 & 3: Utilisation spread & excess admission scenarios
+        # COEP Diploma Mech: 100% full
+        coep = Institution.query.filter_by(code="COEP").first()
+        dip_mech = Programme.query.filter_by(institution_id=coep.id, code="DIP-MECH").first()
+        dip_mech_students = StudentRecord.query.filter_by(
+            institution_id=coep.id,
+            programme_id=dip_mech.id,
+            academic_year="2026-27"
+        ).all()
+        dip_mech_cap = IntakeCapacity.query.filter_by(
+            institution_id=coep.id,
+            programme_id=dip_mech.id,
+            academic_year="2026-27"
+        ).first()
+        assert len(dip_mech_students) == dip_mech_cap.approved_regular_intake == 30
+
+        # VESIT B.Tech CE: 1 regular seat left (59/60, concurrency test target)
+        vesit_ce = Programme.query.filter_by(institution_id=vesit.id, code="BTECH-CE").first()
+        vesit_ce_students = StudentRecord.query.filter_by(
+            institution_id=vesit.id,
+            programme_id=vesit_ce.id,
+            academic_year="2026-27"
+        ).all()
+        vesit_ce_cap = IntakeCapacity.query.filter_by(
+            institution_id=vesit.id,
+            programme_id=vesit_ce.id,
+            academic_year="2026-27"
+        ).first()
+        assert len(vesit_ce_students) == 59
+        assert vesit_ce_cap.approved_regular_intake - len(vesit_ce_students) == 1
+
+        # COEP B.Tech CE: 90% utilisation (54/60)
+        coep_ce = Programme.query.filter_by(institution_id=coep.id, code="BTECH-CE").first()
+        coep_ce_count = StudentRecord.query.filter_by(
+            institution_id=coep.id,
+            programme_id=coep_ce.id,
+            academic_year="2026-27"
+        ).count()
+        assert coep_ce_count == 54
+
+        # VJTI B.Tech EXTC: 80% utilisation (48/60)
+        vjti = Institution.query.filter_by(code="VJTI").first()
+        vjti_extc = Programme.query.filter_by(institution_id=vjti.id, code="BTECH-EXTC").first()
+        vjti_extc_count = StudentRecord.query.filter_by(
+            institution_id=vjti.id,
+            programme_id=vjti_extc.id,
+            academic_year="2026-27"
+        ).count()
+        assert vjti_extc_count == 48
+
+        # VJTI B.Tech IT: 50% utilisation (30/60)
+        vjti_it = Programme.query.filter_by(institution_id=vjti.id, code="BTECH-IT").first()
+        vjti_it_count = StudentRecord.query.filter_by(
+            institution_id=vjti.id,
+            programme_id=vjti_it.id,
+            academic_year="2026-27"
+        ).count()
+        assert vjti_it_count == 30
+
+        # Scenario 3: Past rejected excess admission attempts
+        rejected_events = AdmissionEvent.query.filter_by(
+            result="REJECTED",
+            reason_code="CAPACITY_EXCEEDED"
+        ).all()
+        assert len(rejected_events) == 2
+
+        # Scenario 7: Eligible VESIT candidate for credential demos
+        demo_candidate = StudentRecord.query.filter_by(apaar_ref="900000000001").first()
+        assert demo_candidate is not None
+        assert demo_candidate.institution_id == vesit.id
+        assert demo_candidate.programme_id == btech_it.id
+        assert demo_candidate.full_name == "Aarav Sharma"
+        assert demo_candidate.enrolment_status == "ACTIVE"
+        assert demo_candidate.validation_status == "VALID"
+        # No student login account exists for demo students per AGENTS.md §5.2
+        assert User.query.filter_by(student_id=demo_candidate.id).count() == 0
+
+
+def test_seed_students_identity_and_signal_scenarios(app):
+    """
+    Verify identity conflicts and investigation signals seeded per Task A4:
+    - Simultaneous enrolment: same apaar_ref active in 2 institutions
+    - Duplicate APAAR within 1 institution with distinct student IDs
+    - Corroborated similar name spelling variation
+    - Legitimate shared contact and shared fee-payer references
+    - Malformed / missing APAAR flagged validation_status=INVALID
+    """
+    with app.app_context():
+        from seed import seed_students
+        from models import StudentRecord
+
+        seed_reference_data(random.Random(42))
+        seed_students(db, random.Random(42))
+
+        # Scenario 4(a): Simultaneous enrolment
+        simul_students = StudentRecord.query.filter_by(apaar_ref="900000000010").all()
+        assert len(simul_students) == 2
+        inst_codes = {s.institution.code for s in simul_students}
+        assert inst_codes == {"VESIT", "COEP"}
+        assert all(s.enrolment_status == "ACTIVE" for s in simul_students)
+        assert all(s.academic_year == "2026-27" for s in simul_students)
+
+        # Scenario 4(b): Duplicate APAAR in one institution
+        dup_students = StudentRecord.query.filter_by(apaar_ref="900000000020").all()
+        assert len(dup_students) == 2
+        assert dup_students[0].institution_id == dup_students[1].institution_id
+        assert dup_students[0].institution_student_id != dup_students[1].institution_student_id
+
+        # Scenario 4(c): Corroborated fuzzy name variation
+        rahul_sharma = StudentRecord.query.filter_by(apaar_ref="900000000031").first()
+        rahul_sarma = StudentRecord.query.filter_by(apaar_ref="900000000032").first()
+        assert rahul_sharma.full_name == "Rahul Sharma"
+        assert rahul_sarma.full_name == "Rahul Sarma"
+        assert rahul_sharma.institution_id == rahul_sarma.institution_id
+        assert rahul_sharma.programme_id == rahul_sarma.programme_id
+        assert rahul_sharma.admission_date == rahul_sarma.admission_date
+
+        # Scenario 5: Legitimate shared contact & fee-payer
+        contact_shared = StudentRecord.query.filter_by(contact_ref="SYN-C-0050").all()
+        assert len(contact_shared) == 2
+        assert contact_shared[0].apaar_ref != contact_shared[1].apaar_ref
+        assert contact_shared[0].full_name != contact_shared[1].full_name
+
+        fee_shared = StudentRecord.query.filter_by(fee_payer_ref="SYN-F-0099").all()
+        assert len(fee_shared) == 2
+        assert fee_shared[0].apaar_ref != fee_shared[1].apaar_ref
+        assert fee_shared[0].full_name != fee_shared[1].full_name
+
+        # Scenario 6: Malformed / missing APAAR
+        invalid_students = StudentRecord.query.filter_by(validation_status="INVALID").all()
+        assert len(invalid_students) == 4
+        for s in invalid_students:
+            assert s.validation_notes is not None
+
+
+def test_reseeding_students_is_deterministic(app):
+    """Verify seeding students twice with reset produces identical IDs, APAARs, and counts."""
+    with app.app_context():
+        from seed import seed_students
+        from models import StudentRecord, AdmissionEvent
+
+        # Run 1
+        seed_reference_data(random.Random(42))
+        seed_students(db, random.Random(42))
+        run1_students = {s.institution_student_id: (s.id, s.apaar_ref, s.full_name) for s in StudentRecord.query.all()}
+        run1_events = {e.id: (e.result, e.reason_code) for e in AdmissionEvent.query.all()}
+
+        # Reset & Run 2
+        db.drop_all()
+        db.create_all()
+        seed_reference_data(random.Random(42))
+        seed_students(db, random.Random(42))
+        run2_students = {s.institution_student_id: (s.id, s.apaar_ref, s.full_name) for s in StudentRecord.query.all()}
+        run2_events = {e.id: (e.result, e.reason_code) for e in AdmissionEvent.query.all()}
+
+        assert run1_students == run2_students
+        assert run1_events == run2_events
+
