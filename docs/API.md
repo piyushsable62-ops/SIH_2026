@@ -978,3 +978,29 @@ The current main branch has no Member A audit-log page, so audit-page click-test
 is blocked until A11. Real `AuditLog` creation and rollback behavior were tested in
 pytest. No A-owned files, student records, credentials or seeded account definitions
 were changed by this task.
+
+## Member B: Credential service (B7)
+
+`credential_service.issue_credential(student_id, award_year, programme_id=None,
+valid_years=None, actor=None, acknowledge_warnings=False)` returns the ORM
+Credential, with an ephemeral `warnings` list. Supply a persisted official issuer
+User/username to internal calls; HTTP calls must match the authenticated actor.
+Open investigations return `CredentialError(CONFLICT,409,{warnings:[...]})`
+until acknowledged explicitly. No risk score automatically blocks an acknowledged
+issue. Duplicate active student/programme/year issuance returns CONFLICT.
+
+`build_payload` takes the six documented arguments plus optional keyword-only
+`credential_id` and `issuer_key_id`, needed to bind an existing reference/key when
+building reproducible documents. `canonicalize` is shared by sign/check.
+`verify_credential(reference)` returns a `VerificationOutcome` with `to_dict()`;
+unknown references are INVALID and are recorded too. Verification uses exact
+stored bytes and public-key metadata only, then checks stored claim bindings,
+revocation and expiry in that order. Invalid outcomes expose no claims. Public
+revocation gives a category, never the internal reason. Each verify call records
+a VerificationEvent and audit; `commit=False` is reserved for a larger audited
+sharing transaction. `check_credential(row)` computes status without writing an
+event for authenticated list views. `revoke_credential(id,reason,actor)` requires
+issuer scope and a non-blank reason; repeated revocation returns CONFLICT.
+
+The service owns its audited commit; commit unrelated work first. See
+`docs/SECURITY.md` for development keys, rotation and production limitations.
