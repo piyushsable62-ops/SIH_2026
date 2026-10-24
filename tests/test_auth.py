@@ -300,6 +300,41 @@ def test_landing_page_renders(app, client):
     assert b"Unified Student Intake &amp; Academic Governance" in res.data
 
 
+def test_csrf_required_on_post_when_enabled():
+    """Verify that when CSRF protection is enabled, POST requests without token fail with 400 CSRF_ERROR."""
+    from app import create_app
+    from extensions import db as _db
+    from flask_wtf.csrf import generate_csrf
+
+    csrf_app = create_app("testing")
+    csrf_app.config["WTF_CSRF_ENABLED"] = True
+
+    with csrf_app.app_context():
+        _db.create_all()
+        create_test_fixtures(csrf_app)
+        client = csrf_app.test_client()
+
+        # 1. POST without CSRF token -> 400 CSRF_ERROR
+        res_fail = client.post("/api/auth/login", json={"username": "VESIT", "password": "Demo@12345"})
+        assert res_fail.status_code == 400
+        body_fail = res_fail.get_json()
+        assert body_fail["ok"] is False
+        assert body_fail["error"]["code"] == "CSRF_ERROR"
+
+        # 2. POST with valid CSRF token header -> 200
+        with client:
+            client.get("/login")
+            token = generate_csrf()
+            res_ok = client.post(
+                "/api/auth/login",
+                json={"username": "VESIT", "password": "Demo@12345"},
+                headers={"X-CSRFToken": token}
+            )
+            assert res_ok.status_code == 200
+            assert res_ok.get_json()["ok"] is True
+
+
+
 
 
 
