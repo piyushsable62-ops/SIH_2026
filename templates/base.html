@@ -25,7 +25,7 @@
   <div class="shell-main">
     <header class="topbar">
       <div class="topbar-title">{% block page_title %}{{ app_name|default('APAARSetu') }}{% endblock %}</div>
-      {% if signed_in %}
+      {% block topbar_identity %}{% if signed_in %}
         <div class="topbar-user">
           <span>{{ current_user.username }}</span>
           <span class="badge badge-info">{{ current_user.role }}</span>
