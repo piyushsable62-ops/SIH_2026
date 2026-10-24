@@ -349,147 +349,116 @@
     `;
   }
 
-  /** 3. UPGRADED KPI CARDS: 3 Grouped Rows with count-up, semantic accents, and tooltips */
-  function renderKpiGroups(s, pending, riskCases, credCount) {
-    const container = get("dash-kpi-groups");
+  /** 3. RESTORED 9 KPI CARDS: Unified responsive 9-grid with count-up, semantic accents, and tooltips */
+  function renderKpiCards(s, pending, riskCases, credCount) {
+    const container = get("governance-stats");
     if (!container) return;
 
-    const groups = [
+    const cards = [
       {
-        title: "Admissions Pipeline",
-        badge: "4 Metrics",
-        rowClass: "dash-kpi-row-4",
-        cards: [
-          {
-            label: "Approved intake",
-            value: s.approved_regular_intake,
-            icon: "🏛️",
-            accent: "navy",
-            tooltip: "Total approved regular seat intake sanctioned by AICTE",
-            context: "Sanctioned regular quota"
-          },
-          {
-            label: "Regular admissions",
-            value: s.regular_admitted,
-            icon: "🎓",
-            accent: "ok",
-            tooltip: "Active and enrolled students in regular approved seats",
-            context: `${s.regular_utilisation_pct}% filled`,
-            progressPct: Math.min(100, s.regular_utilisation_pct)
-          },
-          {
-            label: "Supernumerary admitted",
-            value: s.supernumerary_admitted,
-            icon: "🌐",
-            accent: "info",
-            tooltip: "Admissions under NRI, OCI, FN, and supernumerary quotas",
-            context: `of ${s.supernumerary_capacity} quota seats`
-          },
-          {
-            label: "Remaining seats",
-            value: s.regular_remaining,
-            icon: "⏳",
-            accent: s.regular_remaining <= 5 ? "warn" : "ok",
-            tooltip: "Vacant regular seats available for new candidate enrolment",
-            context: s.regular_remaining > 0 ? "Available for intake" : "Capacity filled"
-          }
-        ]
+        label: "Approved intake",
+        value: s.approved_regular_intake,
+        icon: "🏛️",
+        accent: "navy",
+        tooltip: "Total approved regular seat intake sanctioned by AICTE",
+        context: "Sanctioned regular quota"
       },
       {
-        title: "Verification & Compliance",
-        badge: "3 Metrics",
-        rowClass: "dash-kpi-row-3",
-        cards: [
-          {
-            label: "Pending identity checks",
-            value: pending.pending,
-            icon: "🔍",
-            accent: pending.pending > 0 ? "info" : "ok",
-            tooltip: "Enrolled records awaiting identity scan and duplicate verification",
-            isCalm: pending.pending === 0,
-            calmText: "All scanned",
-            context: pending.pending === 0 ? "All records verified" : "Awaiting scan"
-          },
-          {
-            label: "Flagged checks",
-            value: pending.flagged,
-            icon: "⚠️",
-            accent: pending.flagged > 0 ? "danger" : "ok",
-            tooltip: "Records flagged with duplicate APAAR or multi-institution conflicts",
-            isCalm: pending.flagged === 0,
-            calmText: "0 flagged",
-            context: pending.flagged === 0 ? "No anomalies" : "Requires review"
-          },
-          {
-            label: "Credentials issued",
-            value: credCount,
-            icon: "🛡️",
-            accent: "ok",
-            tooltip: "Cryptographically signed Ed25519 academic credentials issued to students",
-            context: "Verifiable via QR & link"
-          }
-        ]
+        label: "Regular admissions",
+        value: s.regular_admitted,
+        icon: "🎓",
+        accent: "ok",
+        tooltip: "Active and enrolled students in regular approved seats",
+        context: `${s.regular_utilisation_pct}% filled`,
+        progressPct: Math.min(100, s.regular_utilisation_pct)
       },
       {
-        title: "Risk & Capacity Health",
-        badge: "2 Metrics",
-        rowClass: "dash-kpi-row-2",
-        cards: [
-          {
-            label: "Risk cases",
-            value: riskCases.total,
-            icon: "🚨",
-            accent: riskCases.total > 0 ? "warn" : "ok",
-            tooltip: "Open identity and capacity risk cases awaiting human review",
-            isCalm: riskCases.total === 0,
-            calmText: "Zero cases",
-            context: riskCases.total > 0 ? `${riskCases.CRITICAL || 0} critical, ${riskCases.HIGH || 0} high` : "No open cases"
-          },
-          {
-            label: "Utilisation %",
-            value: s.regular_utilisation_pct,
-            unit: "%",
-            decimals: 1,
-            icon: "📊",
-            accent: s.regular_utilisation_pct > 95 ? "warn" : "ok",
-            tooltip: "Proportion of approved regular capacity currently utilised",
-            context: "Regular capacity density",
-            progressPct: Math.min(100, s.regular_utilisation_pct),
-            progressClass: s.regular_utilisation_pct >= 95 ? "warn" : ""
-          }
-        ]
+        label: "Remaining seats",
+        value: s.regular_remaining,
+        icon: "⏳",
+        accent: s.regular_remaining <= 5 ? "warn" : "ok",
+        tooltip: "Vacant regular seats available for new candidate enrolment",
+        context: s.regular_remaining > 0 ? "Available for intake" : "Capacity filled"
+      },
+      {
+        label: "Supernumerary admitted",
+        value: s.supernumerary_admitted,
+        icon: "🌐",
+        accent: "info",
+        tooltip: "Admissions under NRI, OCI, FN, and supernumerary quotas",
+        context: `of ${s.supernumerary_capacity} quota seats`
+      },
+      {
+        label: "Utilisation %",
+        value: s.regular_utilisation_pct,
+        unit: "%",
+        decimals: 1,
+        icon: "📊",
+        accent: s.regular_utilisation_pct > 95 ? "warn" : "ok",
+        tooltip: "Proportion of approved regular capacity currently utilised",
+        context: "Regular capacity density",
+        progressPct: Math.min(100, s.regular_utilisation_pct),
+        progressClass: s.regular_utilisation_pct >= 95 ? "warn" : ""
+      },
+      {
+        label: "Pending identity checks",
+        value: pending.pending,
+        icon: "🔍",
+        accent: pending.pending > 0 ? "info" : "ok",
+        tooltip: "Enrolled records awaiting identity scan and duplicate verification",
+        isCalm: pending.pending === 0,
+        calmText: "All scanned",
+        context: pending.pending === 0 ? "All records verified" : "Awaiting scan"
+      },
+      {
+        label: "Flagged checks",
+        value: pending.flagged,
+        icon: "⚠️",
+        accent: pending.flagged > 0 ? "danger" : "ok",
+        tooltip: "Records flagged with duplicate APAAR or multi-institution conflicts",
+        isCalm: pending.flagged === 0,
+        calmText: "0 flagged",
+        context: pending.flagged === 0 ? "No anomalies" : "Requires review"
+      },
+      {
+        label: "Risk cases",
+        value: riskCases.total,
+        icon: "🚨",
+        accent: riskCases.total > 0 ? "warn" : "ok",
+        tooltip: "Open identity and capacity risk cases awaiting human review",
+        isCalm: riskCases.total === 0,
+        calmText: "Zero cases",
+        context: riskCases.total > 0 ? `${riskCases.CRITICAL || 0} critical, ${riskCases.HIGH || 0} high` : "No open cases"
+      },
+      {
+        label: "Credentials issued",
+        value: credCount,
+        icon: "🛡️",
+        accent: "ok",
+        tooltip: "Cryptographically signed Ed25519 academic credentials issued to students",
+        context: "Verifiable via QR & link"
       }
     ];
 
-    container.innerHTML = groups.map((g, gIdx) => `
-      <div class="dash-kpi-group">
-        <div class="dash-kpi-group-header">
-          <span class="dash-kpi-group-title">${g.title}</span>
-          <span class="badge badge-info dash-badge-sm">${g.badge}</span>
+    container.innerHTML = cards.map((c, idx) => `
+      <div class="dash-kpi-card" data-accent="${c.accent}" title="${c.tooltip}" tabindex="0">
+        <div class="dash-kpi-card-header">
+          <span class="dash-kpi-label">${c.label}</span>
+          <span class="dash-kpi-icon-badge" aria-hidden="true">${c.icon}</span>
         </div>
-        <div class="${g.rowClass}">
-          ${g.cards.map((c, cIdx) => `
-            <div class="dash-kpi-card" data-accent="${c.accent}" title="${c.tooltip}" tabindex="0">
-              <div class="dash-kpi-card-header">
-                <span class="dash-kpi-label">${c.label}</span>
-                <span class="dash-kpi-icon-badge" aria-hidden="true">${c.icon}</span>
-              </div>
-              <div class="dash-kpi-value-row">
-                <span class="dash-kpi-number" id="kpi-num-${gIdx}-${cIdx}">${typeof c.value === "number" ? c.value : 0}</span>
-                ${c.unit ? `<span class="dash-kpi-unit">${c.unit}</span>` : ""}
-                ${c.isCalm ? `<span class="dash-kpi-calm-chip">✓ ${c.calmText}</span>` : ""}
-              </div>
-              <div class="dash-kpi-context-row">
-                <span>${c.context}</span>
-              </div>
-              ${c.progressPct != null ? `
-                <div class="dash-mini-progress" role="progressbar" aria-valuenow="${c.progressPct}" aria-valuemin="0" aria-valuemax="100">
-                  <div class="dash-mini-progress-fill ${c.progressClass || ''}" data-pct="${c.progressPct}"></div>
-                </div>
-              ` : ""}
-            </div>
-          `).join("")}
+        <div class="dash-kpi-value-row">
+          <span class="dash-kpi-number" id="kpi-num-${idx}">${typeof c.value === "number" ? c.value : 0}</span>
+          ${c.unit ? `<span class="dash-kpi-unit">${c.unit}</span>` : ""}
+          ${c.isCalm ? `<span class="dash-kpi-calm-chip">✓ ${c.calmText}</span>` : ""}
         </div>
+        <div class="dash-kpi-context-row">
+          <span>${c.context}</span>
+        </div>
+        ${c.progressPct != null ? `
+          <div class="dash-mini-progress" role="progressbar" aria-valuenow="${c.progressPct}" aria-valuemin="0" aria-valuemax="100">
+            <div class="dash-mini-progress-fill ${c.progressClass || ''}" data-pct="${c.progressPct}"></div>
+          </div>
+        ` : ""}
       </div>
     `).join("");
 
@@ -499,13 +468,11 @@
     });
 
     // Trigger count-ups
-    groups.forEach((g, gIdx) => {
-      g.cards.forEach((c, cIdx) => {
-        const numEl = get(`kpi-num-${gIdx}-${cIdx}`);
-        if (numEl && typeof c.value === "number") {
-          animateCountUp(numEl, c.value, 800, "", c.decimals || 0);
-        }
-      });
+    cards.forEach((c, idx) => {
+      const numEl = get(`kpi-num-${idx}`);
+      if (numEl && typeof c.value === "number") {
+        animateCountUp(numEl, c.value, 800, "", c.decimals || 0);
+      }
     });
   }
 
@@ -613,11 +580,33 @@
     }, N.el("span", { class: "progress-fill" }));
     progress.firstElementChild.style.setProperty("--value", `${Math.max(0, Math.min(100, s.regular_utilisation_pct))}%`);
 
+    const miniStats = N.el("div", { class: "dash-util-mini-grid" },
+      N.el("div", { class: "dash-util-mini-card" },
+        N.el("span", { class: "dash-util-mini-label" }, "Remaining seats"),
+        N.el("span", { class: "dash-util-mini-val" }, String(s.regular_remaining)),
+        N.el("span", { class: "dash-util-mini-sub" }, s.regular_remaining > 0 ? "Quota available" : "Capacity filled")
+      ),
+      N.el("div", { class: "dash-util-mini-card" },
+        N.el("span", { class: "dash-util-mini-label" }, "Supernumerary"),
+        N.el("span", { class: "dash-util-mini-val" }, `${s.supernumerary_admitted} / ${s.supernumerary_capacity}`),
+        N.el("span", { class: "dash-util-mini-sub" }, `${s.supernumerary_utilisation_pct || 0}% quota filled`)
+      ),
+      N.el("div", { class: "dash-util-mini-card" },
+        N.el("span", { class: "dash-util-mini-label" }, "Regular utilisation"),
+        N.el("span", { class: "dash-util-mini-val" }, `${s.regular_utilisation_pct}%`),
+        N.el("span", { class: "dash-util-mini-sub" }, `${s.regular_admitted} of ${s.approved_regular_intake} seats`)
+      ),
+      N.el("div", { class: "dash-util-mini-card" },
+        N.el("span", { class: "dash-util-mini-label" }, "Total intake"),
+        N.el("span", { class: "dash-util-mini-val" }, String(s.total_admitted || (s.regular_admitted + s.supernumerary_admitted))),
+        N.el("span", { class: "dash-util-mini-sub" }, `Sanctioned: ${s.total_approved_intake || (s.approved_regular_intake + s.supernumerary_capacity)}`)
+      )
+    );
+
     get("institution-utilisation").replaceChildren(
       N.el("p", { class: "dash-utilisation-lead" }, `${s.regular_admitted} of ${s.approved_regular_intake} regular seats filled`),
       progress,
-      N.el("p", { class: "muted dash-utilisation-sub" },
-        `${s.regular_utilisation_pct}% regular utilisation • ${s.supernumerary_admitted}/${s.supernumerary_capacity} supernumerary enrolled`)
+      miniStats
     );
 
     // c. Programme-wise Admissions Horizontal Bar Chart
@@ -722,10 +711,10 @@
     // 2. Actionable Insights
     renderAttentionCard(s, pending, rc);
 
-    // 3. Upgraded KPI Groups
-    renderKpiGroups(s, pending, rc, credCount);
+    // 3. Upgraded 9 KPI Cards (Restored below filter bar & hero)
+    renderKpiCards(s, pending, rc, credCount);
 
-    // 4. Charts, Donut, Programmes, Risk, and Funnel
+    // 4. Charts, Donut with Mini Stats, Programmes, Risk, and Funnel
     renderCharts(data, seatsData);
 
     // 5. Recent Activity & Validation Lists (all previous tables preserved)
@@ -782,6 +771,12 @@
         renderInstitution(dashData, seatsData);
       }
       if (statusEl) statusEl.textContent = "Updated just now";
+      const tsEl = get("dash-last-timestamp");
+      if (tsEl) {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        tsEl.textContent = `• ${timeStr}`;
+      }
     } catch (error) {
       if (statusEl) statusEl.textContent = error.message;
       N.toast(error.message, "danger");

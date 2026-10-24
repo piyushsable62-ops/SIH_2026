@@ -23,12 +23,15 @@
         <button class="btn" type="submit">Apply filters</button>
         <button class="btn btn-secondary" id="dash-reset" type="button">Clear</button>
       </div>
-      <div class="dash-refresh-indicator">
-        <span class="dash-refresh-dot" id="dash-refresh-dot"></span>
-        <span id="governance-status" role="status">Updated just now</span>
+      <div class="dash-filter-status-inline">
+        <div class="dash-refresh-indicator">
+          <span class="dash-refresh-dot" id="dash-refresh-dot"></span>
+          <span id="governance-status" role="status">Updated just now</span>
+          <span id="dash-last-timestamp" class="dash-timestamp-inline"></span>
+        </div>
+        <div id="dash-active-chips" class="dash-active-chips u-hidden"></div>
       </div>
     </form>
-    <div id="dash-active-chips" class="dash-active-chips u-hidden"></div>
   </div>
 
   {% if current_user.role in ['AICTE_ADMIN', 'AUDITOR'] %}
@@ -56,14 +59,13 @@
     </section>
   </div>
 
-  <!-- Row 2: Grouped KPI Metrics (Admissions, Verification, Risk) -->
-  <div id="dash-kpi-groups" class="dash-kpi-groups">
-    <!-- Injected by KpiCard Group Renderer -->
+  <!-- Row 2: 9 KPI Metric Cards (Edge-to-edge 3x3 responsive grid) -->
+  <div id="governance-stats" class="dash-kpi-grid-9" aria-label="Key Performance Indicators">
+    <!-- Injected by renderKpiCards -->
   </div>
-  <div id="governance-stats" class="u-hidden"></div>
 
-  <!-- Row 3: Category-wise Capacity (7 cols) + Regular Intake Utilisation Donut (5 cols) -->
-  <div class="grid dash-row-3">
+  <!-- Row 3: Category-wise Capacity (7 cols) + Regular Intake Utilisation (5 cols) -->
+  <div class="dash-row-3">
     <section class="card dash-panel">
       <div class="dash-panel-header">
         <div>
@@ -98,7 +100,7 @@
   </div>
 
   <!-- Row 4: Programme-wise Admissions (6 cols) + Risk Level Breakdown (3 cols) + Pipeline Funnel (3 cols) -->
-  <div class="grid dash-row-4">
+  <div class="dash-row-4">
     <section class="card dash-panel">
       <div class="dash-panel-header">
         <div>
@@ -144,7 +146,7 @@
   </div>
 
   <!-- Row 5: Previous Data Panels - Submission history & Validation errors -->
-  <div class="grid grid-2 governance-lists dash-mb-lg">
+  <div class="dash-row-5">
     <section class="card dash-panel">
       <div class="dash-panel-header">
         <div>
@@ -168,7 +170,7 @@
   </div>
 
   <!-- Row 6: Previous Data Panels - Pending identity checks & Credential issuance history -->
-  <div class="grid grid-2 governance-lists">
+  <div class="dash-row-6">
     <section class="card dash-panel">
       <div class="dash-panel-header">
         <div>

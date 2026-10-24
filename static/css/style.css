@@ -916,6 +916,24 @@ dialog .actions { justify-content: flex-end; }
   align-items: flex-end;
   gap: 8px;
 }
+.dash-filter-status-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-left: 4px;
+}
+.dash-timestamp-inline {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+.dash-active-chips {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .dash-mb-lg {
   margin-bottom: 24px;
 }
@@ -925,11 +943,96 @@ dialog .actions { justify-content: flex-end; }
 .u-hidden {
   display: none !important;
 }
+
+/* 9-Card KPI Grid (3 columns on desktop, 2 on tablet, 1 on mobile) */
+.dash-kpi-grid-9 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* Equal Height & Edge-to-Edge Grid Rows */
 .dash-row-3 {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 20px;
   margin-bottom: 24px;
+  align-items: stretch;
+}
+.dash-row-4 {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.9fr);
+  gap: 20px;
+  margin-bottom: 24px;
+  align-items: stretch;
+}
+.dash-row-5,
+.dash-row-6 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  margin-bottom: 24px;
+  align-items: stretch;
+}
+
+/* Panel Layout & Equal Fill */
+.dash-panel {
+  border-radius: var(--dash-radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--dash-shadow-sm);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+.dash-panel-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Regular Intake Utilisation Right Panel Mini-Stats Grid */
+.dash-util-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.dash-util-mini-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.dash-util-mini-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+}
+.dash-util-mini-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+.dash-util-mini-val {
+  font-size: 1.25rem;
+  font-weight: 750;
+  color: var(--navy);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.dash-util-mini-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 2px;
 }
 .dash-chart-frame-category {
   height: 280px;
@@ -985,12 +1088,6 @@ dialog .actions { justify-content: flex-end; }
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.05em;
-}
-.dash-row-4 {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr) minmax(0, 0.9fr);
-  gap: 24px;
-  margin-bottom: 24px;
 }
 .dash-chart-frame-programme {
   height: 240px;
@@ -1049,16 +1146,19 @@ dialog .actions { justify-content: flex-end; }
   .dash-hero-container {
     grid-template-columns: 1fr;
   }
+  .dash-kpi-grid-9 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .dash-kpi-row-4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .dash-kpi-row-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .dash-row-3 {
-    grid-template-columns: 1fr !important;
-  }
-  .dash-row-4 {
+  .dash-row-3,
+  .dash-row-4,
+  .dash-row-5,
+  .dash-row-6 {
     grid-template-columns: 1fr !important;
   }
 }
@@ -1069,6 +1169,8 @@ dialog .actions { justify-content: flex-end; }
     align-items: flex-start;
     padding: 20px;
   }
+  .dash-kpi-grid-9,
+  .dash-util-mini-grid,
   .dash-kpi-row-4,
   .dash-kpi-row-3,
   .dash-kpi-row-2 {
