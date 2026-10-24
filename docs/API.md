@@ -979,6 +979,153 @@ is blocked until A11. Real `AuditLog` creation and rollback behavior were tested
 pytest. No A-owned files, student records, credentials or seeded account definitions
 were changed by this task.
 
+## Member B: Credential service (B7)
+
+`credential_service.issue_credential(student_id, award_year, programme_id=None,
+valid_years=None, actor=None, acknowledge_warnings=False)` returns the ORM
+Credential, with an ephemeral `warnings` list. Supply a persisted official issuer
+User/username to internal calls; HTTP calls must match the authenticated actor.
+Open investigations return `CredentialError(CONFLICT,409,{warnings:[...]})`
+until acknowledged explicitly. No risk score automatically blocks an acknowledged
+issue. Duplicate active student/programme/year issuance returns CONFLICT.
+
+`build_payload` takes the six documented arguments plus optional keyword-only
+`credential_id` and `issuer_key_id`, needed to bind an existing reference/key when
+building reproducible documents. `canonicalize` is shared by sign/check.
+`verify_credential(reference)` returns a `VerificationOutcome` with `to_dict()`;
+unknown references are INVALID and are recorded too. Verification uses exact
+stored bytes and public-key metadata only, then checks stored claim bindings,
+revocation and expiry in that order. Invalid outcomes expose no claims. Public
+revocation gives a category, never the internal reason. Each verify call records
+a VerificationEvent and audit; `commit=False` is reserved for a larger audited
+sharing transaction. `check_credential(row)` computes status without writing an
+event for authenticated list views. `revoke_credential(id,reason,actor)` requires
+issuer scope and a non-blank reason; repeated revocation returns CONFLICT.
+
+The service owns its audited commit; commit unrelated work first. See
+`docs/SECURITY.md` for development keys, rotation and production limitations.
+
+## Member B: Credential APIs and passport (B8)
+
+- `POST /api/credentials/issue`: issuer administrators, CSRF; JSON
+  `{student_id,award_year,valid_years?,acknowledge_warnings?}`. Returns 201 safe
+  summary; unacknowledged risk warnings return 409 with `error.details.warnings`.
+- `GET /api/credentials`: scoped AICTE/institution/student/auditor access;
+  institution/status/student/year filters (also `_id`/`award_year` aliases), page
+  and per_page up to 100. Live statuses filter before pagination. No signatures,
+  payload JSON or private keys are returned.
+- `GET /api/credentials/<id>`: scoped summary, computed verification, event count,
+  verification URL and server-generated QR PNG data URI. Detail records a verify
+  event. `GET /api/credentials/<id>/qr.png`: scoped `image/png`, no-store.
+- `POST /api/credentials/<id>/revoke`: official issuer scope, CSRF, `{reason}`.
+- `GET /api/credentials/eligible-students`: issuer-only masked search of VALID,
+  ACTIVE/GRADUATED synthetic students; `q`, `page`; filtering precedes pagination.
+- `GET /api/passport/me`: STUDENT-only masked academic profile and own credentials.
+  No student/verifier login is added to the four-account demo seed.
+- `/credentials` and `/credentials/issue`: administrative issue/search/history
+  page; `/passport`: student passport; `/credentials/<id>`: in-scope read-only
+  credential passport (including auditor access). Shared vanilla JS uses only
+  Nexus.api for mutations and shows explicit warning acknowledgement, native
+  confirmation/reason dialogs, real QR images, current statuses and error messages.
+
+Configure `PUBLIC_BASE_URL` to the externally trusted HTTP(S) application base
+when deployed. Without it, QR URLs use request.host_url. The QR encodes the
+absolute `/verify/<reference>` URL; B9 provides its public rendering. Authenticated
+results and QR responses are no-store. In the SQLite prototype, live-status list
+filtering checks all authorized credentials before slicing; larger deployments
+need a paginated indexed verification/status projection.
+
+Manual B8 check completed in an isolated four-account synthetic fixture: sign in,
+select an eligible student, confirm issue, inspect masked claims and actual QR,
+then revoke with a required reason and verify REVOKED in history. Public links
+are exercised in B9. API tests cover cross-institution/student scope, auditor
+read-only behavior, PNG content/type/URL, CSRF, and response redaction.
+
+## Member B: Public QR verification (B9)
+
+`GET /verify/<reference>` is anonymous HTML; `.json` selects the same backend
+outcome in `{ok:true,data:{result,reason,credential,key_id}}`. All four states,
+including unknown references (INVALID / "not found"), use HTTP 200 so the route
+does not add a second HTTP existence signal. INVALID never contains claims.
+REVOKED contains only revocation time/category, not internal notes; EXPIRED
+contains expiry. Responses are no-store. A per-process hashed-IP bucket admits
+30 requests per 60 seconds across HTML/JSON and all references; exceeding it
+returns 429 with Retry-After 60. Public templates exclude account identity, flash
+messages and unnecessary CSRF metadata.
+
+`GET /verify-console` (alias `/verify`) requires any authenticated role. Its GET
+form accepts a reference or a QR URL from this platform and redirects to the
+public result. External origins are rejected. VERIFIER sees only their own last
+10 event summaries. Development-only demo links appear only with
+SHOW_DEMO_ACCOUNTS=true. `seed_b.seed_prove_and_detect(db)` hooks into the existing
+seed.py and prepares CRED-DEMO01 (valid), 02 (revoked), 03 (expired), 04 (tampered).
+The tampering helper is explicitly demo-only, modifies claims after signing and
+does not re-sign that edit. Seeding is idempotent and adds no logins/institutions.
+
+Tests exercise all four anonymous HTML/JSON states, rate-window boundaries,
+unknown references, no claims on tampering, actual event recording and demo
+visibility. Browser checks confirmed a backend VERIFIED page and a tampered
+INVALID page without institution/programme/APAAR claims.
+# B10 — Consent sharing backend
+
+`POST /api/sharing-sessions` (STUDENT, own credential) accepts
+`{credential_id, claims: ["DEGREE_AUTHENTICITY", "AWARD_YEAR"], expiry_hours: 24}`.
+Expiry choices are 24/72/168 hours, narrowed by policy
+`sharing_allowed_expiry_hours`. Each sensitive selected claim additionally needs
+its own true flag, for example
+`explicit_authorisation: {"STUDENT_NAME": true, "APAAR_MASKED": true}`.
+Unsupported/duplicate/empty claims or invalid authorisation/expiry return 422;
+foreign credentials return 404; currently unverified credentials return 409.
+201 returns `id`, `token` **once**, `share_url`, server-generated PNG
+`qr_data_uri`, `expires_at`, and `claims`. Copy the link immediately.
+
+`GET /api/sharing-sessions` paginates own STUDENT metadata; AICTE_ADMIN and
+AUDITOR can read metadata across students. Only `token_prefix` is retained in
+metadata, never raw tokens or hashes. Status is computed ACTIVE/EXPIRED/REVOKED.
+`POST /api/sharing-sessions/<id>/revoke` accepts `{}` for the owning student or
+AICTE support administrator. Every revocation is audited; repeats return 409.
+
+`GET /public/verify/<token>?format=json` needs no login. A valid response contains
+only selected claim keys, result, message and expiry. Invalid/unknown/malformed
+tokens return the same generic 404 envelope. Known expired/revoked links return
+200 with their state and **no claims**. Revoked/expired/altered credentials also
+withhold all claims. The public route is 30/IP/minute per process, no-store and
+no-referrer. Tokens are SHA-256 indexed, never written in audit/verification rows;
+Werkzeug URL logs are redacted. Reverse proxies need equivalent redaction.
+
+The service accepts an injectable `SHARING_CLOCK` for expiry tests. A profile
+name is shared only with explicit consent; the credential's signed payload does
+not assert a student name. This implements consent-based selective disclosure,
+not zero-knowledge proofs. Session creation, access counters and revocation are
+committed together with their audit entry; an active access records one linked
+credential verification event. No academic records are changed.
+
+## B11 — Student sharing and public view
+
+`GET /sharing` requires STUDENT and a linked student profile. It lists own
+credentials with current verification results; only VERIFIED credentials are
+selectable. Personal-claim checkboxes explicitly authorise each selected claim.
+The confirmation lists the credential, claims and expiry before creating a link.
+The result shows the URL and QR once; a Clipboard API failure selects the input
+and explains Ctrl+C. No token goes to localStorage, sessionStorage or the app page
+URL. The result is cleared on page departure. Session metadata and revocation
+remain available after reload, but the link cannot be recovered.
+
+`GET /public/verify/<token>` now renders a standalone public HTML view; append
+`?format=json` for the documented API envelope. Only authorised claims are
+rendered, with a backend Valid/Expired/Revoked/Invalid state. Unknown and malformed
+secrets render the same generic Invalid page with HTTP 404. No hidden profile,
+unselected claim, student internal identifier, account header or flash messages
+are embedded. A logged-in VERIFIER sees an additional “Verification recorded”
+line; the same minimal disclosure and verification-event rules still apply.
+
+Manual checklist: issue and verify; select degree authenticity plus award year;
+confirm/create/copy; open without a login; inspect source for unselected name,
+masked APAAR and institution; revoke and refresh (no claims); change one token
+character (generic Invalid). Repeat with personal claims explicitly selected and
+with expired/revoked credentials. Student and verifier roles use isolated test
+fixtures because the required production/demo seed retains exactly four official
+administrator accounts; this task does not add a student or verifier login.
 ---
 
 ## Member A: Auditing, Institution Dashboard & Enrolment Report (A11)
@@ -1144,4 +1291,3 @@ Safely resets database and re-runs the initial synthetic baseline demo seed (`se
     }
   }
   ```
-

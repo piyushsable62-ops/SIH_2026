@@ -1,0 +1,19 @@
+{% extends 'base_public.html' %}
+{% block title %}Shared Academic Verification — APAAR Nexus{% endblock %}
+{% block page_title %}Shared Academic Verification{% endblock %}
+{% block topbar_identity %}<span>Student-controlled disclosure</span>{% endblock %}
+{% block csrf_meta %}{% endblock %}
+{% block toast_messages %}{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<section class="card verification-panel verification-{{ outcome.result }}" aria-labelledby="shared-result-title">
+  <h1 id="shared-result-title">{{ {'VERIFIED':'Valid','EXPIRED':'Expired','REVOKED':'Revoked','INVALID':'Invalid'}[outcome.result] }}</h1>
+  <p>{{ outcome.message }}</p>
+  {% if outcome.result == 'VERIFIED' %}
+  {% set labels = {'DEGREE_AUTHENTICITY':'Degree authenticity','INSTITUTION':'Institution','PROGRAMME':'Programme','AWARD_YEAR':'Award year','STUDENT_NAME':'Student name','APAAR_MASKED':'Masked APAAR reference'} %}
+  <dl class="kv">{% for key, value in outcome.claims.items() %}<dt>{{ labels[key] }}</dt><dd>{% if key == 'INSTITUTION' %}{{ value.code }} — {{ value.name }}{% else %}{{ value }}{% endif %}</dd>{% endfor %}</dl>
+  <p>The student chose to share only these details. This link expires on <time datetime="{{ outcome.expires_at }}">{{ outcome.expires_at[:19]|replace('T', ' ') }} UTC</time>.</p>
+  {% elif outcome.expires_at %}<p>Link expiry: <time datetime="{{ outcome.expires_at }}">{{ outcome.expires_at[:19]|replace('T', ' ') }} UTC</time>.</p>{% endif %}
+  {% if recorded %}<p class="muted">Verification recorded</p>{% endif %}
+</section>
+{% endblock %}

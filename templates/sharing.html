@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Sharing — APAAR Nexus{% endblock %}
+{% block page_title %}Student Sharing{% endblock %}
+{% block content %}
+<section id="sharing-screen">
+  <h1>Share selected academic details</h1>
+  <p class="muted">Create a time-limited link. You choose what a verifier can see.</p>
+  <form id="sharing-form" class="stack">
+    <section class="card"><h2>1. Choose credential</h2><p>Only credentials currently verified by the backend can be selected.</p><p id="sharing-credentials-status" role="status"></p><div id="sharing-credentials"></div><div id="sharing-credential-pages"></div></section>
+    <section class="card"><h2>2. Choose what to share</h2>
+      <fieldset class="sharing-options"><legend>Academic details</legend>
+        <label><input type="checkbox" name="claim" value="DEGREE_AUTHENTICITY" checked> Degree authenticity <span class="muted">— confirms the credential is currently verified.</span></label>
+        <label><input type="checkbox" name="claim" value="INSTITUTION"> Institution <span class="muted">— reveals the issuing institution's code and name.</span></label>
+        <label><input type="checkbox" name="claim" value="PROGRAMME"> Programme <span class="muted">— reveals the signed programme name.</span></label>
+        <label><input type="checkbox" name="claim" value="AWARD_YEAR" checked> Award year <span class="muted">— reveals the signed year of the award.</span></label>
+      </fieldset>
+      <fieldset class="sharing-options sharing-personal"><legend>Personal details</legend>
+        <p class="sharing-caution">Personal details — share only if the verifier needs them</p>
+        <label><input type="checkbox" name="claim" value="STUDENT_NAME"> Student name <span class="muted">— I explicitly authorise sharing my profile name.</span></label>
+        <label><input type="checkbox" name="claim" value="APAAR_MASKED"> Masked APAAR reference <span class="muted">— I explicitly authorise sharing only the last four digits with masking.</span></label>
+      </fieldset>
+      <p>Your full APAAR ID, date of birth, address and contact details are never shared.</p>
+    </section>
+    <section class="card"><h2>3. Choose expiry</h2><fieldset class="sharing-options"><legend>Link validity</legend>{% for hours in expiry_hours %}<label><input type="radio" name="expiry_hours" value="{{ hours }}" required{% if loop.first %} checked{% endif %}> {{ {24:'24 hours',72:'72 hours',168:'7 days'}[hours] }}</label>{% endfor %}</fieldset><p class="muted">Anyone with the link can read the selected details until expiry or revocation. A recipient may retain a copy.</p><button class="btn" id="sharing-create" type="submit" disabled>Create sharing link</button><p id="sharing-error" class="field-error" role="alert"></p></section>
+  </form>
+  <section class="card" id="sharing-result" hidden aria-labelledby="sharing-result-title"><h2 id="sharing-result-title">Your sharing link</h2><p class="sharing-caution">This link is shown once. Copy it now.</p><div class="form-row"><label for="sharing-link">Share link</label><input class="input" id="sharing-link" type="url" readonly autocomplete="off" spellcheck="false"></div><button class="btn btn-secondary" id="sharing-copy" type="button">Copy link</button><p id="sharing-copy-status" role="status"></p><div id="sharing-qr"></div><p id="sharing-expiry"></p></section>
+  <section class="card"><h2>My sharing sessions</h2><p class="muted">Only a short token prefix is retained for identification. Full links cannot be recovered.</p><p id="sharing-sessions-status" role="status"></p><div id="sharing-sessions"></div><div id="sharing-session-pages"></div></section>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/sharing.js') }}" defer></script>{% endblock %}
