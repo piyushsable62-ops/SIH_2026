@@ -17,14 +17,14 @@
   <div class="tricolour" aria-hidden="true"><span></span><span></span><span></span></div>
   {% if signed_in and self.shell()|trim != 'public-shell' %}
     <aside class="sidebar" aria-label="Application sidebar">
-      <div class="brand">APAAR Nexus<small>Student data management</small></div>
+      <div class="brand"><span style="color: #ffffff;">APAAR</span><span style="color: #48bb78;">Setu</span><small>Student data management</small></div>
       <nav aria-label="Main navigation">{{ navigation(current_user.role, ui_paths|default([])) }}</nav>
       {% if is_ui_preview|default(false) %}<p class="sidebar-note">Development preview.<br>Unbuilt modules are unavailable.</p>{% endif %}
     </aside>
   {% endif %}
   <div class="shell-main">
     <header class="topbar">
-      <div class="topbar-title">{% block page_title %}APAAR Nexus{% endblock %}</div>
+      <div class="topbar-title">{% block page_title %}{{ app_name|default('APAARSetu') }}{% endblock %}</div>
       {% if signed_in %}
         <div class="topbar-user">
           <span>{{ current_user.username }}</span>
