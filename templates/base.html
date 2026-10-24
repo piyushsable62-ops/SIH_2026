@@ -1,0 +1,54 @@
+{% from '_navigation.html' import navigation with context %}
+{% set signed_in = current_user is defined and current_user.is_authenticated %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}APAAR Nexus{% endblock %}</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block shell %}{{ 'has-sidebar' if signed_in else 'public-shell' }}{% endblock %}">
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="tricolour" aria-hidden="true"><span></span><span></span><span></span></div>
+  {% if signed_in and self.shell()|trim != 'public-shell' %}
+    <aside class="sidebar" aria-label="Application sidebar">
+      <div class="brand">APAAR Nexus<small>Student data management</small></div>
+      <nav aria-label="Main navigation">{{ navigation(current_user.role, ui_paths|default([])) }}</nav>
+      {% if is_ui_preview|default(false) %}<p class="sidebar-note">Development preview.<br>Unbuilt modules are unavailable.</p>{% endif %}
+    </aside>
+  {% endif %}
+  <div class="shell-main">
+    <header class="topbar">
+      <div class="topbar-title">{% block page_title %}APAAR Nexus{% endblock %}</div>
+      {% if signed_in %}
+        <div class="topbar-user">
+          <span>{{ current_user.username }}</span>
+          <span class="badge badge-info">{{ current_user.role }}</span>
+          {% if 'auth.logout' in ui_endpoints|default([]) and not is_ui_preview|default(false) %}
+            <form method="post" action="{{ url_for('auth.logout') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-secondary" type="submit">Logout</button>
+            </form>
+          {% else %}
+            <button class="btn btn-secondary" type="button" disabled title="Authentication is not available in this preview">Logout</button>
+          {% endif %}
+        </div>
+      {% else %}<span>Student data management &amp; verification</span>{% endif %}
+    </header>
+    <main class="content" id="main-content" tabindex="-1">{% block content %}{% endblock %}</main>
+    <footer class="footer">Prototype — synthetic data only. Not connected to AICTE, APAAR, UIDAI or DigiLocker.</footer>
+  </div>
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="false" aria-relevant="additions text">
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+      {% set kind = {'success': 'ok', 'error': 'danger', 'warning': 'warn', 'message': 'info'}.get(category, category) %}
+      <div class="toast toast-{{ kind if kind in ['ok', 'warn', 'danger', 'info'] else 'info' }}" role="status">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {# Pages opt into local vendor scripts here; the base never downloads them. #}
+  {% block scripts %}{% endblock %}
+</body>
+</html>

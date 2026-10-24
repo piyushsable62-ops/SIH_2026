@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 
 def register_all(app):
     """Register all application blueprints."""
+    from routes.ui_kit import ui_kit_bp
+    app.register_blueprint(ui_kit_bp)
     # Health check route (Member A bootstrap)
     try:
         from routes.health import health_bp
