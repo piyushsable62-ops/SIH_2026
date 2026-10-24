@@ -8,6 +8,21 @@ from models.base import generate_uuid, TimestampMixin
 from models.enums import RiskSeverity, CaseStatus, CaseActionType
 
 
+import time
+
+_last_risk_timestamp = 0.0
+
+
+def _monotonic_utcnow():
+    """Ensure strictly monotonic UTC timestamps even in sub-millisecond test loops."""
+    global _last_risk_timestamp
+    now = time.time()
+    if now <= _last_risk_timestamp:
+        now = _last_risk_timestamp + 0.001
+    _last_risk_timestamp = now
+    return datetime.utcfromtimestamp(now)
+
+
 class RiskCase(db.Model):
     """Investigation case created by the explainable risk engine."""
     __tablename__ = "risk_cases"
@@ -21,7 +36,7 @@ class RiskCase(db.Model):
     assigned_to = db.Column(db.String(80), nullable=True, index=True)
     recommended_action = db.Column(db.String(255), nullable=True)
     summary = db.Column(db.Text, nullable=True)
-    opened_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    opened_at = db.Column(db.DateTime, default=_monotonic_utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # Relationships
@@ -80,18 +95,7 @@ class RiskEvidence(db.Model):
         return f"<RiskEvidence {self.rule_key} +{self.points}>"
 
 
-_last_case_action_timestamp = 0.0
 
-
-def _monotonic_utcnow():
-    """Ensure strictly monotonic UTC timestamps even in sub-millisecond test loops."""
-    global _last_case_action_timestamp
-    import time
-    now = time.time()
-    if now <= _last_case_action_timestamp:
-        now = _last_case_action_timestamp + 0.001
-    _last_case_action_timestamp = now
-    return datetime.utcfromtimestamp(now)
 
 
 class CaseAction(db.Model):

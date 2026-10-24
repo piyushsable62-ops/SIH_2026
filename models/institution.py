@@ -81,6 +81,8 @@ class IntakeCapacity(TimestampMixin, db.Model):
     academic_year = db.Column(db.String(20), nullable=False, index=True)  # e.g. "2026-27"
     approved_regular_intake = db.Column(db.Integer, nullable=False, default=120)
     supernumerary_capacity = db.Column(db.Integer, nullable=False, default=10)
+    admitted_regular = db.Column(db.Integer, nullable=False, default=0)
+    admitted_supernumerary = db.Column(db.Integer, nullable=False, default=0)
     category_rules = db.Column(db.JSON, nullable=True)  # JSON mapping of category eligibility
 
     def to_dict(self) -> dict:
@@ -91,9 +93,11 @@ class IntakeCapacity(TimestampMixin, db.Model):
             "academic_year": self.academic_year,
             "approved_regular_intake": self.approved_regular_intake,
             "supernumerary_capacity": self.supernumerary_capacity,
+            "admitted_regular": self.admitted_regular,
+            "admitted_supernumerary": self.admitted_supernumerary,
             "category_rules": self.category_rules,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
     def __repr__(self) -> str:
-        return f"<IntakeCapacity {self.academic_year} Reg:{self.approved_regular_intake} Sup:{self.supernumerary_capacity}>"
+        return f"<IntakeCapacity {self.academic_year} Reg:{self.admitted_regular}/{self.approved_regular_intake} Sup:{self.admitted_supernumerary}/{self.supernumerary_capacity}>"

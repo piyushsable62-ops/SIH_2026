@@ -296,6 +296,87 @@ Exports filtered student records as a CSV download.
 - `GET /students/<id>`: Student detail profile card, validation notes, linked risk cases, change history audit trail, and "Edit Student" dialog.
 
 
+## CSV Ingestion Pipeline & Upload Wizard (Task A8)
+
+### `GET /api/students/import/template`
+Downloads the documented canonical CSV template.
+- **Headers:** Canonical header order with 2 sample demonstration rows.
+- **Content-Disposition:** `attachment; filename=students_template.csv`.
+
+### `POST /api/students/import`
+Handles multipart CSV uploads for pre-commit validation preview or transactional commitment.
+- **Access:** `AICTE_ADMIN`, `INSTITUTION_ADMIN` (scoped strictly to own institution; cross-institution requests return 403).
+- **Parameters (multipart/form-data or JSON):**
+  - `mode` (`preview` or `commit`, default `preview`)
+  - `file` (multipart file; required for preview)
+  - `submission_id` (UUID; required for commit)
+  - `update_existing` (boolean; default `false`. When true, updates existing records if data differs and logs history)
+  - `institution_id` (UUID; required for AICTE_ADMIN, ignored/scoped for INSTITUTION_ADMIN).
+- **Preview Response (200):**
+  ```json
+  {
+    "ok": true,
+    "data": {
+      "already_imported": false,
+      "submission_id": "sub-uuid",
+      "reference": "SUB-20261024-A1B2C3",
+      "summary": {
+        "total_rows": 100,
+        "valid_rows": 95,
+        "error_rows": 5,
+        "warning_rows": 2,
+        "unchanged_rows": 0,
+        "update_candidate_rows": 0
+      },
+      "preview_rows": [
+        {
+          "row_number": 2,
+          "status": "VALID",
+          "raw_row": { "institution_student_id": "V-001", "apaar_ref": "980000000001" },
+          "errors": [],
+          "warnings": []
+        }
+      ]
+    }
+  }
+  ```
+- **Commit Response (200):**
+  ```json
+  {
+    "ok": true,
+    "data": {
+      "submission_id": "sub-uuid",
+      "reference": "SUB-20261024-A1B2C3",
+      "status": "COMMITTED",
+      "inserted_count": 95,
+      "updated_count": 0,
+      "error_count": 0,
+      "total_rows": 95
+    }
+  }
+  ```
+- **Idempotency & Duplicate Submission Signal:**
+  - If a file with an identical SHA-256 hash was previously committed, it returns `already_imported: true` without duplicating rows and logs a `DUPLICATE_SUBMISSION` audit signal for risk engine monitoring.
+
+### `GET /api/students/import/history`
+Lists historical CSV data submissions scoped to the active institution.
+- **Access:** `AICTE_ADMIN`, `INSTITUTION_ADMIN` (scoped), `AUDITOR`.
+- **Query Parameters:** `page`, `per_page`, `institution_id` (AICTE only).
+
+### `GET /api/students/import/<id>`
+Retrieves metadata and summary counts for a specific data submission.
+- **Access:** Scoped to the institution that submitted the file.
+
+### `GET /api/students/import/<submission_id>/errors.csv`
+Downloads an error report CSV containing row numbers, error codes, error messages, and raw values.
+- **Sanitization:** Formula injection characters (`=`, `+`, `-`, `@`) in export cells are neutralized with a single quote prefix.
+- **Content-Disposition:** `attachment; filename=error_report_SUB-YYYYMMDD-XXXXXX_YYYYMMDD.csv`.
+
+### HTML Routes
+- `GET /upload`: 3-step interactive CSV ingestion wizard (File selection, Preview & validation, Commit results) and recent submission history table.
+
+
+
 
 
 ## Member B: Development UI preview (B0)
