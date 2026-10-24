@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Institution Metrics Preview — {{ app_name }}{% endblock %}
+{% block page_title %}Institution Dashboard API Preview{% endblock %}
+
+{% block content %}
+<div class="stack">
+  <div class="page-heading">
+    <h1>Institution Dashboard Metrics Preview</h1>
+    <p class="helper">
+      Developer / Evaluator temporary inspector for the <code>GET /api/dashboard/institution</code> contract.
+      Shows real-time computed capacity, validation errors, submissions, risk cases, and credentials.
+    </p>
+  </div>
+
+  <div class="card">
+    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
+      <button type="button" id="btn-fetch-metrics" class="btn">Refresh Metrics</button>
+      <span id="fetch-status" class="muted" style="font-size: 0.85rem;"></span>
+    </div>
+
+    <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px;">
+      <pre id="metrics-json" style="font-family: monospace; font-size: 0.85rem; margin: 0; white-space: pre-wrap; word-break: break-all;">Loading metrics...</pre>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const output = document.getElementById("metrics-json");
+  const btn = document.getElementById("btn-fetch-metrics");
+  const statusEl = document.getElementById("fetch-status");
+
+  async function loadData() {
+    statusEl.textContent = "Fetching from /api/dashboard/institution...";
+    try {
+      const res = await window.Nexus.api("/api/dashboard/institution");
+      output.textContent = JSON.stringify(res.data, null, 2);
+      statusEl.textContent = "Updated at " + new Date().toLocaleTimeString();
+    } catch (err) {
+      output.textContent = "Error: " + err.message;
+      statusEl.textContent = "Fetch failed";
+    }
+  }
+
+  btn.addEventListener("click", loadData);
+  loadData();
+});
+</script>
+{% endblock %}

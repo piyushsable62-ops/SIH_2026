@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Enrolment & Compliance Reports — {{ app_name }}{% endblock %}
+{% block page_title %}Official Regulatory &amp; Enrolment Reports{% endblock %}
+
+{% block content %}
+<div class="stack" id="reports-container">
+  <div class="page-heading">
+    <h1>Enrolment &amp; Compliance Reports</h1>
+    <p class="helper">
+      Scope-aware regulatory compliance monitoring, dynamic seat utilization, and AICTE statutory intake auditing.
+      Export certified synthetic data reports for external verification.
+    </p>
+  </div>
+
+  <!-- Filters & Export Toolbar -->
+  <div class="card" style="padding: 16px;">
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px;">
+      <form id="report-filter-form" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; flex: 1;">
+        <div class="form-row" style="min-width: 140px;">
+          <label for="filter-year">Academic Session</label>
+          <select id="filter-year" name="academic_year" class="input">
+            {% for yr in academic_years %}
+            <option value="{{ yr }}" {% if yr == "2026-27" %}selected{% endif %}>{{ yr }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {% if is_global %}
+        <div class="form-row" style="min-width: 220px;">
+          <label for="filter-institution">Institution Scope</label>
+          <select id="filter-institution" name="institution_id" class="input">
+            <option value="">All Participating Institutions</option>
+            {% for inst in institutions %}
+            <option value="{{ inst.id }}">{{ inst.code }} — {{ inst.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" id="filter-institution" name="institution_id" value="{{ user_institution_id }}">
+        {% endif %}
+
+        <div class="actions" style="margin-bottom: 2px;">
+          <button type="submit" class="btn btn-secondary" id="btn-refresh-report">Apply</button>
+        </div>
+      </form>
+
+      <div class="actions" style="margin-bottom: 2px;">
+        <a id="btn-download-csv" href="/api/reports/enrolment.csv?academic_year=2026-27" class="btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+          Download Enrolment CSV (SYNTHETIC)
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grand Total Summary Cards -->
+  <div class="grid grid-4" id="report-stat-cards">
+    <div class="card stat">
+      <div class="stat-number" id="stat-total-approved">—</div>
+      <div class="stat-label">Approved Regular Intake</div>
+      <div class="stat-trend">Sanctioned seats</div>
+    </div>
+    <div class="card stat">
+      <div class="stat-number" id="stat-total-admitted">—</div>
+      <div class="stat-label">Regular Admissions</div>
+      <div class="stat-trend">Active &amp; Graduated</div>
+    </div>
+    <div class="card stat">
+      <div class="stat-number" id="stat-total-remaining">—</div>
+      <div class="stat-label">Remaining Regular Seats</div>
+      <div class="stat-trend">Available capacity</div>
+    </div>
+    <div class="card stat">
+      <div class="stat-number" id="stat-utilisation-pct">—</div>
+      <div class="stat-label">Regular Utilisation</div>
+      <div class="stat-trend" id="stat-supernumerary-admitted">— supernumerary</div>
+    </div>
+  </div>
+
+  <!-- Detailed Table -->
+  <div class="card" style="padding: 0;">
+    <div class="card-header" style="padding: 16px 20px; border-bottom: 1px solid var(--border);">
+      <div>
+        <h2>Programme-Level Enrolment Ledger</h2>
+        <p class="helper">Institutional capacity utilization and social reservation category breakdown</p>
+      </div>
+      <span class="badge badge-info" id="report-record-count">0 programmes</span>
+    </div>
+
+    <div class="table-wrapper" style="overflow-x: auto;">
+      <table class="table" style="width: 100%; border-collapse: collapse; margin: 0;">
+        <thead>
+          <tr style="border-bottom: 1px solid var(--border); background: var(--bg);">
+            <th style="padding: 10px 14px; text-align: left; font-size: 0.85rem;">Institution</th>
+            <th style="padding: 10px 14px; text-align: left; font-size: 0.85rem;">Programme</th>
+            <th style="padding: 10px 14px; text-align: center; font-size: 0.85rem;">Intake</th>
+            <th style="padding: 10px 14px; text-align: center; font-size: 0.85rem;">Admitted</th>
+            <th style="padding: 10px 14px; text-align: center; font-size: 0.85rem;">Remaining</th>
+            <th style="padding: 10px 14px; text-align: center; font-size: 0.85rem;">Util %</th>
+            <th style="padding: 10px 14px; text-align: center; font-size: 0.85rem;">Supernumerary</th>
+            <th style="padding: 10px 14px; text-align: left; font-size: 0.85rem;">Categories (OPEN / OBC / SC / ST / EWS)</th>
+          </tr>
+        </thead>
+        <tbody id="enrolment-table-body">
+          <tr>
+            <td colspan="8" class="empty-state" style="padding: 24px; text-align: center;">Loading enrolment report...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const tableBody = document.getElementById("enrolment-table-body");
+  const form = document.getElementById("report-filter-form");
+  const yearSelect = document.getElementById("filter-year");
+  const instSelect = document.getElementById("filter-institution");
+  const downloadBtn = document.getElementById("btn-download-csv");
+  const countBadge = document.getElementById("report-record-count");
+
+  const statApproved = document.getElementById("stat-total-approved");
+  const statAdmitted = document.getElementById("stat-total-admitted");
+  const statRemaining = document.getElementById("stat-total-remaining");
+  const statUtil = document.getElementById("stat-utilisation-pct");
+  const statSuper = document.getElementById("stat-supernumerary-admitted");
+
+  function updateDownloadUrl() {
+    const yr = yearSelect ? yearSelect.value : "2026-27";
+    const inst = instSelect ? instSelect.value : "";
+    let url = `/api/reports/enrolment.csv?academic_year=${encodeURIComponent(yr)}`;
+    if (inst) {
+      url += `&institution_id=${encodeURIComponent(inst)}`;
+    }
+    if (downloadBtn) {
+      downloadBtn.href = url;
+    }
+  }
+
+  async function loadReport() {
+    updateDownloadUrl();
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="8" class="empty-state" style="padding: 24px; text-align: center;">Loading enrolment report...</td>
+      </tr>
+    `;
+
+    const yr = yearSelect ? yearSelect.value : "2026-27";
+    const inst = instSelect ? instSelect.value : "";
+    const params = { academic_year: yr };
+    if (inst) params.institution_id = inst;
+
+    try {
+      const res = await window.Nexus.api("/api/reports/enrolment", { params });
+      const data = res.data || {};
+      const rows = data.rows || [];
+      const totals = data.summary_totals || {};
+
+      // Update stat cards
+      if (statApproved) statApproved.textContent = window.Nexus.fmtNumber(totals.approved_regular || 0);
+      if (statAdmitted) statAdmitted.textContent = window.Nexus.fmtNumber(totals.regular_admitted || 0);
+      if (statRemaining) statRemaining.textContent = window.Nexus.fmtNumber(totals.regular_remaining || 0);
+      if (statUtil) statUtil.textContent = (totals.regular_utilisation_pct ?? 0) + "%";
+      if (statSuper) statSuper.textContent = `${totals.supernumerary_admitted || 0} / ${totals.supernumerary_capacity || 0} supernumerary`;
+
+      if (countBadge) countBadge.textContent = `${rows.length} programmes`;
+
+      if (rows.length === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="8" class="empty-state" style="padding: 24px; text-align: center;">
+              No enrolment capacity records found for selected criteria.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tableBody.innerHTML = rows.map(r => {
+        const cat = r.category_counts || {};
+        const catSummary = `OPEN:${cat.OPEN || 0} OBC:${cat.OBC || 0} SC:${cat.SC || 0} ST:${cat.ST || 0} EWS:${cat.EWS || 0}`;
+        const utilBadgeKind = r.warning_level === 100 ? "danger" : (r.warning_level ? "warn" : "ok");
+
+        return `
+          <tr style="border-bottom: 1px solid var(--border);">
+            <td style="padding: 10px 14px; font-size: 0.85rem;">
+              <strong>${window.Nexus.escapeHTML(r.institution_code)}</strong>
+              <div class="muted" style="font-size: 0.75rem;">${window.Nexus.escapeHTML(r.institution_name)}</div>
+            </td>
+            <td style="padding: 10px 14px; font-size: 0.85rem;">
+              <strong>${window.Nexus.escapeHTML(r.programme_name)}</strong>
+              <div class="muted" style="font-size: 0.75rem;">${window.Nexus.escapeHTML(r.programme_code)} &bull; ${window.Nexus.escapeHTML(r.programme_level)}</div>
+            </td>
+            <td style="padding: 10px 14px; font-size: 0.85rem; text-align: center; font-weight: 600;">
+              ${r.approved_regular_intake}
+            </td>
+            <td style="padding: 10px 14px; font-size: 0.85rem; text-align: center; color: var(--navy);">
+              ${r.regular_admitted}
+            </td>
+            <td style="padding: 10px 14px; font-size: 0.85rem; text-align: center; color: ${r.regular_remaining === 0 ? 'var(--danger)' : 'inherit'}; font-weight: 600;">
+              ${r.regular_remaining}
+            </td>
+            <td style="padding: 10px 14px; font-size: 0.85rem; text-align: center;">
+              <span class="badge badge-${utilBadgeKind}">${r.regular_utilisation_pct}%</span>
+            </td>
+            <td style="padding: 10px 14px; font-size: 0.85rem; text-align: center;">
+              ${r.supernumerary_admitted} / ${r.supernumerary_capacity}
+            </td>
+            <td style="padding: 10px 14px; font-size: 0.8rem; font-family: monospace;">
+              ${catSummary}
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+    } catch (err) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="8" class="empty-state" style="padding: 24px; text-align: center; color: var(--danger);">
+            Failed loading enrolment report: ${window.Nexus.escapeHTML(err.message)}
+          </td>
+        </tr>
+      `;
+      window.Nexus.toast(err.message || "Failed to load report.", "danger");
+    }
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    loadReport();
+  });
+
+  if (yearSelect) yearSelect.addEventListener("change", loadReport);
+  if (instSelect) instSelect.addEventListener("change", loadReport);
+
+  // Initial load
+  loadReport();
+});
+</script>
+{% endblock %}

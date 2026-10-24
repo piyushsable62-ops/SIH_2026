@@ -91,6 +91,25 @@
     </div>
     {% endfor %}
   </div>
+
+  <div class="card" style="margin-top: 24px; border-left: 4px solid var(--danger);">
+    <div class="card-header">
+      <div>
+        <h2>Demo Environment Reset</h2>
+        <p class="helper">
+          Reset the synthetic database back to initial seed data (VESIT, COEP, VJTI and demo users).
+          This action clears student records, admissions, and resets capacity ledgers to baseline.
+          Protected by environment guards and confirmation dialog.
+        </p>
+      </div>
+      <span class="badge badge-danger">Danger Zone</span>
+    </div>
+    <div style="margin-top: 16px;">
+      <button type="button" id="btn-demo-reset" class="btn btn-danger">
+        Reset Demo Database
+      </button>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -154,6 +173,34 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   });
+
+  const resetBtn = document.getElementById("btn-demo-reset");
+  if (resetBtn) {
+    resetBtn.addEventListener("click", async () => {
+      const confirmed = await window.Nexus.confirmDialog({
+        title: "Reset Demo Database?",
+        message: "Are you sure you want to reset all synthetic data? All student records, admissions, and ledger counts will be restored to their baseline seed state.",
+        confirmText: "Reset Demo Data",
+        danger: true
+      });
+      if (!confirmed) return;
+
+      resetBtn.disabled = true;
+      resetBtn.textContent = "Resetting Database...";
+      try {
+        await window.Nexus.api("/api/admin/demo-reset", {
+          method: "POST",
+          body: { confirmation: "RESET" }
+        });
+        window.Nexus.toast("Demo database successfully reset to seed baseline.", "ok");
+        setTimeout(() => window.location.reload(), 1500);
+      } catch (err) {
+        resetBtn.disabled = false;
+        resetBtn.textContent = "Reset Demo Database";
+        window.Nexus.toast(err.message || "Failed to reset demo database.", "danger");
+      }
+    });
+  }
 });
 </script>
 {% endblock %}

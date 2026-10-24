@@ -2,9 +2,10 @@
 Institutions, Programmes, Intake Capacities, and Policies routes for APAAR Nexus.
 Task A5 implementation: management APIs and UI views.
 """
+import os
 import re
 from typing import Optional, Dict, Any, List
-from flask import Blueprint, request, jsonify, render_template, abort
+from flask import Blueprint, request, jsonify, render_template, abort, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 
@@ -663,3 +664,71 @@ def update_policy(key: str):
         "ok": True,
         "data": policy.to_dict()
     }), 200
+
+
+# ---------------------------------------------------------------------------
+# Demo Maintenance API (AICTE Admin Only)
+# ---------------------------------------------------------------------------
+
+@institutions_bp.route("/api/admin/demo-reset", methods=["POST"])
+@login_required
+@roles_required(Role.AICTE_ADMIN.value)
+def demo_reset():
+    """
+    Reset database tables and re-run synthetic baseline demo seed (AICTE Admin only).
+    Safeguarded: disabled in production unless ALLOW_DEMO_RESET=true.
+    Requires confirmation token in body: {"confirmation": "RESET"} or {"confirm": True}.
+    Audit-logged.
+    """
+    flask_env = os.getenv("FLASK_ENV", "development").lower()
+    app_env = current_app.config.get("ENV", "development").lower()
+    allow_reset = (
+        os.getenv("ALLOW_DEMO_RESET", "true" if flask_env != "production" else "false").lower() in ("true", "1", "yes")
+        or current_app.config.get("ALLOW_DEMO_RESET", False)
+    )
+
+    if (flask_env == "production" or app_env == "production") and not allow_reset:
+        return make_error(
+            "FORBIDDEN",
+            "Demo reset is disabled in production environments unless ALLOW_DEMO_RESET=true.",
+            403
+        )
+
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("confirmation") or payload.get("token") or ("RESET" if payload.get("confirm") is True else None)
+    if not token or str(token).strip().upper() != "RESET":
+        return make_error(
+            "VALIDATION_ERROR",
+            "Confirmation token 'RESET' is required in payload to authorize demo reset.",
+            422,
+            details={"required_token": "RESET"}
+        )
+
+    try:
+        from seed import run_seeding
+        # Run seeding using current application instance
+        run_seeding(reset=True, app=current_app._get_current_object())
+
+        audit_log(
+            actor=current_user.username,
+            action="DEMO_RESET",
+            entity_type="SYSTEM",
+            entity_id="DATABASE",
+            details={
+                "environment": flask_env,
+                "triggered_by": current_user.username
+            },
+            institution_id=None
+        )
+
+        return jsonify({
+            "ok": True,
+            "data": {
+                "message": "Demo database successfully reset and seeded with baseline synthetic data."
+            }
+        }), 200
+
+    except Exception as exc:
+        current_app.logger.error("Failed executing demo reset: %s", exc)
+        return make_error("SERVER_ERROR", f"Failed to reset demo database: {str(exc)}", 500)
+
