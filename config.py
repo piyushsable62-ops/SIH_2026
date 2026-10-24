@@ -53,13 +53,15 @@ class Config:
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = None
 
-    # Demo reset toggle
+    # Demo reset toggle and login hints
     ALLOW_DEMO_RESET = os.getenv("ALLOW_DEMO_RESET", "true").lower() in ("true", "1", "yes")
+    SHOW_DEMO_ACCOUNTS = os.getenv("SHOW_DEMO_ACCOUNTS", "true").lower() in ("true", "1", "yes")
 
     # App metadata
     APP_NAME = "APAAR Nexus"
     APP_VERSION = "1.0.0-prototype"
     SYNTHETIC_NOTICE = "Prototype — synthetic data only. Not connected to AICTE, APAAR, UIDAI or DigiLocker."
+
 
     @classmethod
     def init_app(cls, app):
@@ -85,6 +87,7 @@ class ProductionConfig(Config):
     """Production configuration with strict security checks."""
     DEBUG = False
     SESSION_COOKIE_SECURE = True
+    SHOW_DEMO_ACCOUNTS = False
 
     @classmethod
     def init_app(cls, app):

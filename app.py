@@ -46,8 +46,9 @@ def create_app(config_name: str = None) -> Flask:
     csrf.init_app(app)
 
     # Configure login manager
-    login_manager.login_view = "auth.login"
+    login_manager.login_view = "auth.login_page"
     login_manager.login_message_category = "info"
+    login_manager.session_protection = "strong"
 
     # Register blueprints
     routes.register_all(app)
@@ -62,6 +63,9 @@ def create_app(config_name: str = None) -> Flask:
                 "SYNTHETIC_NOTICE",
                 "Prototype — synthetic data only. Not connected to AICTE, APAAR, UIDAI or DigiLocker."
             ),
+            "show_demo_accounts": app.config.get("SHOW_DEMO_ACCOUNTS", True),
+            "ui_paths": {rule.rule for rule in app.url_map.iter_rules() if "GET" in rule.methods},
+            "ui_endpoints": set(app.view_functions),
         }
 
     # Error code to envelope mapping
@@ -74,6 +78,17 @@ def create_app(config_name: str = None) -> Flask:
                 "details": details or {}
             }
         }), status_code
+
+    @login_manager.unauthorized_handler
+    def handle_unauthorized_access():
+        """Return 401 JSON envelope for API/JSON calls, redirect to login for browser."""
+        if request.path.startswith("/api/") or (
+            request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html
+        ):
+            return make_error_envelope("UNAUTHENTICATED", "Authentication required", 401)
+        from flask import redirect, url_for
+        return redirect(url_for("auth.login_page", next=request.url))
+
 
     @app.errorhandler(400)
     def handle_bad_request(err):
