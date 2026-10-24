@@ -122,6 +122,12 @@ a.nav-link:hover { background: var(--navy-dark); }
 .toast-ok { border-left-color: var(--ok); }
 .toast-warn { border-left-color: var(--warn); }
 .toast-danger { border-left-color: var(--danger); }
+.toast { transition: opacity 140ms ease; }
+.toast.is-leaving { opacity: 0; pointer-events: none; }
+.toast-container { max-height: calc(100vh - 116px); overflow-y: auto; }
+.align-left { text-align: left; }
+.align-center { text-align: center; }
+.align-right { text-align: right; }
 .toast-close { background: transparent; color: var(--navy); padding: 2px 4px; border: 0; text-decoration: underline; }
 dialog { width: min(480px, calc(100vw - 48px)); padding: 24px; color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); }
 dialog::backdrop { background: rgba(14,36,68,.45); }
