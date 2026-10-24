@@ -136,5 +136,7 @@ def create_app(config_name: str = None) -> Flask:
 if __name__ == "__main__":
     # Development server only. For prototype demonstration and testing.
     # Production deployment requires a WSGI server (e.g. Waitress / Gunicorn).
+    from models import init_db
     application = create_app()
+    init_db(application)
     application.run(host="127.0.0.1", port=5000, debug=True)
