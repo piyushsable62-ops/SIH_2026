@@ -293,13 +293,14 @@
     const card = get("dash-attention-card");
     if (!card) return;
 
+    const rc = riskCases || { total: 0, CRITICAL: 0, HIGH: 0 };
     const alerts = [];
 
-    if (riskCases.total > 0) {
+    if (rc.total > 0) {
       alerts.push({
-        type: riskCases.CRITICAL > 0 ? "danger" : "warning",
-        title: `${riskCases.total} risk anomaly ${riskCases.total === 1 ? "case" : "cases"} require review`,
-        subtext: `${riskCases.CRITICAL || 0} critical, ${riskCases.HIGH || 0} high priority`,
+        type: rc.CRITICAL > 0 ? "danger" : "warning",
+        title: `${rc.total} risk anomaly ${rc.total === 1 ? "case" : "cases"} require review`,
+        subtext: `${rc.CRITICAL || 0} critical, ${rc.HIGH || 0} high priority`,
         href: "/risk-cases",
         actionText: "Review cases →"
       });
@@ -374,6 +375,7 @@
     const container = get("governance-stats");
     if (!container) return;
 
+    const rc = riskCases || { total: 0, CRITICAL: 0, HIGH: 0 };
     const cards = [
       {
         label: "Approved intake",
@@ -442,13 +444,13 @@
       },
       {
         label: "Risk cases",
-        value: riskCases.total,
+        value: rc.total || 0,
         icon: "🚨",
-        accent: riskCases.total > 0 ? "warn" : "ok",
+        accent: (rc.total || 0) > 0 ? "warn" : "ok",
         tooltip: "Open identity and capacity risk cases awaiting human review",
-        isCalm: riskCases.total === 0,
+        isCalm: (rc.total || 0) === 0,
         calmText: "Zero cases",
-        context: riskCases.total > 0 ? `${riskCases.CRITICAL || 0} critical, ${riskCases.HIGH || 0} high` : "No open cases"
+        context: (rc.total || 0) > 0 ? `${rc.CRITICAL || 0} critical, ${rc.HIGH || 0} high` : "No open cases"
       },
       {
         label: "Credentials issued",
@@ -541,8 +543,9 @@
 
   /** 5. CHARTS: Category, Donut, Programmes, Risk */
   function renderCharts(data, seatsData) {
-    const s = data.seat_summary;
-    const pending = data.pending_identity_checks;
+    const s = data.seat_summary || {};
+    const pending = data.pending_identity_checks || { pending: 0, flagged: 0, total: 0 };
+    const rc = data.risk_cases_by_severity || { LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0, total: 0 };
     const categories = Object.values(s.category_capacity || {});
 
     // a. Category-wise Capacity Chart
