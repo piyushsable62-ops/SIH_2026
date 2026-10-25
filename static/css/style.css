@@ -1205,3 +1205,72 @@ dialog .actions { justify-content: flex-end; }
   }
 }
 
+/* National Governance KPI Card Enhancements */
+.dash-kpi-card {
+  padding: 16px 18px;
+  border-radius: var(--radius);
+  border-top-width: 3px;
+  border-top-style: solid;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.dash-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.dash-kpi-card.kpi-navy { border-top-color: #14315c; }
+.dash-kpi-card.kpi-navy .stat-number { color: #14315c; }
+
+.dash-kpi-card.kpi-blue { border-top-color: #2563eb; }
+.dash-kpi-card.kpi-blue .stat-number { color: #2563eb; }
+
+.dash-kpi-card.kpi-green { border-top-color: #10b981; }
+.dash-kpi-card.kpi-green .stat-number { color: #10b981; }
+
+.dash-kpi-card.kpi-amber { border-top-color: #f59e0b; }
+.dash-kpi-card.kpi-amber .stat-number { color: #f59e0b; }
+
+.dash-kpi-card.kpi-purple { border-top-color: #6366f1; }
+.dash-kpi-card.kpi-purple .stat-number { color: #6366f1; }
+
+.dash-kpi-card.kpi-red { border-top-color: #ef4444; }
+.dash-kpi-card.kpi-red .stat-number { color: #ef4444; }
+
+.dash-kpi-card.kpi-crimson { border-top-color: #dc2626; }
+.dash-kpi-card.kpi-crimson .stat-number { color: #dc2626; }
+
+.dash-kpi-card.kpi-sky { border-top-color: #0284c7; }
+.dash-kpi-card.kpi-sky .stat-number { color: #0284c7; }
+
+.dash-kpi-card.kpi-orange { border-top-color: #ea580c; }
+.dash-kpi-card.kpi-orange .stat-number { color: #ea580c; }
+
+.dash-kpi-card.kpi-darkred { border-top-color: #b91c1c; }
+.dash-kpi-card.kpi-darkred .stat-number { color: #b91c1c; }
+
+.dash-kpi-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.dash-kpi-top .stat-label {
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.dash-kpi-icon {
+  font-size: 1.15rem;
+}
+.dash-kpi-card .stat-number {
+  font-size: 1.65rem;
+  font-weight: 750;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.dash-kpi-card .stat-trend {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
