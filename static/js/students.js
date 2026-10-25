@@ -212,21 +212,23 @@
         const tr = document.createElement("tr");
 
         // Status badge variants
-        const valVariant = st.validation_status === "VALID" ? "ok" : (st.validation_status === "FLAGGED" ? "warn" : (st.validation_status === "INVALID" ? "danger" : "muted"));
+        const isFlagged = st.validation_status === "FLAGGED" || st.validation_status === "INVALID";
+        const valVariant = st.validation_status === "VALID" ? "ok" : (isFlagged ? "danger" : "muted");
         const enrolVariant = st.enrolment_status === "ACTIVE" ? "ok" : (st.enrolment_status === "GRADUATED" ? "info" : "warn");
+        const isSuper = st.classification === "SUPERNUMERARY";
 
         tr.innerHTML = `
-          <td><strong><a href="/students/${st.id}" style="color: var(--navy); text-decoration: underline;">${window.Nexus.escapeHTML(st.institution_student_id)}</a></strong></td>
+          <td><strong><a href="/students/${st.id}" style="color: ${isFlagged ? 'var(--danger)' : 'var(--navy)'}; text-decoration: underline;">${window.Nexus.escapeHTML(st.institution_student_id)}</a></strong></td>
           <td>${window.Nexus.escapeHTML(st.full_name)}</td>
           <td><code style="font-size: 12px; background: #edf2f7; padding: 2px 6px; border-radius: 4px;">${window.Nexus.escapeHTML(st.apaar_ref || '—')}</code></td>
           <td><span title="${window.Nexus.escapeHTML(st.institution_name)}">${window.Nexus.escapeHTML(st.institution_code || '—')}</span></td>
           <td><span title="${window.Nexus.escapeHTML(st.programme_name)}">${window.Nexus.escapeHTML(st.programme_code || '—')}</span></td>
           <td>${window.Nexus.escapeHTML(st.academic_year)}</td>
-          <td><span class="badge badge-muted">${window.Nexus.escapeHTML(st.admission_category)} (${window.Nexus.escapeHTML(st.classification === 'REGULAR' ? 'REG' : 'SUP')})</span></td>
+          <td><span class="badge ${isSuper ? 'badge-warn' : 'badge-info'}">${window.Nexus.escapeHTML(isSuper ? 'Supernumerary' : 'Open (Regular)')}</span></td>
           <td><span class="badge badge-${valVariant}">${window.Nexus.escapeHTML(st.validation_status)}</span></td>
           <td><span class="badge badge-${enrolVariant}">${window.Nexus.escapeHTML(st.enrolment_status)}</span></td>
           <td style="text-align: right;">
-            <a href="/students/${st.id}" class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px;">View</a>
+            <a href="/students/${st.id}" class="btn ${isFlagged ? 'btn-danger' : 'btn-secondary'}" style="padding: 4px 10px; font-size: 12px;">${isFlagged ? 'Inspect' : 'View'}</a>
           </td>
         `;
         tbody.appendChild(tr);

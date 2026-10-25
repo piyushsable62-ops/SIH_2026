@@ -11,7 +11,7 @@ from flask import flash, render_template_string
 from app import create_app
 
 ROOT = Path(__file__).resolve().parents[1]
-BANNER = "Prototype — synthetic data only. Not connected to AICTE, APAAR, UIDAI or DigiLocker."
+BANNER = "APAARSetu &mdash; AICTE Approved Technical Institution Academic Registry &amp; Verification Portal"
 
 
 @pytest.fixture

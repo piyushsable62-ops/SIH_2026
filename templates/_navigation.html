@@ -1,7 +1,11 @@
 {# All role menus live here. Unbuilt routes are text, not broken links. #}
 {% macro navigation(role, paths) -%}
+  {% set aicte_items = [('Dashboard', '/dashboard'), ('Institutions', '/institutions'), ('Students', '/students'), ('Seat Ledger', '/seat-ledger'), ('Identity Graph', '/identity-graph'), ('Risk Cases', '/risk-cases'), ('Credentials', '/credentials'), ('Reports', '/reports'), ('Audit Logs', '/audit-logs')] %}
+  {% if is_ui_preview|default(false) %}
+    {% set aicte_items = aicte_items + [('Policies', '/policies')] %}
+  {% endif %}
   {% set menus = {
-    'AICTE_ADMIN': [('Dashboard', '/dashboard'), ('Institutions', '/institutions'), ('Students', '/students'), ('Seat Ledger', '/seat-ledger'), ('Identity Graph', '/identity-graph'), ('Risk Cases', '/risk-cases'), ('Credentials', '/credentials'), ('Reports', '/reports'), ('Audit Logs', '/audit-logs'), ('Policies', '/policies')],
+    'AICTE_ADMIN': aicte_items,
     'INSTITUTION_ADMIN': [('Dashboard', '/dashboard'), ('Students', '/students'), ('Upload CSV', '/upload'), ('Seat Ledger', '/seat-ledger'), ('Risk Cases (own)', '/risk-cases'), ('Issue Credential', '/credentials/issue'), ('Reports', '/reports')],
     'STUDENT': [('My Passport', '/passport'), ('Sharing', '/sharing')],
     'VERIFIER': [('Verify Credential', '/verify')],
@@ -17,8 +21,8 @@
         {% endif %}
       </li>
     {% endfor %}
-    {% if config.DEBUG and '/ui-kit' in paths %}
-      <li><a class="nav-link" href="{{ url_for('ui_kit.index') }}"{% if request.path == '/ui-kit' %} aria-current="page"{% endif %}>UI kit</a></li>
+    {% if is_ui_preview|default(false) %}
+      <li><a class="nav-link" href="/ui-kit"{% if request.path == '/ui-kit' %} aria-current="page"{% endif %}>UI kit</a></li>
     {% endif %}
   </ul>
 {%- endmacro %}
