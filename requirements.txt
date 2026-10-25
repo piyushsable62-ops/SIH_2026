@@ -10,3 +10,4 @@ qrcode[pil]==7.4.2
 pytest==8.2.2
 python-dotenv==1.0.1
 Werkzeug==3.0.3
+gunicorn==22.0.0; sys_platform != 'win32'
