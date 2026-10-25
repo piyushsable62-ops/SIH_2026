@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {% block csrf_meta %}<meta name="csrf-token" content="{{ csrf_token() }}">{% endblock %}
   <meta name="nexus-api-routes" content="{{ ui_paths|default([])|list|sort|tojson|forceescape }}">
-  <title>{% block title %}APAAR Nexus{% endblock %}</title>
+  <title>{% block title %}APAARSetu{% endblock %}</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   {% block head %}{% endblock %}

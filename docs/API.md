@@ -4,6 +4,103 @@ This document details the REST API endpoints for APAAR Nexus.
 All mutating requests require a valid CSRF token in the `X-CSRFToken` header.
 All API responses follow the standard response envelope documented in `AGENTS.md`.
 
+## Route index and reading guide
+
+This index is the current Flask route map. `A` means `AICTE_ADMIN`, `I` means
+`INSTITUTION_ADMIN` (own institution), `S` means `STUDENT` (own records), and
+`U` means `AUDITOR`. `Public` needs no login. Use `page` and `per_page` for
+paginated lists. Mutations require `X-CSRFToken`; login establishes a session.
+Errors use the envelope below: 401 unauthenticated, 403 outside role or scope,
+404 unknown in-scope resource, 409 conflict, 422 validation, and 429 rate limit.
+
+| Area | Method and path | Roles | Main input |
+|---|---|---|---|
+| Health | `GET /api/health` | Public | None |
+| Session | `POST /api/auth/login` | Public | JSON username, password |
+| Session | `POST /api/auth/logout` | Signed in | CSRF |
+| Session | `GET /api/auth/me` | Signed in | None |
+| Institutions | `GET /api/institutions` | A, I, U | q, state, status, page |
+| Institutions | `POST /api/institutions` | A | JSON institution fields |
+| Institutions | `GET /api/institutions/<id>` | A, I, U | ID |
+| Institutions | `PATCH /api/institutions/<id>` | A; I limited | JSON editable fields |
+| Programmes | `GET /api/institutions/<id>/programmes` | A, I, U | Institution ID |
+| Programmes | `POST /api/institutions/<id>/programmes` | A | JSON programme fields |
+| Programmes | `PATCH /api/institutions/<id>/programmes/<programme_id>` | A | JSON programme fields |
+| Capacity | `GET /api/institutions/<id>/capacities` | A, I, U | Institution ID |
+| Capacity | `POST /api/institutions/<id>/capacities` | A | JSON intake and year |
+| Capacity | `PATCH /api/institutions/<id>/capacities/<capacity_id>` | A | JSON intake fields |
+| Policies | `GET /api/policies` | A | None |
+| Policies | `PATCH /api/policies/<key>` | A | JSON policy value |
+| Students | `GET /api/students` | A, I, U | year, institution, category, status, q, page |
+| Students | `POST /api/students` | A, I | JSON student and admission fields |
+| Students | `GET /api/students/<id>` | A, I, U, S | ID; reveal if authorised |
+| Students | `PATCH /api/students/<id>` | A, I | JSON changes and reason |
+| Students | `GET /api/students/export` | A, I, U | List filters; CSV download |
+| Import | `GET /api/students/import/template` | Public | CSV template |
+| Import | `POST /api/students/import` | A, I | CSV file; preview or commit |
+| Import | `GET /api/students/import/history` | A, I, U | page, institution |
+| Import | `GET /api/students/import/<id>` | A, I, U | Submission ID |
+| Import | `GET /api/students/import/<submission_id>/errors.csv` | A, I, U | Submission ID |
+| Seat ledger | `GET /api/seats/summary` | A, I, U | year, institution, programme |
+| Seat ledger | `GET /api/seats/ledger` | A, I, U | year, institution, programme |
+| Admissions | `POST /api/admissions/precheck` | A, I | JSON candidate and category |
+| Admissions | `POST /api/admissions` | A, I | JSON admission candidate |
+| Admissions | `GET /api/admissions/events` | A, I, U | year, institution, programme |
+| Detect | `POST /api/identity/scan` | A, I | JSON year, institution |
+| Detect | `GET /api/identity/graph` | A, I, U | year, institution, case, severity, signals |
+| Detect | `GET /api/identity/node/<node_id>` | A, I, U | Node ID |
+| Risk | `GET /api/risk/summary` | A, I, U | Scope filters |
+| Risk | `GET /api/risk/cases` | A, I, U | severity, status, institution, q, page |
+| Risk | `GET /api/risk/cases/<case_id>` | A, I, U | Case ID |
+| Risk | `POST /api/risk/cases/<case_id>/actions` | A; I response only | JSON action, note |
+| Risk | `PATCH /api/risk/cases/<case_id>` | A | JSON assigned_to |
+| Risk | `GET /api/risk/reviewers` | A | None |
+| Credentials | `POST /api/credentials/issue` | A, I | JSON student_id, award_year, acknowledgement |
+| Credentials | `GET /api/credentials` | A, I, S, U | institution, status, student, year |
+| Credentials | `GET /api/credentials/eligible-students` | A, I | Search and page |
+| Credentials | `GET /api/credentials/<id_>` | A, I, S, U | Credential ID |
+| Credentials | `GET /api/credentials/<id_>/qr.png` | A, I, S, U | Credential ID; PNG |
+| Credentials | `POST /api/credentials/<id_>/revoke` | A, I | JSON reason |
+| Passport | `GET /api/passport/me` | S | None |
+| Public verify | `GET /verify/<reference>` | Public | Credential reference; HTML |
+| Public verify | `GET /verify/<reference>.json` | Public | Credential reference; JSON |
+| Sharing | `POST /api/sharing-sessions` | S | credential, claims, expiry, consent flags |
+| Sharing | `GET /api/sharing-sessions` | S, A, U | page; metadata only |
+| Sharing | `POST /api/sharing-sessions/<id_>/revoke` | S, A | Session ID |
+| Public sharing | `GET /public/verify/<token>` | Public | Opaque token; HTML or `format=json` |
+| Dashboard | `GET /api/dashboard/institution` | A, I | year, institution |
+| Dashboard | `GET /api/dashboard/governance` | A, U | year, institution, programme, category, validation, risk |
+| Reports | `GET /api/reports/enrolment` | A, I, U | year, institution, programme |
+| Reports | `GET /api/reports/enrolment.csv` | A, I, U | Same filters; CSV |
+| Reports | `GET /api/reports/anomalies` | A, I, U | Governance filters |
+| Reports | `GET /api/reports/anomalies.csv` | A, I, U | Same filters; CSV |
+| Audit | `GET /api/audit-logs` | A, I, U | actor, action, date, institution, page |
+| Demo reset | `POST /api/admin/demo-reset` | A, development only | JSON confirmation `RESET` |
+
+**Examples.** The URLs use synthetic IDs from the running database:
+
+```http
+GET /api/risk/cases?severity=CRITICAL&page=1&per_page=25
+Accept: application/json
+```
+
+```json
+{"ok":true,"data":[{"reference":"CASE-XXXXXX","score":100,"severity":"CRITICAL"}],"meta":{"page":1,"per_page":25,"total":1}}
+```
+
+```http
+POST /api/identity/scan
+Content-Type: application/json
+X-CSRFToken: <token from page meta tag>
+
+{"academic_year":"2026-27"}
+```
+
+Detailed payloads, filters, permission boundaries, and special error cases follow
+by area. CSV and PNG endpoints return files; the two public verification routes
+return their documented HTML or JSON variant. Run
+`python scripts/check_api_docs.py` after route changes.
+
 ## Response Envelopes
 
 ### Success
