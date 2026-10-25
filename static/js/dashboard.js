@@ -138,27 +138,27 @@
     const container = get("governance-stats");
     if (!container) return;
     const meta = {
-      "Institutions": { icon: "🏛️", color: "#14315c" },
-      "Student records": { icon: "🎓", color: "#2563eb" },
-      "Validated": { icon: "✅", color: "#10b981" },
-      "Pending validation": { icon: "⏳", color: "#f59e0b" },
-      "Active enrolments": { icon: "📚", color: "#6366f1" },
-      "Identity conflicts": { icon: "⚠️", color: "#ef4444" },
-      "Missing / invalid APAAR": { icon: "🔍", color: "#dc2626" },
-      "Capacity ≥ 80%": { icon: "📊", color: "#0284c7" },
-      "Capacity ≥ 90%": { icon: "⚠️", color: "#ea580c" },
-      "Capacity ≥ 100%": { icon: "🚨", color: "#b91c1c" },
-      "Excess attempts": { icon: "🛑", color: "#991b1b" }
+      "Institutions": { icon: "🏛️", cls: "kpi-navy" },
+      "Student records": { icon: "🎓", cls: "kpi-blue" },
+      "Validated": { icon: "✅", cls: "kpi-green" },
+      "Pending validation": { icon: "⏳", cls: "kpi-amber" },
+      "Active enrolments": { icon: "📚", cls: "kpi-purple" },
+      "Identity conflicts": { icon: "⚠️", cls: "kpi-red" },
+      "Missing / invalid APAAR": { icon: "🔍", cls: "kpi-crimson" },
+      "Capacity ≥ 80%": { icon: "📊", cls: "kpi-sky" },
+      "Capacity ≥ 90%": { icon: "⚠️", cls: "kpi-orange" },
+      "Capacity ≥ 100%": { icon: "🚨", cls: "kpi-darkred" },
+      "Excess attempts": { icon: "🛑", cls: "kpi-red" }
     };
     container.replaceChildren(...entries.map(([label, value, hint], idx) => {
-      const m = meta[label] || { icon: "📈", color: "#14315c" };
-      return N.el("div", { class: "card stat dash-kpi-card", style: `border-top: 3px solid ${m.color};` },
-        N.el("div", { style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;" },
-          N.el("span", { class: "stat-label", style: "font-weight: 600; font-size: 0.82rem;" }, label),
-          N.el("span", { style: "font-size: 1.1rem;", "aria-hidden": "true" }, m.icon)
+      const m = meta[label] || { icon: "📈", cls: "kpi-navy" };
+      return N.el("div", { class: `card stat dash-kpi-card ${m.cls}` },
+        N.el("div", { class: "dash-kpi-top" },
+          N.el("span", { class: "stat-label" }, label),
+          N.el("span", { class: "dash-kpi-icon", "aria-hidden": "true" }, m.icon)
         ),
-        N.el("div", { class: "stat-number", id: `nat-stat-${idx}`, style: `color: ${m.color}; font-size: 1.6rem; font-weight: 750;` }, N.fmtNumber(value)),
-        N.el("div", { class: "stat-trend", style: "font-size: 0.75rem; margin-top: 4px;" }, hint || "System verified")
+        N.el("div", { class: "stat-number", id: `nat-stat-${idx}` }, N.fmtNumber(value)),
+        N.el("div", { class: "stat-trend" }, hint || "System verified")
       );
     }));
   }
