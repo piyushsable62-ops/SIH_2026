@@ -194,43 +194,21 @@ def get_institution_dashboard():
 
     warning_level = calculate_warning_level(regular_utilisation_pct)
 
-    # Category-wise capacity and admitted breakdown
-    standard_categories = ["OPEN", "OBC", "SC", "ST", "EWS", "NRI", "OCI", "FN"]
-    cat_query = (
-        db.session.query(StudentRecord.admission_category, db.func.count(StudentRecord.id))
-        .filter(
-            StudentRecord.institution_id == target_inst_id,
-            StudentRecord.enrolment_status.in_(active_statuses)
-        )
-    )
-    if academic_year and academic_year.upper() != "ALL":
-        cat_query = cat_query.filter(StudentRecord.academic_year == academic_year)
-    if programme_id:
-        cat_query = cat_query.filter(StudentRecord.programme_id == programme_id)
-    if category:
-        cat_query = cat_query.filter(StudentRecord.admission_category == category.upper())
-    if validation_status:
-        cat_query = cat_query.filter(StudentRecord.validation_status == validation_status.upper())
-
-    cat_counts = dict(cat_query.group_by(StudentRecord.admission_category).all())
-
-    category_wise_capacity = {}
-    for c_code in standard_categories:
-        c_admitted = cat_counts.get(c_code, 0)
-        c_cap_limit = None
-        for cap in capacities:
-            if cap.category_rules and c_code in cap.category_rules:
-                rule_val = cap.category_rules[c_code]
-                if isinstance(rule_val, (int, float)):
-                    c_cap_limit = (c_cap_limit or 0) + int(rule_val)
-
-        c_util_pct = round((c_admitted / c_cap_limit * 100), 1) if c_cap_limit and c_cap_limit > 0 else None
-        category_wise_capacity[c_code] = {
-            "category": c_code,
-            "admitted": c_admitted,
-            "capacity": c_cap_limit,
-            "utilisation_pct": c_util_pct
+    # Category-wise capacity and admitted breakdown (Open Regular vs Supernumerary)
+    category_wise_capacity = {
+        "OPEN": {
+            "category": "Open (Regular)",
+            "admitted": regular_admitted,
+            "capacity": approved_regular,
+            "utilisation_pct": regular_utilisation_pct
+        },
+        "SUPERNUMERARY": {
+            "category": "Supernumerary",
+            "admitted": supernumerary_admitted,
+            "capacity": supernumerary_capacity,
+            "utilisation_pct": supernumerary_utilisation_pct
         }
+    }
 
     # 2. Submission History (last 10)
     submissions = (
@@ -479,7 +457,7 @@ def governance_dashboard():
         "excess_admission_attempts": len(rejected)}
     return jsonify(ok=True, data={"filters": filters, "totals": totals,
         "risk_cases_by_severity": {key: severity[key] for key in _SEVERITIES},
-        "category_wise_enrolment": {key: sum(row.admission_category == key and row.enrolment_status in ("ACTIVE", "GRADUATED") for row in records) for key in _CATEGORIES},
+        "category_wise_enrolment": {cat: sum(row.admission_category == cat and row.enrolment_status in ("ACTIVE", "GRADUATED") for row in records) for cat in ("OPEN", "OBC", "SC", "ST", "EWS", "NRI", "OCI", "FN")},
         "institution_admission_trend": trend_rows, "capacity_utilisation": utilization,
-        "credential_verification_activity": [{"date": day, **activity[day]} for day in days],
+        "credential_verification_activity": activity,
         "recent_audit_events": recent_audit, "recent_high_risk_cases": recent_high[:10]})

@@ -47,7 +47,7 @@
 
       <div class="actions" style="margin-bottom: 2px;">
         <a id="btn-download-csv" href="/api/reports/enrolment.csv?academic_year=2026-27" class="btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-          Download Enrolment CSV (SYNTHETIC)
+          Download Enrolment CSV
         </a>
       </div>
     </div>
@@ -114,12 +114,12 @@
       <div class="form-row"><label for="anomaly-year">Academic year</label><select class="select" id="anomaly-year" name="academic_year"><option value="">All years</option></select></div>
       {% if is_global %}<div class="form-row"><label for="anomaly-institution">Institution</label><select class="select" id="anomaly-institution" name="institution_id"><option value="">All institutions</option>{% for inst in institutions %}<option value="{{ inst.id }}">{{ inst.code }} — {{ inst.name }}</option>{% endfor %}</select></div>{% endif %}
       <div class="form-row"><label for="anomaly-programme">Programme</label><select class="select" id="anomaly-programme" name="programme_id"><option value="">All programmes</option></select></div>
-      <div class="form-row"><label for="anomaly-category">Category</label><select class="select" id="anomaly-category" name="category"><option value="">All categories</option>{% for value in ['OPEN','OBC','SC','ST','EWS','NRI','OCI','FN'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></div>
+      <div class="form-row"><label for="anomaly-category">Category</label><select class="select" id="anomaly-category" name="category"><option value="">All categories</option><option value="OPEN">Open (Regular)</option><option value="SUPERNUMERARY">Supernumerary</option></select></div>
       <div class="form-row"><label for="anomaly-validation">Validation</label><select class="select" id="anomaly-validation" name="validation_status"><option value="">All statuses</option>{% for value in ['PENDING','VALID','INVALID','FLAGGED'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></div>
       <div class="form-row"><label for="anomaly-risk">Risk level</label><select class="select" id="anomaly-risk" name="risk_level"><option value="">All levels</option>{% for value in ['LOW','MEDIUM','HIGH','CRITICAL'] %}<option value="{{ value }}">{{ value }}</option>{% endfor %}</select></div>
       <button class="btn btn-secondary" type="submit">Preview anomalies</button>
     </form><p id="anomaly-status" role="status"></p><div id="anomaly-rows"></div>
-    <a id="anomaly-download" class="btn" href="/api/reports/anomalies.csv">Download anomaly CSV (SYNTHETIC)</a>
+    <a id="anomaly-download" class="btn" href="/api/reports/anomalies.csv">Download Anomaly CSV</a>
   </section>
   <div class="grid grid-2"><section class="card"><h2>Enrolment report</h2><p>Use the filters above and the real enrolment CSV download button for approved intake and admissions.</p></section>
     <section class="card"><h2>Audit log export</h2><p>Download scoped audit data from Member A's audit API or open the audit log viewer.</p><button id="audit-download" class="btn btn-secondary" type="button">Download audit JSON</button> <a href="/audit-logs">Open audit logs</a></section></div>

@@ -60,7 +60,7 @@ class Config:
     # App metadata
     APP_NAME = "APAARSetu"
     APP_VERSION = "1.0.0-prototype"
-    SYNTHETIC_NOTICE = "Prototype — synthetic data only. Not connected to AICTE, APAAR, UIDAI or DigiLocker."
+    SYNTHETIC_NOTICE = "Synthetic evaluation dataset for demonstration purposes only."
 
 
     @classmethod

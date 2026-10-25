@@ -248,7 +248,7 @@
     const mapping = {
       LOW: "ok", MEDIUM: "warn", HIGH: "danger", CRITICAL: "danger",
       VERIFIED: "ok", VALID: "ok", INVALID: "danger", REVOKED: "danger", EXPIRED: "warn", ISSUED: "ok",
-      ACTIVE: "ok", WITHDRAWN: "muted", GRADUATED: "ok", PENDING: "info", FLAGGED: "warn",
+      ACTIVE: "ok", WITHDRAWN: "muted", GRADUATED: "ok", PENDING: "info", FLAGGED: "danger",
       PREVIEWED: "info", COMMITTED: "ok", PARTIAL: "warn", REJECTED: "danger", ACCEPTED: "ok",
       OPEN: "info", UNDER_REVIEW: "warn", CLARIFICATION_REQUESTED: "warn", DATA_ERROR_CONFIRMED: "danger",
       FALSE_POSITIVE: "ok", RESOLVED: "ok", REQUEST_CLARIFICATION: "warn", CONFIRM_DATA_ERROR: "danger",
