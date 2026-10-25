@@ -4,139 +4,303 @@
 {% block page_title %}<span style="color: var(--navy);">APAAR</span><span style="color: #17683d;">Setu</span>{% endblock %}
 
 {% block content %}
-<div style="max-width: 1140px; margin: 0 auto; display: flex; flex-direction: column; gap: 36px; padding: 12px 0 40px;">
+<style>
+  /* Full-width responsive container overrides for landing page */
+  .public-shell .content {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 12px 36px 48px !important;
+    margin: 0 !important;
+  }
+  .landing-full-wrap {
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+  @keyframes spinChakra {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+  .hero-chakra-wrap {
+    position: absolute;
+    top: 50%;
+    left: 45%;
+    width: 580px;
+    height: 580px;
+    transform: translate(-50%, -50%);
+    opacity: 0.13;
+    pointer-events: none;
+    z-index: 1;
+    animation: spinChakra 34s linear infinite;
+  }
+  .nav-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+  .nav-pill-active {
+    background: #4f46e5;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+  }
+  .nav-pill-ghost {
+    color: #334155;
+    background: transparent;
+  }
+  .nav-pill-ghost:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+  }
+  .hero-pill-primary {
+    background: #4f46e5;
+    color: #ffffff !important;
+    padding: 12px 28px;
+    border-radius: 26px;
+    font-weight: 650;
+    font-size: 0.96rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .hero-pill-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
+  }
+  .hero-pill-secondary {
+    background: #ffffff;
+    color: #312e81 !important;
+    padding: 12px 28px;
+    border-radius: 26px;
+    font-weight: 650;
+    font-size: 0.96rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transition: transform 0.15s ease;
+  }
+  .hero-pill-secondary:hover {
+    transform: translateY(-2px);
+    background: #f8fafc;
+  }
+  @media (max-width: 1024px) {
+    .public-shell .content {
+      padding: 12px 16px 36px !important;
+    }
+    .hero-grid-fullscreen {
+      grid-template-columns: 1fr !important;
+      padding: 36px 24px !important;
+      gap: 36px !important;
+    }
+  }
+</style>
 
-  {# Main Header Bar #}
-  <div class="card" style="padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-    <div style="display: flex; align-items: center; gap: 14px;">
-      <div style="width: 42px; height: 42px; background: var(--navy); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #ffffff; font-weight: 700; font-size: 1.1rem;">
-        AS
+<div class="landing-full-wrap">
+
+  {# Top Navbar (Inspired by PM-AJAY Gov Platform Layout) #}
+  <header class="card" style="padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); width: 100%;">
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <div style="width: 48px; height: 48px; background: #1e1b4b; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ffffff; font-weight: 800; font-size: 1.25rem; letter-spacing: 0.5px; box-shadow: 0 2px 6px rgba(30,27,75,0.3);">
+        IN
       </div>
       <div>
-        <div style="font-size: 1.35rem; font-weight: 750; line-height: 1.2;">
-          <span style="color: var(--navy);">APAAR</span><span style="color: #17683d;">Setu</span>
+        <div style="font-size: 1.4rem; font-weight: 800; line-height: 1.2;">
+          <span style="color: #14315c;">APAAR</span><span style="color: #16a34a;">Setu</span> Platform
         </div>
-        <div style="font-size: 0.8rem; color: var(--muted);">Student Academic &amp; Intake Governance Portal</div>
+        <div style="font-size: 0.8rem; color: #64748b; font-weight: 500;">Ministry of Education &amp; AICTE Academic Registry</div>
       </div>
     </div>
-    <div class="actions">
-      <a href="#about" class="btn btn-secondary" style="font-size: 0.85rem; padding: 6px 12px;">About</a>
-      <a href="#benefits" class="btn btn-secondary" style="font-size: 0.85rem; padding: 6px 12px;">Benefits</a>
-      <a href="#how-it-works" class="btn btn-secondary" style="font-size: 0.85rem; padding: 6px 12px;">How It Works</a>
-      <a href="#demo-access" class="btn btn-secondary" style="font-size: 0.85rem; padding: 6px 12px;">Demo Roles</a>
-      <a href="{{ url_for('auth.login_page') }}" class="btn" style="font-size: 0.85rem; padding: 6px 14px;">Sign In &rarr;</a>
-    </div>
-  </div>
 
-  {# Hero Section (Blended with Navy & Soft Mint, No Girl Photo, Clean Academic Framing) #}
-  <div style="background: linear-gradient(135deg, #edf5fb 0%, #f0f7f3 100%); border: 1px solid var(--border); border-radius: var(--radius); padding: 40px 32px;">
-    <div class="grid grid-2" style="gap: 36px; align-items: center;">
-      {# Left Column #}
+    <nav style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <a href="#home" class="nav-pill-btn nav-pill-active">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Home
+      </a>
+      <a href="#about" class="nav-pill-btn nav-pill-ghost">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        About
+      </a>
+      <a href="#how-it-works" class="nav-pill-btn nav-pill-ghost">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Programs
+      </a>
+      <a href="#demo-access" class="nav-pill-btn nav-pill-ghost">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Demo Roles
+      </a>
+      <a href="{{ url_for('auth.login_page') }}" class="nav-pill-btn" style="background: #4f46e5; color: #ffffff !important; margin-left: 8px; box-shadow: 0 3px 8px rgba(79, 70, 229, 0.35);">
+        Sign In &rarr;
+      </a>
+    </nav>
+  </header>
+
+  {# Hero Banner with Full-Width Indian Tricolour Gradient, Rotating Ashoka Chakra, and Image 2 Card on Right #}
+  <div id="home" style="position: relative; overflow: hidden; border-radius: 18px; width: 100%; background: radial-gradient(ellipse at 12% 18%, rgba(255, 140, 0, 0.28) 0%, transparent 45%), radial-gradient(ellipse at 88% 85%, rgba(19, 136, 8, 0.24) 0%, transparent 45%), linear-gradient(135deg, #07152b 0%, #0d2242 50%, #0b1a30 100%); border: 1px solid #1e293b; box-shadow: 0 14px 40px rgba(7, 21, 43, 0.4);">
+
+    {# Top Subtle 4px Indian Tricolour Accent Strip #}
+    <div style="height: 4px; width: 100%; display: flex; position: absolute; top: 0; left: 0; right: 0; z-index: 3;">
+      <span style="flex: 1; background: #ff9933;"></span>
+      <span style="flex: 1; background: #ffffff;"></span>
+      <span style="flex: 1; background: #138808;"></span>
+    </div>
+
+    {# Rotating Ashoka Chakra Watermark SVG (24 Spokes, Authentic Geometry) #}
+    <div class="hero-chakra-wrap" aria-hidden="true">
+      <svg viewBox="0 0 200 200" width="100%" height="100%" fill="none" stroke="#93c5fd">
+        <circle cx="100" cy="100" r="92" stroke="#93c5fd" stroke-width="4.5" fill="none" />
+        <circle cx="100" cy="100" r="16" fill="#93c5fd" />
+        <circle cx="100" cy="100" r="6" fill="#07152b" />
+        {% for deg in [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240, 255, 270, 285, 300, 315, 330, 345] %}
+        <line x1="100" y1="16" x2="100" y2="92" stroke="#93c5fd" stroke-width="2.4" stroke-linecap="round" transform="rotate({{ deg }} 100 100)" />
+        <circle cx="100" cy="7.5" r="2.2" fill="#93c5fd" transform="rotate({{ deg + 7.5 }} 100 100)" />
+        {% endfor %}
+      </svg>
+    </div>
+
+    {# Hero Content Grid (Expansive & Full-Screen) #}
+    <div class="hero-grid-fullscreen" style="position: relative; z-index: 2; padding: 56px 64px; display: grid; grid-template-columns: 1.25fr 0.75fr; gap: 48px; align-items: center; min-height: 520px;">
+
+      {# Left Column: Hero Text Overlay #}
       <div>
-        <div style="color: #17683d; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px;">
-          Academic Intake &amp; Identity Management
-        </div>
-        <h1 style="font-size: 2.15rem; color: var(--navy); font-weight: 750; line-height: 1.25; margin-bottom: 14px;">
+        <div style="font-size: 0.82rem; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 10px;">
           Unified Student Intake &amp; Academic Governance
+        </div>
+        <h1 style="font-size: 3.4rem; font-weight: 850; line-height: 1.1; color: #ffffff; margin: 0 0 18px; letter-spacing: -0.5px;">
+          Empowering<br>
+          <span style="color: #818cf8;">Academic</span><br>
+          Integrity
         </h1>
-        <p style="font-size: 1rem; color: var(--muted); line-height: 1.6; margin-bottom: 24px;">
-          A transparent, automated academic governance platform. <span style="color: var(--navy); font-weight: 600;">APAAR</span><span style="color: #17683d; font-weight: 600;">Setu</span> ensures strict intake compliance across approved institutions, detects duplicate student enrolments, and secures verifiable academic records.
+        <p style="font-size: 1.05rem; color: #cbd5e1; line-height: 1.7; margin: 0 0 28px; max-width: 580px;">
+          A comprehensive unified portal for AICTE-approved institutions and universities. Anchoring student-level intake compliance, preventing unauthorized over-enrolment, detecting duplicate identities, and securing tamper-evident academic passports across India.
         </p>
-        <div class="actions" style="gap: 12px;">
-          <a href="#how-it-works" class="btn" style="padding: 10px 20px; font-size: 0.95rem;">
-            Explore How It Works &rarr;
+
+        <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 34px;">
+          <a href="#how-it-works" class="hero-pill-primary">
+            Explore Platform
           </a>
-          <a href="{{ url_for('auth.login_page') }}" class="btn btn-secondary" style="padding: 10px 18px; font-size: 0.95rem;">
-            Sign In to Portal
+          <a href="{{ url_for('auth.login_page') }}" class="hero-pill-secondary">
+            Institutional Access
           </a>
+        </div>
+
+        {# KPI Stat Cards along the bottom of the hero (Frosted Glass) #}
+        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+          <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 12px 20px; backdrop-filter: blur(8px);">
+            <div style="font-size: 1.35rem; font-weight: 800; color: #ffffff; line-height: 1.2;">100%</div>
+            <div style="font-size: 0.74rem; color: #94a3b8; text-transform: uppercase; font-weight: 600; margin-top: 3px;">Intake Enforced</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 12px 20px; backdrop-filter: blur(8px);">
+            <div style="font-size: 1.35rem; font-weight: 800; color: #34d399; line-height: 1.2;">Zero</div>
+            <div style="font-size: 0.74rem; color: #94a3b8; text-transform: uppercase; font-weight: 600; margin-top: 3px;">Ghost Admissions</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 12px 20px; backdrop-filter: blur(8px);">
+            <div style="font-size: 1.35rem; font-weight: 800; color: #60a5fa; line-height: 1.2;">Ed25519</div>
+            <div style="font-size: 0.74rem; color: #94a3b8; text-transform: uppercase; font-weight: 600; margin-top: 3px;">Verifiable Passports</div>
+          </div>
         </div>
       </div>
 
-      {# Right Column: Clean Digital Student ID Card Graphic #}
-      <div style="display: flex; justify-content: center;">
-        <div style="background: #ffffff; border: 1px solid var(--border); border-radius: 10px; padding: 24px; box-shadow: 0 4px 12px rgba(20,49,92,0.08); width: 100%; max-width: 380px; position: relative;">
-          
-          {# Floating Pill on Top Right #}
-          <div style="position: absolute; top: -12px; right: 16px; background: var(--navy); color: #ffffff; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+      {# Right Column: Exact Student Academic ID Card Graphic (From 2nd Image) #}
+      <div style="display: flex; justify-content: center; position: relative;">
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 28px 26px 24px; box-shadow: 0 18px 42px rgba(0,0,0,0.4); width: 100%; max-width: 400px; position: relative;">
+
+          {# Floating Pill Badge on Top Right #}
+          <div style="position: absolute; top: -14px; right: 24px; background: #0c2340; color: #ffffff; padding: 6px 16px; border-radius: 20px; font-size: 0.76rem; font-weight: 700; box-shadow: 0 4px 10px rgba(12,35,64,0.3); letter-spacing: 0.3px;">
             Student Academic Registry
           </div>
 
           {# Card Header #}
-          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #edf2f7; padding-bottom: 14px; margin-bottom: 18px;">
             <div>
-              <div style="font-size: 0.72rem; color: var(--muted); text-transform: uppercase; font-weight: 600;">Academic ID Card</div>
-              <div style="font-weight: 700; font-size: 0.95rem;">
-                <span style="color: var(--navy);">APAAR</span><span style="color: #17683d;">Setu</span>
+              <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">ACADEMIC ID CARD</div>
+              <div style="font-weight: 800; font-size: 1.12rem; margin-top: 2px;">
+                <span style="color: #14315c;">APAAR</span><span style="color: #16a34a;">Setu</span>
               </div>
             </div>
-            <span class="badge badge-ok" style="font-size: 0.75rem;">VERIFIED</span>
+            <span style="background: #e6f4ea; color: #137333; font-size: 0.76rem; font-weight: 700; padding: 5px 12px; border-radius: 6px; letter-spacing: 0.5px;">
+              VERIFIED
+            </span>
           </div>
 
-          {# Card Details #}
-          <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 16px;">
-            <div style="width: 60px; height: 60px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--navy); font-size: 1.1rem; border: 2px solid var(--border);">
+          {# Student Profile Details #}
+          <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 18px;">
+            <div style="width: 60px; height: 60px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #1e293b; font-size: 1.2rem; border: 2px solid #cbd5e1;">
               TS
             </div>
             <div>
-              <div style="font-weight: 700; color: var(--navy); font-size: 1.05rem;">Tanvi Sharma</div>
-              <div style="font-size: 0.82rem; color: var(--muted);">B.Tech &bull; Computer Engineering</div>
-              <div style="font-size: 0.78rem; color: var(--muted); margin-top: 2px;">Institution: VESIT Mumbai</div>
+              <div style="font-weight: 800; color: #0f172a; font-size: 1.15rem; line-height: 1.2;">Tanvi Sharma</div>
+              <div style="font-size: 0.86rem; color: #475569; margin-top: 4px;">B.Tech &bull; Computer Engineering</div>
+              <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">Institution: VESIT Mumbai</div>
             </div>
           </div>
 
-          {# Masked ID & QR Representation #}
-          <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+          {# Masked ID & QR Code Representation #}
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <div style="font-size: 0.72rem; color: var(--muted); font-weight: 600;">UNIQUE IDENTIFIER (MASKED)</div>
-              <div style="font-family: monospace; font-size: 1.05rem; font-weight: 700; color: var(--navy); letter-spacing: 1px;">
-                9154 5678 3420
+              <div style="font-size: 0.68rem; color: #64748b; font-weight: 700; letter-spacing: 0.5px;">UNIQUE IDENTIFIER (MASKED)</div>
+              <div style="font-family: monospace; font-size: 1.18rem; font-weight: 800; color: #0c2340; letter-spacing: 1.5px; margin-top: 2px;">
+                9154&nbsp; 5678&nbsp; 3420
               </div>
             </div>
-            <div style="width: 42px; height: 42px; background: #dde3ea; border: 1px solid #cbd5e1; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: bold; color: var(--navy);">
+            <div style="width: 46px; height: 46px; background: #dde5ed; border: 1px solid #cbd5e1; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.74rem; font-weight: 800; color: #0c2340;">
               [ QR ]
             </div>
           </div>
 
-          <div style="margin-top: 14px; font-size: 0.75rem; color: var(--muted); text-align: center;">
+          <div style="margin-top: 14px; font-size: 0.78rem; color: #64748b; text-align: center; font-weight: 500;">
             Tamper-evident verifiable academic credential
           </div>
         </div>
       </div>
+
     </div>
   </div>
 
   {# About APAARSetu Section #}
-  <div class="card" id="about" style="padding: 36px 32px; scroll-margin-top: 70px;">
-    <div class="grid grid-2" style="gap: 36px; align-items: center;">
+  <div class="card" id="about" style="padding: 40px 36px; scroll-margin-top: 70px; border-radius: 14px; width: 100%;">
+    <div class="grid grid-2" style="gap: 40px; align-items: center;">
       <div>
-        <h2 style="font-size: 1.6rem; color: var(--navy); margin-bottom: 14px;">
-          About <span style="color: var(--navy);">APAAR</span><span style="color: #17683d;">Setu</span>
+        <h2 style="font-size: 1.75rem; margin-bottom: 14px;">
+          About <span style="color: #14315c;">APAAR</span><span style="color: #16a34a;">Setu</span>
         </h2>
-        <p style="color: var(--text); line-height: 1.7; font-size: 0.95rem; margin-bottom: 14px;">
-          <strong><span style="color: var(--navy);">APAAR</span><span style="color: #17683d;">Setu</span></strong> serves as the digital bridge connecting students, institutions, and regulatory coordinators into a cohesive, verified academic framework. By anchoring institutional admissions to unique academic identifiers, the platform guarantees that each student's educational trajectory is permanently recorded, validated, and protected against duplication.
+        <p style="color: var(--text); line-height: 1.7; font-size: 0.98rem; margin-bottom: 14px;">
+          <strong><span style="color: #14315c;">APAAR</span><span style="color: #16a34a;">Setu</span></strong> serves as the digital bridge connecting students, institutions, and regulatory coordinators into a cohesive, verified academic framework. By anchoring institutional admissions to unique academic identifiers, the platform guarantees that each student's educational trajectory is permanently recorded, validated, and protected against duplication.
         </p>
-        <p style="color: var(--muted); line-height: 1.7; font-size: 0.92rem; margin: 0;">
+        <p style="color: var(--muted); line-height: 1.7; font-size: 0.94rem; margin: 0;">
           The system simplifies credit recognition, enforces sanctioned intake caps in real time, and streamlines seamless transitions between academic institutions.
         </p>
       </div>
 
       {# Feature Summary Cards #}
-      <div class="stack" style="gap: 12px;">
-        <div style="background: var(--bg); border-left: 4px solid var(--navy); padding: 14px 18px; border-radius: var(--radius);">
-          <div style="font-weight: 600; color: var(--navy); font-size: 0.95rem;">Dynamic Seat Ledger (Prevent)</div>
-          <div style="font-size: 0.85rem; color: var(--muted); margin-top: 2px;">
+      <div class="stack" style="gap: 14px;">
+        <div style="background: var(--bg); border-left: 4px solid var(--navy); padding: 16px 20px; border-radius: var(--radius);">
+          <div style="font-weight: 650; color: var(--navy); font-size: 0.98rem;">Dynamic Seat Ledger (Prevent)</div>
+          <div style="font-size: 0.88rem; color: var(--muted); margin-top: 3px;">
             Guarantees that admission numbers never exceed approved intake limits for any academic branch.
           </div>
         </div>
-        <div style="background: var(--bg); border-left: 4px solid var(--warn); padding: 14px 18px; border-radius: var(--radius);">
-          <div style="font-weight: 600; color: var(--navy); font-size: 0.95rem;">Identity Graph Resolution (Detect)</div>
-          <div style="font-size: 0.85rem; color: var(--muted); margin-top: 2px;">
+        <div style="background: var(--bg); border-left: 4px solid var(--warn); padding: 16px 20px; border-radius: var(--radius);">
+          <div style="font-weight: 650; color: var(--navy); font-size: 0.98rem;">Identity Graph Resolution (Detect)</div>
+          <div style="font-size: 0.88rem; color: var(--muted); margin-top: 3px;">
             Spots cross-college duplicate enrolments and simultaneous full-time admissions transparently.
           </div>
         </div>
-        <div style="background: var(--bg); border-left: 4px solid #17683d; padding: 14px 18px; border-radius: var(--radius);">
-          <div style="font-weight: 600; color: var(--navy); font-size: 0.95rem;">Academic Passport (Prove)</div>
-          <div style="font-size: 0.85rem; color: var(--muted); margin-top: 2px;">
+        <div style="background: var(--bg); border-left: 4px solid #16a34a; padding: 16px 20px; border-radius: var(--radius);">
+          <div style="font-weight: 650; color: var(--navy); font-size: 0.98rem;">Academic Passport (Prove)</div>
+          <div style="font-size: 0.88rem; color: var(--muted); margin-top: 3px;">
             Provides asymmetric Ed25519 cryptographic credentials verifiable offline via secure QR code.
           </div>
         </div>
@@ -145,43 +309,43 @@
   </div>
 
   {# APAARSetu Benefits Section #}
-  <div class="card" id="benefits" style="padding: 36px 32px; scroll-margin-top: 70px;">
-    <h2 style="font-size: 1.6rem; color: var(--navy); margin-bottom: 24px;">
-      <span style="color: var(--navy);">APAAR</span><span style="color: #17683d;">Setu</span> Benefits
+  <div class="card" id="benefits" style="padding: 40px 36px; scroll-margin-top: 70px; border-radius: 14px; width: 100%;">
+    <h2 style="font-size: 1.75rem; margin-bottom: 24px;">
+      <span style="color: #14315c;">APAAR</span><span style="color: #16a34a;">Setu</span> Benefits
     </h2>
 
-    <div class="grid grid-3" style="gap: 24px;">
-      <div style="display: flex; gap: 14px; align-items: flex-start;">
-        <div style="width: 44px; height: 44px; min-width: 44px; background: var(--ok-bg); color: #17683d; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem;">
+    <div class="grid grid-3" style="gap: 28px;">
+      <div style="display: flex; gap: 16px; align-items: flex-start;">
+        <div style="width: 48px; height: 48px; min-width: 48px; background: var(--ok-bg); color: #16a34a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 750; font-size: 1.15rem;">
           01
         </div>
         <div>
-          <div style="font-weight: 600; color: var(--navy); margin-bottom: 4px; font-size: 0.95rem;">Recognize Learning Achievements</div>
-          <p style="color: var(--muted); font-size: 0.85rem; line-height: 1.5; margin: 0;">
+          <div style="font-weight: 650; color: var(--navy); margin-bottom: 4px; font-size: 0.98rem;">Recognize Learning Achievements</div>
+          <p style="color: var(--muted); font-size: 0.88rem; line-height: 1.55; margin: 0;">
             Centralizes verifiable milestone credentials and certificates issued by accredited higher educational institutes.
           </p>
         </div>
       </div>
 
-      <div style="display: flex; gap: 14px; align-items: flex-start;">
-        <div style="width: 44px; height: 44px; min-width: 44px; background: var(--info-bg); color: var(--info); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem;">
+      <div style="display: flex; gap: 16px; align-items: flex-start;">
+        <div style="width: 48px; height: 48px; min-width: 48px; background: var(--info-bg); color: var(--info); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 750; font-size: 1.15rem;">
           02
         </div>
         <div>
-          <div style="font-weight: 600; color: var(--navy); margin-bottom: 4px; font-size: 0.95rem;">Prevent Intake Exploitation</div>
-          <p style="color: var(--muted); font-size: 0.85rem; line-height: 1.5; margin: 0;">
+          <div style="font-weight: 650; color: var(--navy); margin-bottom: 4px; font-size: 0.98rem;">Prevent Intake Exploitation</div>
+          <p style="color: var(--muted); font-size: 0.88rem; line-height: 1.55; margin: 0;">
             Eliminates unauthorized over-intake and ghost admissions through rigorous database-level ledger locks.
           </p>
         </div>
       </div>
 
-      <div style="display: flex; gap: 14px; align-items: flex-start;">
-        <div style="width: 44px; height: 44px; min-width: 44px; background: var(--warn-bg); color: var(--warn-ink); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem;">
+      <div style="display: flex; gap: 16px; align-items: flex-start;">
+        <div style="width: 48px; height: 48px; min-width: 48px; background: var(--warn-bg); color: var(--warn-ink); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 750; font-size: 1.15rem;">
           03
         </div>
         <div>
-          <div style="font-weight: 600; color: var(--navy); margin-bottom: 4px; font-size: 0.95rem;">Enable Mobility &amp; Academic Flexibility</div>
-          <p style="color: var(--muted); font-size: 0.85rem; line-height: 1.5; margin: 0;">
+          <div style="font-weight: 650; color: var(--navy); margin-bottom: 4px; font-size: 0.98rem;">Enable Mobility &amp; Academic Flexibility</div>
+          <p style="color: var(--muted); font-size: 0.88rem; line-height: 1.55; margin: 0;">
             Permits instant, tamper-evident degree verification for employers, universities, and coordinators.
           </p>
         </div>
@@ -190,47 +354,47 @@
   </div>
 
   {# How APAARSetu Works Section (Connected Circle Stepper) #}
-  <div class="card" id="how-it-works" style="padding: 36px 32px; scroll-margin-top: 70px;">
-    <div style="text-align: center; max-width: 680px; margin: 0 auto 32px;">
-      <h2 style="font-size: 1.7rem; color: var(--navy); margin-bottom: 8px;">
-        How <span style="color: var(--navy);">APAAR</span><span style="color: #17683d;">Setu</span> Works
+  <div class="card" id="how-it-works" style="padding: 40px 36px; scroll-margin-top: 70px; border-radius: 14px; width: 100%;">
+    <div style="text-align: center; max-width: 720px; margin: 0 auto 36px;">
+      <h2 style="font-size: 1.8rem; margin-bottom: 8px;">
+        How <span style="color: #14315c;">APAAR</span><span style="color: #16a34a;">Setu</span> Works
       </h2>
-      <p style="color: var(--muted); font-size: 0.95rem; margin: 0;">
+      <p style="color: var(--muted); font-size: 0.98rem; margin: 0;">
         A transparent, 4-stage governance framework ensuring record integrity from enrolment to credential issuance.
       </p>
     </div>
 
     {# 4 Connected Number Circles #}
-    <div style="display: flex; justify-content: space-between; align-items: center; position: relative; max-width: 820px; margin: 0 auto 32px; padding: 0 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; position: relative; max-width: 860px; margin: 0 auto 36px; padding: 0 20px;">
       {# Connecting Line #}
-      <div style="position: absolute; top: 22px; left: 40px; right: 40px; height: 2px; background: var(--border); z-index: 1;"></div>
+      <div style="position: absolute; top: 23px; left: 40px; right: 40px; height: 2px; background: var(--border); z-index: 1;"></div>
 
-      <button type="button" class="tour-step-circle" data-step="1" style="z-index: 2; width: 46px; height: 46px; border-radius: 50%; background: var(--navy); color: #ffffff; border: 3px solid #ffffff; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <button type="button" class="tour-step-circle" data-step="1" style="z-index: 2; width: 48px; height: 48px; border-radius: 50%; background: var(--navy); color: #ffffff; border: 3px solid #ffffff; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         01.
       </button>
 
-      <button type="button" class="tour-step-circle" data-step="2" style="z-index: 2; width: 46px; height: 46px; border-radius: 50%; background: var(--surface); color: var(--navy); border: 2px solid var(--border); font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+      <button type="button" class="tour-step-circle" data-step="2" style="z-index: 2; width: 48px; height: 48px; border-radius: 50%; background: var(--surface); color: var(--navy); border: 2px solid var(--border); font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">
         02.
       </button>
 
-      <button type="button" class="tour-step-circle" data-step="3" style="z-index: 2; width: 46px; height: 46px; border-radius: 50%; background: var(--surface); color: var(--navy); border: 2px solid var(--border); font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+      <button type="button" class="tour-step-circle" data-step="3" style="z-index: 2; width: 48px; height: 48px; border-radius: 50%; background: var(--surface); color: var(--navy); border: 2px solid var(--border); font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">
         03.
       </button>
 
-      <button type="button" class="tour-step-circle" data-step="4" style="z-index: 2; width: 46px; height: 46px; border-radius: 50%; background: var(--surface); color: var(--navy); border: 2px solid var(--border); font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+      <button type="button" class="tour-step-circle" data-step="4" style="z-index: 2; width: 48px; height: 48px; border-radius: 50%; background: var(--surface); color: var(--navy); border: 2px solid var(--border); font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">
         04.
       </button>
     </div>
 
     {# Active Step Cards #}
-    <div style="max-width: 820px; margin: 0 auto;">
+    <div style="max-width: 860px; margin: 0 auto;">
       {# Card 1 #}
       <div class="step-card" id="step-card-1" style="display: block; background: #ffffff; border: 2px solid var(--navy); border-radius: var(--radius); padding: 24px; box-shadow: 0 4px 12px rgba(20,49,92,0.06);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <h3 style="color: var(--navy); margin: 0; font-size: 1.15rem;">01. Student Onboarding &amp; Format Validation</h3>
           <span class="badge badge-info">STAGE 1</span>
         </div>
-        <p style="color: var(--text); line-height: 1.6; margin: 0 0 10px; font-size: 0.92rem;">
+        <p style="color: var(--text); line-height: 1.6; margin: 0 0 10px; font-size: 0.94rem;">
           Approved institutions submit student admission cohorts via bulk CSV or manual registration. Every record undergoes strict validation against the 12-digit numeric format rule (<code>^\d{12}$</code>) and is automatically masked for personal privacy.
         </p>
         <div style="font-size: 0.85rem; color: var(--muted); background: var(--bg); padding: 8px 12px; border-radius: 4px;">
@@ -244,7 +408,7 @@
           <h3 style="color: var(--navy); margin: 0; font-size: 1.15rem;">02. Dynamic Seat Ledger Capacity Check</h3>
           <span class="badge badge-warn">STAGE 2 &bull; PREVENT</span>
         </div>
-        <p style="color: var(--text); line-height: 1.6; margin: 0 0 10px; font-size: 0.92rem;">
+        <p style="color: var(--text); line-height: 1.6; margin: 0 0 10px; font-size: 0.94rem;">
           The Dynamic Seat Ledger verifies sanctioned intake caps in real time. In a programme with 120 sanctioned regular seats, admission #120 succeeds; any subsequent attempt to admit student #121 is blocked with a <code>CAPACITY_EXCEEDED</code> rejection.
         </p>
         <div style="font-size: 0.85rem; color: var(--muted); background: var(--bg); padding: 8px 12px; border-radius: 4px;">
@@ -258,7 +422,7 @@
           <h3 style="color: var(--navy); margin: 0; font-size: 1.15rem;">03. Identity Graph &amp; Cross-College Conflict Resolution</h3>
           <span class="badge badge-danger">STAGE 3 &bull; DETECT</span>
         </div>
-        <p style="color: var(--text); line-height: 1.6; margin: 0 0 10px; font-size: 0.92rem;">
+        <p style="color: var(--text); line-height: 1.6; margin: 0 0 10px; font-size: 0.94rem;">
           Cross-institutional scanning matches academic accounts across colleges. Simultaneous enrolments (e.g. active full-time courses at VESIT and COEP) trigger explainable risk points (+40 duplicate ID, +35 simultaneous course).
         </p>
         <div style="font-size: 0.85rem; color: var(--muted); background: var(--bg); padding: 8px 12px; border-radius: 4px;">
@@ -272,7 +436,7 @@
           <h3 style="color: var(--navy); margin: 0; font-size: 1.15rem;">04. Academic Passport &amp; Cryptographic QR Proof</h3>
           <span class="badge badge-ok">STAGE 4 &bull; PROVE</span>
         </div>
-        <p style="color: var(--text); line-height: 1.6; margin: 0 0 10px; font-size: 0.92rem;">
+        <p style="color: var(--text); line-height: 1.6; margin: 0 0 10px; font-size: 0.94rem;">
           Upon graduation or milestone completion, institutions sign academic credentials using Ed25519 asymmetric cryptography. Students receive verifiable digital certificates readable via QR code without database lookups.
         </p>
         <div style="font-size: 0.85rem; color: var(--muted); background: var(--bg); padding: 8px 12px; border-radius: 4px;">
@@ -284,64 +448,64 @@
 
   {# Pre-Seeded Demo Roles Section #}
   {% if show_demo_accounts %}
-  <div class="card" id="demo-access" style="padding: 32px; scroll-margin-top: 70px;">
-    <div class="card-header" style="margin-bottom: 16px; padding-bottom: 12px;">
+  <div class="card" id="demo-access" style="padding: 40px 36px; scroll-margin-top: 70px; border-radius: 14px; width: 100%;">
+    <div class="card-header" style="margin-bottom: 20px; padding-bottom: 14px;">
       <div>
-        <h2 style="color: var(--navy); margin: 0 0 4px;">Pre-Seeded Demo Accounts</h2>
-        <p class="helper" style="margin: 0;">Click any button below to immediately access that role's scoped dashboard.</p>
+        <h2 style="color: var(--navy); margin: 0 0 4px; font-size: 1.6rem;">Pre-Seeded Demo Accounts</h2>
+        <p class="helper" style="margin: 0; font-size: 0.92rem;">Click any button below to immediately access that role's scoped dashboard.</p>
       </div>
-      <a href="{{ url_for('auth.login_page') }}" class="btn btn-secondary" style="font-size: 0.85rem; padding: 4px 12px;">Standard Login Form</a>
+      <a href="{{ url_for('auth.login_page') }}" class="btn btn-secondary" style="font-size: 0.88rem; padding: 6px 14px;">Standard Login Form</a>
     </div>
 
-    <div class="grid grid-4" style="gap: 16px;">
-      <div style="padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); display: flex; flex-direction: column; justify-content: space-between;">
+    <div class="grid grid-4" style="gap: 20px;">
+      <div style="padding: 20px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); display: flex; flex-direction: column; justify-content: space-between;">
         <div>
-          <div style="font-weight: 700; color: var(--navy);">AICTE Admin</div>
-          <div style="font-size: 0.8rem; color: var(--muted); margin: 2px 0 10px;">National Regulatory Scope</div>
-          <p style="font-size: 0.82rem; color: var(--text); line-height: 1.4; margin: 0 0 12px;">
+          <div style="font-weight: 700; color: var(--navy); font-size: 1.05rem;">AICTE Admin</div>
+          <div style="font-size: 0.8rem; color: var(--muted); margin: 3px 0 10px;">National Regulatory Scope</div>
+          <p style="font-size: 0.84rem; color: var(--text); line-height: 1.45; margin: 0 0 14px;">
             Full regulatory view across all institutions, seat ledgers, cross-college risk cases, and audit logs.
           </p>
         </div>
-        <button type="button" class="btn demo-btn" data-user="AICTE_Admin" data-pwd="{{ demo_password }}" style="width: 100%; font-size: 0.85rem; min-height: 32px; padding: 4px;">
+        <button type="button" class="btn demo-btn" data-user="AICTE_Admin" data-pwd="{{ demo_password }}" style="width: 100%; font-size: 0.88rem; min-height: 36px; padding: 6px;">
           Sign In as AICTE
         </button>
       </div>
 
-      <div style="padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); display: flex; flex-direction: column; justify-content: space-between;">
+      <div style="padding: 20px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); display: flex; flex-direction: column; justify-content: space-between;">
         <div>
-          <div style="font-weight: 700; color: var(--navy);">VESIT Admin</div>
-          <div style="font-size: 0.8rem; color: var(--muted); margin: 2px 0 10px;">VESIT Mumbai Scope</div>
-          <p style="font-size: 0.82rem; color: var(--text); line-height: 1.4; margin: 0 0 12px;">
+          <div style="font-weight: 700; color: var(--navy); font-size: 1.05rem;">VESIT Admin</div>
+          <div style="font-size: 0.8rem; color: var(--muted); margin: 3px 0 10px;">VESIT Mumbai Scope</div>
+          <p style="font-size: 0.84rem; color: var(--text); line-height: 1.45; margin: 0 0 14px;">
             Institutional administration: CSV student onboarding, campus seat ledger, and credential dispatch.
           </p>
         </div>
-        <button type="button" class="btn demo-btn" data-user="VESIT" data-pwd="{{ demo_password }}" style="width: 100%; font-size: 0.85rem; min-height: 32px; padding: 4px;">
+        <button type="button" class="btn demo-btn" data-user="VESIT" data-pwd="{{ demo_password }}" style="width: 100%; font-size: 0.88rem; min-height: 36px; padding: 6px;">
           Sign In as VESIT
         </button>
       </div>
 
-      <div style="padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); display: flex; flex-direction: column; justify-content: space-between;">
+      <div style="padding: 20px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); display: flex; flex-direction: column; justify-content: space-between;">
         <div>
-          <div style="font-weight: 700; color: var(--navy);">COEP Admin</div>
-          <div style="font-size: 0.8rem; color: var(--muted); margin: 2px 0 10px;">COEP Pune Scope</div>
-          <p style="font-size: 0.82rem; color: var(--text); line-height: 1.4; margin: 0 0 12px;">
+          <div style="font-weight: 700; color: var(--navy); font-size: 1.05rem;">COEP Admin</div>
+          <div style="font-size: 0.8rem; color: var(--muted); margin: 3px 0 10px;">COEP Pune Scope</div>
+          <p style="font-size: 0.84rem; color: var(--text); line-height: 1.45; margin: 0 0 14px;">
             College admin managing student cohorts, capacity thresholds, and verified academic passports.
           </p>
         </div>
-        <button type="button" class="btn demo-btn" data-user="COEP" data-pwd="{{ demo_password }}" style="width: 100%; font-size: 0.85rem; min-height: 32px; padding: 4px;">
+        <button type="button" class="btn demo-btn" data-user="COEP" data-pwd="{{ demo_password }}" style="width: 100%; font-size: 0.88rem; min-height: 36px; padding: 6px;">
           Sign In as COEP
         </button>
       </div>
 
-      <div style="padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); display: flex; flex-direction: column; justify-content: space-between;">
+      <div style="padding: 20px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); display: flex; flex-direction: column; justify-content: space-between;">
         <div>
-          <div style="font-weight: 700; color: var(--navy);">VJTI Admin</div>
-          <div style="font-size: 0.8rem; color: var(--muted); margin: 2px 0 10px;">VJTI Mumbai Scope</div>
-          <p style="font-size: 0.82rem; color: var(--text); line-height: 1.4; margin: 0 0 12px;">
+          <div style="font-weight: 700; color: var(--navy); font-size: 1.05rem;">VJTI Admin</div>
+          <div style="font-size: 0.8rem; color: var(--muted); margin: 3px 0 10px;">VJTI Mumbai Scope</div>
+          <p style="font-size: 0.84rem; color: var(--text); line-height: 1.45; margin: 0 0 14px;">
             Campus management for VJTI admissions, seat ledger verification, and credential records.
           </p>
         </div>
-        <button type="button" class="btn demo-btn" data-user="VJTI" data-pwd="{{ demo_password }}" style="width: 100%; font-size: 0.85rem; min-height: 32px; padding: 4px;">
+        <button type="button" class="btn demo-btn" data-user="VJTI" data-pwd="{{ demo_password }}" style="width: 100%; font-size: 0.88rem; min-height: 36px; padding: 6px;">
           Sign In as VJTI
         </button>
       </div>
@@ -350,9 +514,9 @@
   {% endif %}
 
   {# Footer #}
-  <div style="text-align: center; color: var(--muted); font-size: 0.85rem;">
-    <span style="color: var(--navy); font-weight: 600;">APAAR</span><span style="color: #17683d; font-weight: 600;">Setu</span> &bull; Academic Intake &amp; Identity Governance Portal
-  </div>
+  <footer style="text-align: center; color: var(--muted); font-size: 0.88rem; padding: 16px 0;">
+    <span style="color: #14315c; font-weight: 700;">APAAR</span><span style="color: #16a34a; font-weight: 700;">Setu</span> &bull; AICTE Approved Technical Institution Academic Registry &amp; Verification Portal
+  </footer>
 
 </div>
 {% endblock %}

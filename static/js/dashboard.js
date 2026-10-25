@@ -137,10 +137,30 @@
   function stats(entries) {
     const container = get("governance-stats");
     if (!container) return;
-    container.replaceChildren(...entries.map(([label, value, hint]) => N.el("div", { class: "card stat" },
-      N.el("div", { class: "stat-number" }, N.fmtNumber(value)),
-      N.el("div", { class: "stat-label" }, label),
-      N.el("div", { class: "stat-trend" }, hint || "Current filters"))));
+    const meta = {
+      "Institutions": { icon: "🏛️", cls: "kpi-navy" },
+      "Student records": { icon: "🎓", cls: "kpi-blue" },
+      "Validated": { icon: "✅", cls: "kpi-green" },
+      "Pending validation": { icon: "⏳", cls: "kpi-amber" },
+      "Active enrolments": { icon: "📚", cls: "kpi-purple" },
+      "Identity conflicts": { icon: "⚠️", cls: "kpi-red" },
+      "Missing / invalid APAAR": { icon: "🔍", cls: "kpi-crimson" },
+      "Capacity ≥ 80%": { icon: "📊", cls: "kpi-sky" },
+      "Capacity ≥ 90%": { icon: "⚠️", cls: "kpi-orange" },
+      "Capacity ≥ 100%": { icon: "🚨", cls: "kpi-darkred" },
+      "Excess attempts": { icon: "🛑", cls: "kpi-red" }
+    };
+    container.replaceChildren(...entries.map(([label, value, hint], idx) => {
+      const m = meta[label] || { icon: "📈", cls: "kpi-navy" };
+      return N.el("div", { class: `card stat dash-kpi-card ${m.cls}` },
+        N.el("div", { class: "dash-kpi-top" },
+          N.el("span", { class: "stat-label" }, label),
+          N.el("span", { class: "dash-kpi-icon", "aria-hidden": "true" }, m.icon)
+        ),
+        N.el("div", { class: "stat-number", id: `nat-stat-${idx}` }, N.fmtNumber(value)),
+        N.el("div", { class: "stat-trend" }, hint || "System verified")
+      );
+    }));
   }
 
   function table(id, columns, rows, emptyText) {
@@ -273,13 +293,14 @@
     const card = get("dash-attention-card");
     if (!card) return;
 
+    const rc = riskCases || { total: 0, CRITICAL: 0, HIGH: 0 };
     const alerts = [];
 
-    if (riskCases.total > 0) {
+    if (rc.total > 0) {
       alerts.push({
-        type: riskCases.CRITICAL > 0 ? "danger" : "warning",
-        title: `${riskCases.total} risk anomaly ${riskCases.total === 1 ? "case" : "cases"} require review`,
-        subtext: `${riskCases.CRITICAL || 0} critical, ${riskCases.HIGH || 0} high priority`,
+        type: rc.CRITICAL > 0 ? "danger" : "warning",
+        title: `${rc.total} risk anomaly ${rc.total === 1 ? "case" : "cases"} require review`,
+        subtext: `${rc.CRITICAL || 0} critical, ${rc.HIGH || 0} high priority`,
         href: "/risk-cases",
         actionText: "Review cases →"
       });
@@ -354,6 +375,7 @@
     const container = get("governance-stats");
     if (!container) return;
 
+    const rc = riskCases || { total: 0, CRITICAL: 0, HIGH: 0 };
     const cards = [
       {
         label: "Approved intake",
@@ -422,13 +444,13 @@
       },
       {
         label: "Risk cases",
-        value: riskCases.total,
+        value: rc.total || 0,
         icon: "🚨",
-        accent: riskCases.total > 0 ? "warn" : "ok",
+        accent: (rc.total || 0) > 0 ? "warn" : "ok",
         tooltip: "Open identity and capacity risk cases awaiting human review",
-        isCalm: riskCases.total === 0,
+        isCalm: (rc.total || 0) === 0,
         calmText: "Zero cases",
-        context: riskCases.total > 0 ? `${riskCases.CRITICAL || 0} critical, ${riskCases.HIGH || 0} high` : "No open cases"
+        context: (rc.total || 0) > 0 ? `${rc.CRITICAL || 0} critical, ${rc.HIGH || 0} high` : "No open cases"
       },
       {
         label: "Credentials issued",
@@ -521,8 +543,9 @@
 
   /** 5. CHARTS: Category, Donut, Programmes, Risk */
   function renderCharts(data, seatsData) {
-    const s = data.seat_summary;
-    const pending = data.pending_identity_checks;
+    const s = data.seat_summary || {};
+    const pending = data.pending_identity_checks || { pending: 0, flagged: 0, total: 0 };
+    const rc = data.risk_cases_by_severity || { LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0, total: 0 };
     const categories = Object.values(s.category_capacity || {});
 
     // a. Category-wise Capacity Chart
@@ -550,7 +573,7 @@
       {
         label: "Admitted Students",
         data: catAdmitted,
-        backgroundColor: colors.navy,
+        backgroundColor: ["#2563eb", "#7c3aed"],
         borderRadius: 4
       }
     ], {
@@ -639,7 +662,7 @@
       {
         label: "Regular Admissions",
         data: progList.map(p => p.admitted),
-        backgroundColor: colors.teal,
+        backgroundColor: progList.map((_, i) => ["#2563eb", "#7c3aed", "#059669", "#d97706", "#dc2626", "#0284c7"][i % 6]),
         borderRadius: 4
       }
     ], {
@@ -649,12 +672,12 @@
     });
 
     // d. Risk Level Breakdown Donut
-    const rc = data.risk_cases_by_severity;
     chart("chart-risk-donut", "doughnut", ["Low", "Medium", "High", "Critical"], [
       {
         data: [rc.LOW || 0, rc.MEDIUM || 0, rc.HIGH || 0, rc.CRITICAL || 0],
-        backgroundColor: [colors.green, colors.orange, colors.red, colors.navy],
-        borderWidth: 0
+        backgroundColor: ["#10b981", "#f59e0b", "#ea580c", "#dc2626"],
+        borderWidth: 0,
+        hoverOffset: 4
       }
     ], {
       cutout: "70%",
@@ -681,21 +704,19 @@
       ["Missing / invalid APAAR", t.missing_invalid_apaar], ["Capacity ≥ 80%", t.capacity_80],
       ["Capacity ≥ 90%", t.capacity_90], ["Capacity ≥ 100%", t.capacity_100], ["Excess attempts", t.excess_admission_attempts]]);
     const severity = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
-    chart("chart-risk", "bar", severity, [{ label: "Cases", data: severity.map(key => data.risk_cases_by_severity[key] || 0), backgroundColor: [colors.green, colors.orange, colors.red, colors.navy] }],
+    chart("chart-risk", "bar", severity, [{ label: "Cases", data: severity.map(key => data.risk_cases_by_severity[key] || 0), backgroundColor: [colors.green, "#f59e0b", "#ea580c", "#dc2626"] }],
       { xTitle: "Risk severity", yTitle: "Cases", onClick: (_, active) => { if (active.length) window.location.assign(`/risk-cases?severity=${encodeURIComponent(severity[active[0].index])}`); } });
-    chart("chart-category", "bar", Object.keys(data.category_wise_enrolment), [{ label: "Students", data: Object.values(data.category_wise_enrolment), backgroundColor: colors.blue }], { xTitle: "Admission category", yTitle: "Students" });
+    const catEnrol = data.category_wise_enrolment || {};
+    const openStudents = catEnrol["OPEN"] || 0;
+    const supernumeraryStudents = Object.entries(catEnrol).filter(([k]) => k !== "OPEN").reduce((acc, [, v]) => acc + v, 0);
+    chart("chart-category", "bar", ["Open (Regular)", "Supernumerary"], [{ label: "Students", data: [openStudents, supernumeraryStudents], backgroundColor: ["#2563eb", "#7c3aed"] }], { xTitle: "Admission quota / category", yTitle: "Students" });
     const years = [...new Set(data.institution_admission_trend.map(row => row.academic_year))].sort();
     const codes = [...new Set(data.institution_admission_trend.map(row => row.institution))].sort();
     chart("chart-trend", "line", years, codes.map((code, index) => ({ label: code,
       data: years.map(year => data.institution_admission_trend.find(row => row.academic_year === year && row.institution === code)?.admissions || 0),
-      borderColor: [colors.navy, colors.orange, colors.green, colors.blue][index % 4], tension: 0 })), { xTitle: "Academic year", yTitle: "Admissions" });
+      borderColor: ["#2563eb", "#ea580c", "#10b981", "#7c3aed"][index % 4], tension: 0 })), { xTitle: "Academic year", yTitle: "Admissions" });
     chart("chart-capacity", "bar", data.capacity_utilisation.map(row => row.code), [{ label: "Utilisation %", data: data.capacity_utilisation.map(row => row.percent),
-      backgroundColor: data.capacity_utilisation.map(row => row.percent >= 100 ? colors.red : row.percent >= 90 ? colors.orange : colors.navy) }], { xTitle: "Institution", yTitle: "Utilisation %" });
-    const events = data.credential_verification_activity;
-    chart("chart-verification", "bar", events.map(row => row.date), [
-      ["VERIFIED", colors.green], ["INVALID", colors.red], ["REVOKED", colors.orange], ["EXPIRED", colors.grey]
-    ].map(([key, color]) => ({ label: key, data: events.map(row => row[key]), backgroundColor: color })),
-    { xTitle: "Day (UTC)", yTitle: "Verifications", stacked: true });
+      backgroundColor: data.capacity_utilisation.map(row => row.percent >= 100 ? "#ef4444" : row.percent >= 90 ? "#f59e0b" : row.percent >= 80 ? "#3b82f6" : "#10b981") }], { xTitle: "Institution", yTitle: "Utilisation %" });
     table("capacity-list", [{ key: "name", label: "Institution" }, { key: "percent", label: "Utilisation", render: value => N.badge(`${value}%`, value >= 100 ? "danger" : value >= 90 ? "warn" : "info") }],
       data.capacity_utilisation.filter(row => row.percent >= 80), "No institution has reached 80% of its selected capacity.");
     table("high-cases", [{ key: "reference", label: "Case", render: (value, row) => cell(value, `/risk-cases/${encodeURIComponent(row.id)}`) },

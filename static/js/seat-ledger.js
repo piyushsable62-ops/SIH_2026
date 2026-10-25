@@ -180,21 +180,22 @@
       utilBadge.textContent = "Capacity Available";
     }
 
-    // Category Breakdown Table
-    const breakdown = s.category_breakdown || {};
-    const categories = ["OPEN", "OBC", "SC", "ST", "EWS", "NRI", "OCI", "FN"];
+    // Category Breakdown Table: Open (Regular) and Supernumerary only
+    const regularCount = s.regular_admitted ?? 0;
+    const supernumeraryCount = s.supernumerary_admitted ?? 0;
 
-    const rowsHtml = categories.map(cat => {
-      const count = breakdown[cat] || 0;
-      return `
-        <tr>
-          <td><strong>${escapeHTML(cat)}</strong></td>
-          <td style="text-align: right; font-variant-numeric: tabular-nums;">${count}</td>
-        </tr>
-      `;
-    }).join("");
+    const rowsHtml = `
+      <tr>
+        <td><strong>Open (Regular)</strong></td>
+        <td style="text-align: right; font-variant-numeric: tabular-nums; font-weight: bold; color: var(--navy);">${regularCount}</td>
+      </tr>
+      <tr>
+        <td><strong>Supernumerary</strong></td>
+        <td style="text-align: right; font-variant-numeric: tabular-nums; font-weight: bold; color: #7c3aed;">${supernumeraryCount}</td>
+      </tr>
+    `;
 
-    catTbody.innerHTML = rowsHtml || '<tr><td colspan="2" class="align-center muted">No records</td></tr>';
+    catTbody.innerHTML = rowsHtml;
 
     // Reset pre-check state when programme changes
     resetPrecheckState();
@@ -220,10 +221,15 @@
 
     // Ensure programmes are loaded, then select IT
     loadProgrammes().then(() => {
-      const itOpt = Array.from(selectProg.options).find(o => o.text.includes("IT") || o.text.includes("Information Technology"));
+      const itOpt = Array.from(selectProg.options).find(o => 
+        o.text.startsWith("BTECH-IT") || 
+        o.text.includes("BTECH-IT") || 
+        o.text.includes("Information Technology")
+      );
       if (itOpt) {
         selectProg.value = itOpt.value;
         loadProgrammeLedger();
+        loadAdmissionEvents(1);
       }
 
       // Generate next student ID above 32

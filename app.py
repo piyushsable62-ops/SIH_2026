@@ -61,7 +61,7 @@ def create_app(config_name: str = None) -> Flask:
             "app_version": app.config.get("APP_VERSION", "1.0.0-prototype"),
             "prototype_banner": app.config.get(
                 "SYNTHETIC_NOTICE",
-                "Prototype — synthetic data only. Not connected to AICTE, APAAR, UIDAI or DigiLocker."
+                ""
             ),
             "show_demo_accounts": app.config.get("SHOW_DEMO_ACCOUNTS", True),
             "ui_paths": {rule.rule for rule in app.url_map.iter_rules() if "GET" in rule.methods},
