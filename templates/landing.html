@@ -113,12 +113,10 @@
   {# Top Navbar (Inspired by PM-AJAY Gov Platform Layout) #}
   <header class="card" style="padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); width: 100%;">
     <div style="display: flex; align-items: center; gap: 16px;">
-      <div style="width: 48px; height: 48px; background: #1e1b4b; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ffffff; font-weight: 800; font-size: 1.25rem; letter-spacing: 0.5px; box-shadow: 0 2px 6px rgba(30,27,75,0.3);">
-        IN
-      </div>
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="APAARSetu Logo" style="width: 48px; height: 48px; border-radius: 12px; object-fit: contain; box-shadow: 0 3px 10px rgba(14,36,68,0.25);">
       <div>
-        <div style="font-size: 1.4rem; font-weight: 800; line-height: 1.2;">
-          <span style="color: #14315c;">APAAR</span><span style="color: #16a34a;">Setu</span> Platform
+        <div class="brand-bordered" style="font-size: 1.55rem; line-height: 1.2;">
+          <span class="brand-apaar">APAAR</span><span class="brand-setu">Setu</span>&nbsp;<span style="font-size: 1.15rem; font-weight: 700; color: #1e293b;">Platform</span>
         </div>
         <div style="font-size: 0.8rem; color: #64748b; font-weight: 500;">Ministry of Education &amp; AICTE Academic Registry</div>
       </div>
@@ -234,8 +232,9 @@
           <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #edf2f7; padding-bottom: 14px; margin-bottom: 18px;">
             <div>
               <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">ACADEMIC ID CARD</div>
-              <div style="font-weight: 800; font-size: 1.12rem; margin-top: 2px;">
-                <span style="color: #14315c;">APAAR</span><span style="color: #16a34a;">Setu</span>
+              <div class="brand-bordered" style="font-size: 1.15rem; margin-top: 2px;">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="" style="width: 22px; height: 22px; border-radius: 5px; object-fit: contain; margin-right: 6px;">
+                <span class="brand-apaar">APAAR</span><span class="brand-setu">Setu</span>
               </div>
             </div>
             <span style="background: #e6f4ea; color: #137333; font-size: 0.76rem; font-weight: 700; padding: 5px 12px; border-radius: 6px; letter-spacing: 0.5px;">
@@ -281,8 +280,9 @@
   <div class="card" id="about" style="padding: 40px 36px; scroll-margin-top: 70px; border-radius: 14px; width: 100%;">
     <div class="grid grid-2" style="gap: 40px; align-items: center;">
       <div>
-        <h2 style="font-size: 1.75rem; margin-bottom: 14px;">
-          About <span style="color: #14315c;">APAAR</span><span style="color: #16a34a;">Setu</span>
+        <h2 style="font-size: 1.75rem; margin-bottom: 14px; display: flex; align-items: center; gap: 10px;">
+          <img src="{{ url_for('static', filename='img/logo.png') }}" alt="" style="width: 32px; height: 32px; border-radius: 8px; object-fit: contain;">
+          <span>About <span class="brand-text" style="color: #14315c;">APAAR</span><span class="brand-text" style="color: #16a34a;">Setu</span></span>
         </h2>
         <p style="color: var(--text); line-height: 1.7; font-size: 0.98rem; margin-bottom: 14px;">
           <strong><span style="color: #14315c;">APAAR</span><span style="color: #16a34a;">Setu</span></strong> serves as the digital bridge connecting students, institutions, and regulatory coordinators into a cohesive, verified academic framework. By anchoring institutional admissions to unique academic identifiers, the platform guarantees that each student's educational trajectory is permanently recorded, validated, and protected against duplication.
@@ -318,8 +318,9 @@
 
   {# APAARSetu Benefits Section #}
   <div class="card" id="benefits" style="padding: 40px 36px; scroll-margin-top: 70px; border-radius: 14px; width: 100%;">
-    <h2 style="font-size: 1.75rem; margin-bottom: 24px;">
-      <span style="color: #14315c;">APAAR</span><span style="color: #16a34a;">Setu</span> Benefits
+    <h2 style="font-size: 1.75rem; margin-bottom: 24px; display: flex; align-items: center; gap: 10px;">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="" style="width: 32px; height: 32px; border-radius: 8px; object-fit: contain;">
+      <span><span class="brand-text" style="color: #14315c;">APAAR</span><span class="brand-text" style="color: #16a34a;">Setu</span> Benefits</span>
     </h2>
 
     <div class="grid grid-3" style="gap: 28px;">
@@ -364,8 +365,9 @@
   {# How APAARSetu Works Section (Connected Circle Stepper) #}
   <div class="card" id="how-it-works" style="padding: 40px 36px; scroll-margin-top: 70px; border-radius: 14px; width: 100%;">
     <div style="text-align: center; max-width: 720px; margin: 0 auto 36px;">
-      <h2 style="font-size: 1.8rem; margin-bottom: 8px;">
-        How <span style="color: #14315c;">APAAR</span><span style="color: #16a34a;">Setu</span> Works
+      <h2 style="font-size: 1.8rem; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="" style="width: 34px; height: 34px; border-radius: 8px; object-fit: contain;">
+        <span>How <span class="brand-text" style="color: #14315c;">APAAR</span><span class="brand-text" style="color: #16a34a;">Setu</span> Works</span>
       </h2>
       <p style="color: var(--muted); font-size: 0.98rem; margin: 0;">
         A transparent, 4-stage governance framework ensuring record integrity from enrolment to credential issuance.
@@ -650,8 +652,10 @@
   {% endif %}
 
   {# Footer #}
-  <footer style="text-align: center; color: var(--muted); font-size: 0.88rem; padding: 16px 0;">
-    <span style="color: #14315c; font-weight: 700;">APAAR</span><span style="color: #16a34a; font-weight: 700;">Setu</span> &bull; AICTE Approved Technical Institution Academic Registry &amp; Verification Portal
+  <footer style="text-align: center; color: var(--muted); font-size: 0.88rem; padding: 20px 0; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
+    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="" style="width: 24px; height: 24px; border-radius: 6px; object-fit: contain;">
+    <span class="brand-text" style="font-size: 1.05rem;"><span style="color: #14315c; font-weight: 800;">APAAR</span><span style="color: #16a34a; font-weight: 800;">Setu</span></span>
+    <span>&bull; AICTE Approved Technical Institution Academic Registry &amp; Verification Portal</span>
   </footer>
 
 </div>
