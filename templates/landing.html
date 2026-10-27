@@ -137,6 +137,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Programs
       </a>
+      <a href="#security" class="nav-pill-btn nav-pill-ghost">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Security &amp; Crypto
+      </a>
       <a href="#demo-access" class="nav-pill-btn nav-pill-ghost">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Demo Roles
@@ -208,7 +212,11 @@
           </div>
           <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 12px 20px; backdrop-filter: blur(8px);">
             <div style="font-size: 1.35rem; font-weight: 800; color: #60a5fa; line-height: 1.2;">Ed25519</div>
-            <div style="font-size: 0.74rem; color: #94a3b8; text-transform: uppercase; font-weight: 600; margin-top: 3px;">Verifiable Passports</div>
+            <div style="font-size: 0.74rem; color: #94a3b8; text-transform: uppercase; font-weight: 600; margin-top: 3px;">Digital Signatures</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 12px 20px; backdrop-filter: blur(8px);">
+            <div style="font-size: 1.35rem; font-weight: 800; color: #f59e0b; line-height: 1.2;">RBAC</div>
+            <div style="font-size: 0.74rem; color: #94a3b8; text-transform: uppercase; font-weight: 600; margin-top: 3px;">Flask-Login Shield</div>
           </div>
         </div>
       </div>
@@ -441,6 +449,134 @@
         </p>
         <div style="font-size: 0.85rem; color: var(--muted); background: var(--bg); padding: 8px 12px; border-radius: 4px;">
           <strong>Result:</strong> Third-party employers and verifiers authenticate degrees in milliseconds offline.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Security & Cryptographic Architecture Section #}
+  <div class="card" id="security" style="padding: 40px 36px; scroll-margin-top: 70px; border-radius: 14px; width: 100%;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 28px; border-bottom: 1px solid var(--border); padding-bottom: 20px;">
+      <div>
+        <div style="font-size: 0.8rem; font-weight: 750; color: #16a34a; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 6px;">
+          Security &amp; Cryptographic Architecture
+        </div>
+        <h2 style="font-size: 1.85rem; margin: 0 0 8px; color: var(--navy);">
+          Protected by <span style="color: #14315c;">Flask-Login RBAC</span> &amp; <span style="color: #16a34a;">Ed25519 Cryptography</span>
+        </h2>
+        <p style="color: var(--muted); font-size: 0.96rem; margin: 0; max-width: 780px; line-height: 1.6;">
+          APAARSetu safeguards the national academic ecosystem against unauthorized tampering, privilege escalation, and credential forgery through rigorous defense-in-depth engineering.
+        </p>
+      </div>
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <span class="badge badge-ok" style="font-size: 0.82rem; padding: 6px 12px; font-weight: 700;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px; vertical-align: middle;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Multi-Tenant RBAC
+        </span>
+        <span class="badge badge-info" style="font-size: 0.82rem; padding: 6px 12px; font-weight: 700;">
+          RFC 8032 Asymmetric Signatures
+        </span>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="gap: 28px;">
+      {# Pillar 1: Flask-Login + RBAC #}
+      <div style="background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--navy); border-radius: var(--radius); padding: 28px 24px; box-shadow: 0 4px 12px rgba(20,49,92,0.04); display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+            <div style="width: 44px; height: 44px; background: rgba(20,49,92,0.08); color: var(--navy); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <div>
+              <div style="font-size: 1.18rem; font-weight: 750; color: var(--navy); line-height: 1.2;">Flask-Login + Granular RBAC</div>
+              <div style="font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Secure Authentication &amp; Tenancy Isolation</div>
+            </div>
+          </div>
+          <p style="font-size: 0.9rem; color: var(--text); line-height: 1.55; margin-bottom: 18px;">
+            Every user request is authenticated and constrained at the server level, preventing unauthorized access and cross-institutional data leakage.
+          </p>
+
+          <div class="stack" style="gap: 12px;">
+            <div style="display: flex; gap: 10px; align-items: flex-start; font-size: 0.88rem; color: var(--text);">
+              <span style="color: var(--ok); font-weight: 800; font-size: 1rem; line-height: 1.2;">&check;</span>
+              <div>
+                <strong>Server-Side Role Decorators:</strong> Strict <code>@roles_required</code> server enforcement across <code>AICTE_ADMIN</code>, <code>INSTITUTION_ADMIN</code>, <code>STUDENT</code>, and <code>AUDITOR</code>. Front-end checks are purely cosmetic.
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: flex-start; font-size: 0.88rem; color: var(--text);">
+              <span style="color: var(--ok); font-weight: 800; font-size: 1rem; line-height: 1.2;">&check;</span>
+              <div>
+                <strong>Multi-Tenant Database Scoping:</strong> <code>services/authz.py</code> automatically restricts ORM queries. An institution admin (e.g. VESIT) is mathematically prevented from viewing or modifying COEP or VJTI records.
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: flex-start; font-size: 0.88rem; color: var(--text);">
+              <span style="color: var(--ok); font-weight: 800; font-size: 1rem; line-height: 1.2;">&check;</span>
+              <div>
+                <strong>Cryptographic Session Security:</strong> Signed session cookies with <code>HttpOnly</code> and <code>SameSite=Lax</code> protections. Passwords are securely hashed with Werkzeug (scrypt/PBKDF2).
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: flex-start; font-size: 0.88rem; color: var(--text);">
+              <span style="color: var(--ok); font-weight: 800; font-size: 1rem; line-height: 1.2;">&check;</span>
+              <div>
+                <strong>Brute-Force &amp; Stuffing Shield:</strong> Thread-safe in-memory <code>LoginRateLimiter</code> automatically locks accounts and client IPs after repeated authentication failures.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid #edf2f7; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 0.78rem; color: var(--muted); font-weight: 600;">ENFORCEMENT: SERVER-SIDE STRICT</span>
+          <span class="badge badge-info" style="font-size: 0.74rem;">ZERO PRIVILEGE ESCALATION</span>
+        </div>
+      </div>
+
+      {# Pillar 2: Ed25519 Cryptography #}
+      <div style="background: var(--surface); border: 1px solid var(--border); border-top: 4px solid #16a34a; border-radius: var(--radius); padding: 28px 24px; box-shadow: 0 4px 12px rgba(22,163,74,0.04); display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+            <div style="width: 44px; height: 44px; background: rgba(22,163,74,0.08); color: #16a34a; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 15 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10"/></svg>
+            </div>
+            <div>
+              <div style="font-size: 1.18rem; font-weight: 750; color: var(--navy); line-height: 1.2;">Ed25519 Cryptography</div>
+              <div style="font-size: 0.8rem; color: #16a34a; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Asymmetric Digital Signatures &amp; Verifiable QR</div>
+            </div>
+          </div>
+          <p style="font-size: 0.9rem; color: var(--text); line-height: 1.55; margin-bottom: 18px;">
+            Academic milestone credentials and passports are mathematically sealed against forgery using state-of-the-art elliptic-curve cryptography.
+          </p>
+
+          <div class="stack" style="gap: 12px;">
+            <div style="display: flex; gap: 10px; align-items: flex-start; font-size: 0.88rem; color: var(--text);">
+              <span style="color: #16a34a; font-weight: 800; font-size: 1rem; line-height: 1.2;">&check;</span>
+              <div>
+                <strong>Asymmetric Edwards-Curve Signatures:</strong> Uses RFC 8032 Ed25519 cryptography providing 128-bit security, immune to side-channel timing attacks and collision vulnerabilities.
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: flex-start; font-size: 0.88rem; color: var(--text);">
+              <span style="color: #16a34a; font-weight: 800; font-size: 1rem; line-height: 1.2;">&check;</span>
+              <div>
+                <strong>RFC 8785 Canonical JSON (JCS):</strong> Payloads are serialized in deterministic, sorted UTF-8 byte streams before signing, eliminating whitespace and JSON malleability exploits.
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: flex-start; font-size: 0.88rem; color: var(--text);">
+              <span style="color: #16a34a; font-weight: 800; font-size: 1rem; line-height: 1.2;">&check;</span>
+              <div>
+                <strong>Zero-Network Offline Verification:</strong> Verification requires only the public key. Employers and universities can verify credentials offline without querying active internal databases.
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: flex-start; font-size: 0.88rem; color: var(--text);">
+              <span style="color: #16a34a; font-weight: 800; font-size: 1rem; line-height: 1.2;">&check;</span>
+              <div>
+                <strong>Mathematical Non-Repudiation:</strong> Tampering with even 1 byte (such as modifying student grades or award year) instantly causes signature mathematical invalidation.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid #edf2f7; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 0.78rem; color: var(--muted); font-weight: 600;">VERIFICATION: ED25519 PUBLIC KEY</span>
+          <span class="badge badge-ok" style="font-size: 0.74rem;">TAMPER-EVIDENT GUARANTEE</span>
         </div>
       </div>
     </div>
